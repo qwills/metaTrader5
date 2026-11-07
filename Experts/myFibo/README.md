@@ -1,4 +1,4 @@
-# myFibo 2.14
+# myFibo 2.18
 
 EA untuk memilih anchor dan menggambar Fibonacci **50%, 61.8%, 78.6%**.
 GUI memakai Standard Library `CAppDialog`, objek gambar `OBJ_FIBO` berwarna hitam.
@@ -141,7 +141,7 @@ Asal anchor dari schema lama ditampilkan Unknown karena dulu belum dicatat.
 2. CMD memprioritaskan ZIP yang berdampingan dibanding folder MQL5 lama, lalu
    mengekstrak dan menyalin isi folder MQL5. Tidak ada manifest/hash/version check.
 3. File paket langsung ditimpa, tanpa backup Windows; proyek lain tidak dihapus.
-4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.14.
+4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.18.
 
 Tujuan default:
 `C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A`.
@@ -151,20 +151,23 @@ Windows, instalasi bisa parsial; perbaiki penyebab lalu jalankan ulang CMD.
 ## Validasi
 
 ```
+python3 tests/check_fibonacci.py
 python3 tests/check_swing_detector.py
 python3 tests/check_market_structure.py
 python3 tests/check_myfibo_modes.py
 python3 tests/check_myfibo_regressions.py
 python3 tools/package_myfibo.py
 python3 tools/package_myfibo.py --check
+python3 tools/check_release_packages.py
 ```
 
 Runner memakai source MQL melalui adapter C++ dan fake MT5/GUI; 153 pemeriksaan
 struktur, 46 detector, serta regression controller/geometry/streaming. Bukan
 compiler MQL5. F7, native popup/minimize/drag, render chart, server CopyRates, dan
-CMD/PowerShell masih perlu diuji Windows. Script native untuk 153 pemeriksaan ada
-di Scripts/Structure/MarketStructureExample.mq5. Tidak ada EX5 dalam ZIP.
+CMD/PowerShell masih perlu diuji Windows. 153 pemeriksaan struktur disimpan di
+tests/fixtures/market_structure_checks.mqh untuk pengembangan; tidak dipasang ke
+MetaTrader. Tidak ada program contoh, fixture test atau EX5 dalam ZIP.
 
 Referensi Standard Library lokal: docs/reference/standard-library-guide.md di
 workspace, atau reference/standard-library-guide.md dalam ZIP. Riwayat versi ada
-di CHANGELOG.md; perbaikan review dirinci di docs/myFibo-review-2.10.md.
+di CHANGELOG.md; perbaikan review dirinci di docs/history/myFibo-review-2.10.md.

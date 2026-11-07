@@ -514,7 +514,7 @@ def main():
                         '-fsanitize=address,undefined','-fno-sanitize-recover=all',str(cpp),'-o',str(binary)],check=True)
         subprocess.run([str(binary)],check=True)
         ui_platform = PLATFORM.replace('const ENUM_TIMEFRAMES _Period', '[[maybe_unused]] const ENUM_TIMEFRAMES _Period')
-        native_checks = (ROOT/'Scripts/Structure/MarketStructureExample.mq5').read_text()
+        native_checks = (ROOT/'tests/fixtures/market_structure_checks.mqh').read_text()
         break_fixture = adapt(native_checks[native_checks.index('void BreakFixture('):native_checks.index('void RunBreakChecks(')])
         structure_code = SHIM + PLATFORM + types + libraries + DIALOG + '\nstruct MyFiboSnapshot;\n' + prototypes + source + helper + break_fixture + STRUCTURE_TESTS
         cpp.write_text(structure_code)

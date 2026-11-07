@@ -10,10 +10,10 @@ Project path:
 <workspace>/Experts/exeAutoSL
 ```
 
-The compile helper lives two levels up, at the workspace root:
+The compile helper lives under tools/ at the workspace root:
 
 ```bash
-../../compile_mql5.sh ExeAutoSL.mq5 compile.log
+../../tools/compile_mql5.sh ExeAutoSL.mq5 compile.log
 ```
 
 The helper launches MetaTrader's bundled Wine/MetaEditor and writes a UTF-16 compile log. Running it may require access outside the workspace because it uses the installed MetaTrader/Wine environment.
@@ -23,7 +23,7 @@ The helper launches MetaTrader's bundled Wine/MetaEditor and writes a UTF-16 com
 After code changes, compile with:
 
 ```bash
-../../compile_mql5.sh ExeAutoSL.mq5 compile.log
+../../tools/compile_mql5.sh ExeAutoSL.mq5 compile.log
 ```
 
 Expected clean result:

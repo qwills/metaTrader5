@@ -2,7 +2,8 @@
 
 Kumpulan EA, indikator, library MQL5, dan Pine Script. Panduan compiler dan
 alternatif build tanpa instalasi MT5 di Mac ada di [docs/BUILD.md](docs/BUILD.md).
-Hasil pemeriksaan ada di [docs/REVIEW.md](docs/REVIEW.md).
+Hasil pemeriksaan awal ada di [docs/history/REVIEW.md](docs/history/REVIEW.md);
+review source dan paket terbaru di [docs/package-review.md](docs/package-review.md).
 
 ```text
 Experts/
@@ -18,55 +19,56 @@ Include/
   Fibo/           Library Fibonacci.mqh
   Swing/          CSwingDetector dan tipe swing terkonfirmasi
   Structure/      CMarketStructure: pivot, arah, BOS/CHoCH
-Scripts/
-  Fibo/           Contoh sekaligus pemeriksaan library Fibonacci
-  Swing/          46 pemeriksaan deterministik CSwingDetector
-  Structure/      153 pemeriksaan pivot, arah, BOS/CHoCH dan streaming
 PineScript/
   smc.txt         Source Pine Script, terpisah dari MQL5
 archive/
-  backups/        Backup lengkap sebelum perapihan
-  packages/       ZIP rilis lama EA1 dengan layout aslinya
+  backups/        Arsip sebelum perapihan, program contoh dihapus
+  packages/       ZIP rilis lama EA1/myFibo, tanpa program contoh
   logs/           Log kompilasi historis, bukan hasil validasi saat ini
-  finder/         Metadata Finder lama
+  metadata/       Metadata dan catatan perapihan lama
 distribution/
   myFibo/         ZIP struktur MQL5, installer Windows .cmd, petunjuk
-  swingDetector/  Class, script pemeriksaan, dan CMD install/build Windows
-compile_mql5.sh   Helper kompilasi macOS/Wine dan pemeriksaan --doctor
-docs/            Panduan build, review, dan manifest pemindahan
-tests/           Detector, structure, controller, geometry, checkpoint dan GUI melalui adapter
-tools/           Builder/validator ZIP myFibo
+docs/            Panduan aktif, reference API, dan history/ untuk dokumen lama
+tests/           Fibonacci, detector, structure, controller dan GUI melalui adapter
+tools/           Helper build, builder/validator paket, history/ untuk helper lama
 ```
 
 Varian pending dan market dikelompokkan sebagai EA, tetapi kode tidak disatukan:
 perilaku order dan isi header berbeda meskipun beberapa nama file sama.
-Workspace memakai repositori Git di root. Untuk initial commit, jalankan
-`bash tools/first_commit.sh` dari Terminal. Helper mengimpor source kedua subproyek
-sebagai file biasa dan memindahkan metadata Git lamanya ke
-`archive/git-history/` (diabaikan Git), sehingga histori dan perubahan lokal tetap
-tersimpan. Helper hanya berjalan jika root belum memiliki commit. ZIP, EX5,
-log dan arsip lokal tidak masuk commit.
+Workspace memakai satu repositori Git di root. ZIP, EX5, log dan arsip lokal
+berada di `.gitignore`. Metadata repositori lama dipertahankan di
+`archive/git-history/`. Helper initial commit lama dipindahkan ke `tools/history/`;
+tidak diperlukan untuk commit harian.
 
 ```bash
-./compile_mql5.sh --doctor
+./tools/compile_mql5.sh --doctor
 # Setelah compiler tersedia:
-./compile_mql5.sh Experts/AutoSL/AutoSL.mq5
+./tools/compile_mql5.sh Experts/AutoSL/AutoSL.mq5
 ```
 
 File `.ex5` yang ada adalah hasil build lama dan dipertahankan. File itu belum
 dikompilasi ulang atau diuji di MT5 pada sesi perapihan ini. Pada sesi perapihan, source lama hanya berubah pada path include Fibonacci
-di EA1 dan contoh library; logika trading tetap sama. EA baru `myFibo` belum
+di EA1; logika trading tetap sama. EA baru `myFibo` belum
 memiliki binary hasil kompilasi.
 
 Untuk instalasi, gunakan **File > Open Data Folder** pada terminal tujuan.
 Salin `.ex5` dari `Experts` ke `MQL5/Experts`, dari `Indicators` ke
-`MQL5/Indicators`, dan dari `Scripts` ke `MQL5/Scripts`. Gunakan folder proyeknya
+`MQL5/Indicators`. Gunakan folder proyeknya
 agar nama tidak bertabrakan. Saat membangun source di terminal, pertahankan
-struktur `Experts`, `Include`, dan `Scripts` di bawah satu root.
+struktur `Experts` dan `Include` di bawah satu root.
 
 Backup sebelum perubahan dan hash file asli tercatat di
-[docs/cleanup-manifest.json](docs/cleanup-manifest.json). Backup lengkap disimpan di `archive/backups/`; salinan sementara juga tersedia
-di `/private/tmp`.
+[docs/history/cleanup-manifest.json](docs/history/cleanup-manifest.json). Arsip disimpan di `archive/backups/`; isinya telah dibersihkan dari program contoh.
 
 Referensi Standard Library lokal: [panduan](docs/reference/standard-library-guide.md).
 Downloader manual resmi Windows ada di `docs/reference/download-reference.cmd`.
+
+Semua program contoh telah dihapus dari source dan paket ZIP, termasuk arsip
+rilis lokal. Pemeriksaan library berada di `tests/fixtures/`, dijalankan melalui
+runner `tests/check_*.py`, dan tidak diinstal ke MetaTrader. EA1 tetap dipertahankan
+sebagai EA yang dapat digunakan. Arsip lama telah dikemas ulang tanpa contoh;
+catatan hash pemindahan lama merupakan catatan historis sebelum perubahan ini.
+
+Mulai dari indeks [docs](docs/README.md), [tools](tools/README.md),
+[tests](tests/README.md), atau [distribution](distribution/README.md). Folder source
+mempertahankan layout MetaEditor; binary EX5 lama tetap di samping source.

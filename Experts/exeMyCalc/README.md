@@ -42,7 +42,7 @@ The EA normalizes price and volume to the symbol settings and validates broker s
 From this directory:
 
 ```bash
-../../compile_mql5.sh ExeMyCalc.mq5 compile.log
+../../tools/compile_mql5.sh ExeMyCalc.mq5 compile.log
 ```
 
 A successful build prints:

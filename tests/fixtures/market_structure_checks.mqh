@@ -1,6 +1,4 @@
-#property strict
-#property version "1.20"
-#property description "Deterministic pivot, direction and causal BOS/CHoCH checks; no orders."
+// Development-only test fixtures; not an installable MetaTrader script.
 #include <Structure\MarketStructure.mqh>
 
 int g_failures = 0;
@@ -194,7 +192,7 @@ void RunStreamingChecks(void)
    checkpoint.previous_close = EMPTY_VALUE;
    Check(!restored.RestoreCheckpoint(checkpoint, events), "Invalid checkpoint rejected");
 }
-void OnStart(void)
+void RunMarketStructureChecks(void)
 {
    RunBreakChecks();
    RunStreamingChecks();

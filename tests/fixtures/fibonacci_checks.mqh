@@ -1,15 +1,14 @@
-#property strict
-#property script_show_inputs
+// Development-only CFibonacci checks; no script entry point or input demo.
 
-#include "..\..\Include\Fibo\Fibonacci.mqh"
+#include <Fibo\Fibonacci.mqh>
 
-input double InpSwingStart = 100.0;
-input double InpSwingEnd = 200.0;
 
 int g_failures = 0;
+int g_checks = 0;
 
 void Check(const bool condition, const string description)
 {
+   g_checks++;
    if(condition)
       return;
    g_failures++;
@@ -21,7 +20,7 @@ bool Near(const double actual, const double expected)
    return actual != EMPTY_VALUE && MathAbs(actual - expected) < 0.00000001;
 }
 
-void RunChecks(void)
+void RunFibonacciChecks(void)
 {
    CFibonacci fib;
    Check(!fib.IsReady(), "Starts without anchors");
@@ -49,23 +48,6 @@ void RunChecks(void)
    Check(!fib.SetLevels(empty), "Reject empty levels");
    Check(!fib.SetLevels(invalid), "Reject sentinel ratio");
    Check(fib.LevelCount() == 3, "Failed updates preserve levels");
-   PrintFormat("Fibonacci checks: %d failure(s)", g_failures);
+   PrintFormat("Fibonacci checks: %d checks, %d failure(s)", g_checks, g_failures);
 }
 
-void OnStart(void)
-{
-   RunChecks();
-   if(g_failures != 0)
-      return;
-
-   CFibonacci fib;
-   if(!fib.SetAnchors(InpSwingStart, InpSwingEnd))
-   {
-      Print("Invalid anchors: supply distinct, finite prices.");
-      return;
-   }
-
-   for(int i = 0; i < fib.LevelCount(); i++)
-      PrintFormat("%.1f%% retracement: %.8f",
-                  fib.LevelRatio(i) * 100.0, fib.LevelPrice(i));
-}

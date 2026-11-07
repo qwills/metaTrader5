@@ -6,7 +6,7 @@ sebagai acuan signature build pengguna. Jangan berulang kali browsing untuk API
 yang sudah tercakup; cari dokumentasi resmi bila referensi lokal kurang atau perlu
 memastikan perubahan/perilaku versi terbaru.
 
-Source custom ada di Experts, Include, Scripts. Standard Library terminal tidak
+Source custom ada di Experts, Indicators, Include; pemeriksaan di tests. Standard Library terminal tidak
 dibundel. Include bersama memakai `<...>`; header saudara memakai `"..."`.
 
 Validasi perubahan myFibo dengan runner yang relevan di tests dan
@@ -22,3 +22,10 @@ file instalasi. Preferensi ini tidak menghapus arsip rilis lokal yang sudah ada.
 
 Installer Windows cukup ekstrak ZIP dan copy/overwrite isi folder MQL5. Jangan
 menambahkan manifest.json atau pemeriksaan hash/versi pada installer.
+
+Paket distribusi tidak boleh berisi program contoh, Scripts, atau fixture tests.
+
+Panduan folder ada di README.md dan docs/README.md. Review lama/inventaris awal
+ada di docs/history; helper compiler ada di tools/compile_mql5.sh. Arsip rilis
+berada di archive/packages/<project>, paket aktif tetap distribution/<project>.
+Pertahankan layout native Experts/Indicators/Include dan relative include.

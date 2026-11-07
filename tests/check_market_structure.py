@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run native MarketStructure test bodies through the shared C++ adapter."""
+"""Run development-only MarketStructure checks through the shared C++ adapter."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,9 +14,9 @@ def main():
         raise SystemExit('C++17 compiler required.')
     sources = ['Include/Swing/SwingTypes.mqh', 'Include/Swing/SwingDetector.mqh',
                'Include/Structure/MarketStructure.mqh',
-               'Scripts/Structure/MarketStructureExample.mq5']
+               'tests/fixtures/market_structure_checks.mqh']
     code = SHIM + '\n'.join(adapt((ROOT/name).read_text()) for name in sources)
-    code += '\nint main(){OnStart();return g_failures == 0 ? 0 : 1;}\n'
+    code += '\nint main(){RunMarketStructureChecks();return g_failures == 0 ? 0 : 1;}\n'
     with tempfile.TemporaryDirectory(prefix='market-structure-') as folder:
         cpp = Path(folder)/'checks.cpp'
         binary = Path(folder)/'checks'

@@ -42,10 +42,10 @@ Alternatively, install the folder under `MQL5/Include/Fibo` and use
   numeric inputs, or overflow. Check this sentinel before using results.
 - Normalize executable prices to the consuming symbol's tick size when needed.
 
-## Example and checks
+## Development checks
 
-The example now lives at `../../Scripts/Fibo/FibonacciExample.mq5` and uses a
-relative include to this library. Preserve `Include/Fibo` and `Scripts/Fibo`
-under the same root, compile the example in MetaEditor, then run it on a chart. It checks upward/downward retracements,
-endpoints, invalid updates, indices, and custom projections, then prints levels
-for the input anchors. The Experts log should show `Fibonacci checks: 0 failure(s)`.
+Run `python3 tests/check_fibonacci.py` from the workspace. Checks in
+`tests/fixtures/fibonacci_checks.mqh` cover upward/downward retracements,
+endpoints, invalid updates, indices and custom projections. They use a C++
+adapter with sanitizers, not native MQL5 compilation. No example program or test
+fixture is installed in the release packages.

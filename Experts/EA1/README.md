@@ -11,7 +11,7 @@ Include/Fibo/Fibonacci.mqh
 
 The relative include uses `../../Include/Fibo/Fibonacci.mqh`.
 For installation, copy the compiled `EA1.ex5` to the terminal's `MQL5/Experts/EA1/`.
-The previous packaged release is retained in `archive/packages/EA1.zip`; it uses
+The previous packaged release is retained in `archive/packages/EA1/EA1.zip`; it uses
 its original folder layout. Do not mix that archive's layout with this workspace.
 
 Compile `EA1.mq5` with MetaEditor, then attach EA1 to a chart.

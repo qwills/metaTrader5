@@ -1,0 +1,11 @@
+# Documentation
+
+- [Build guide](BUILD.md): MetaEditor on Windows and optional Wine helper on macOS.
+- [Package review](package-review.md): current cleanup findings and validation limits.
+- [Standard Library guide](reference/standard-library-guide.md): local API guidance.
+  The adjacent download-reference.cmd downloads official PDF/CHM manuals.
+- [Historical documents](history/README.md): earlier reviews and the original file
+  inventory. These describe earlier snapshots and may contain old paths.
+
+Documentation is for development and does not run as part of an EA. Release ZIPs
+include the Standard Library guide and their own installation instructions.

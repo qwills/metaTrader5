@@ -42,7 +42,7 @@ The EA normalizes prices and lot size to the symbol settings, calculates risk wi
 From this directory:
 
 ```bash
-../../compile_mql5.sh ExeAutoSL.mq5 compile.log
+../../tools/compile_mql5.sh ExeAutoSL.mq5 compile.log
 ```
 
 A successful build prints:

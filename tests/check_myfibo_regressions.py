@@ -16,7 +16,7 @@ prototypes='\n'.join(re.sub(r'=\s*(true|false)','',sig[:-1].strip())+';' for sig
 types=adapt((ROOT/'Experts/myFibo/MyFiboTypes.mqh').read_text())
 libraries='\n'.join(adapt((ROOT/name).read_text()) for name in ['Include/Swing/SwingTypes.mqh','Include/Swing/SwingDetector.mqh','Include/Structure/MarketStructure.mqh','Include/Fibo/Fibonacci.mqh','Experts/myFibo/MyFiboAuto.mqh','Experts/myFibo/MyFiboChart.mqh','Experts/myFibo/MyFiboState.mqh'])
 helper=suite.TESTS[:suite.TESTS.index('int main(){')]
-native=(ROOT/"Scripts/Structure/MarketStructureExample.mq5").read_text()
+native=(ROOT/"tests/fixtures/market_structure_checks.mqh").read_text()
 break_fixture=adapt(native[native.index("void BreakFixture("):native.index("void RunBreakChecks(")])
 audit=r'''
 

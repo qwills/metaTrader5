@@ -15,11 +15,11 @@ menggantikan MetaEditor untuk menghasilkan `.ex5`.
 ## macOS dengan instalasi Wine/MetaEditor yang tersedia
 
 ```bash
-./compile_mql5.sh --doctor
-./compile_mql5.sh Experts/AutoSL/AutoSL.mq5
+./tools/compile_mql5.sh --doctor
+./tools/compile_mql5.sh Experts/AutoSL/AutoSL.mq5
 # Atau dari folder proyek:
 cd Experts/AutoSL
-../../compile_mql5.sh AutoSL.mq5 compile.log
+../../tools/compile_mql5.sh AutoSL.mq5 compile.log
 ```
 
 Helper menggunakan `$HOME` untuk prefix default dan mencari Wine di bundle MT5
@@ -30,8 +30,8 @@ export WINE64="/path/to/wine64"
 export WINEPREFIX="$HOME/path/to/existing-wine-prefix"
 export METAEDITOR="$WINEPREFIX/drive_c/Program Files/MetaTrader 5/metaeditor64.exe"
 export MQL5_ROOT="$WINEPREFIX/drive_c/Program Files/MetaTrader 5/MQL5"
-./compile_mql5.sh --doctor
-./compile_mql5.sh Experts/exeMyCalc/ExeMyCalc.mq5
+./tools/compile_mql5.sh --doctor
+./tools/compile_mql5.sh Experts/exeMyCalc/ExeMyCalc.mq5
 ```
 
 `METAEDITOR` berupa path Unix, bukan `C:\...`. `MQL5_ROOT` menunjuk folder **MQL5**
@@ -54,8 +54,8 @@ struktur foldernya tetap utuh. Pilihan ini memindahkan proses build dari Mac;
 compiler MetaEditor tetap diperlukan pada mesin tujuan.
 
 Cara GUI: buka `.mq5` di MetaEditor, tekan F7, periksa Errors, lalu ambil `.ex5`
-di sebelah source. Untuk EA1 dan contoh Fibonacci, pertahankan folder relatif
-`Experts`, `Include`, dan `Scripts`.
+di sebelah source. Untuk EA1 dan myFibo, pertahankan folder relatif
+`Experts` dan `Include`. Program contoh tidak disertakan dalam paket.
 
 Cara command line di PowerShell (sesuaikan ketiga path):
 

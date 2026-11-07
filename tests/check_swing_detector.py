@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Run the MQL test script through a C++ array adapter, not a MetaEditor compiler.
+"""Run development-only swing checks through a C++ adapter, not MetaEditor.
 
 Only MQL dynamic-array declarations/reference types and enum backing types are translated. The detector
-algorithm and test bodies are shared verbatim with the native MQL5 example.
+algorithm and development-only MQL test bodies are exercised directly.
 """
 from pathlib import Path
 import re
@@ -60,9 +60,9 @@ def main():
     if not compiler:
         raise SystemExit('A C++17 compiler is required for this compatibility check.')
     sources = [ROOT/'Include/Swing/SwingTypes.mqh', ROOT/'Include/Swing/SwingDetector.mqh',
-               ROOT/'Scripts/Swing/SwingDetectorExample.mq5']
+               ROOT/'tests/fixtures/swing_detector_checks.mqh']
     code = SHIM + '\n'.join(adapt(p.read_text()) for p in sources)
-    code += '\nint main() { OnStart(); return g_failures == 0 ? 0 : 1; }\n'
+    code += '\nint main() { RunSwingDetectorChecks(); return g_failures == 0 ? 0 : 1; }\n'
     with tempfile.TemporaryDirectory(prefix='swing-detector-') as folder:
         cpp = Path(folder)/'checks.cpp'
         binary = Path(folder)/'checks'

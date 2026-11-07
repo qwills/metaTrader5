@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run once in your own Terminal to import the workspace into its root repository.
 set -euo pipefail
-cd -- "$(dirname -- "$0")/.."
+cd -- "$(dirname -- "$0")/../.."
 
 git rev-parse --git-dir >/dev/null
 if git rev-parse --verify HEAD >/dev/null 2>&1; then

@@ -52,8 +52,9 @@ within cached overlap and requires explicit reseed for gaps without overlap.
 
 ## Verification
 
-`Scripts/Structure/MarketStructureExample.mq5`: 153 deterministic conditions, no
-orders or objects. Build/run it in Windows. `python3 tests/check_market_structure.py`
-runs the same source via C++ adapter with sanitizers. Additional rolling-window and
-checkpoint-storage regressions are in `tests/check_myfibo_regressions.py`.
-These checks do not replace native MetaEditor compilation/rendering verification.
+`tests/fixtures/market_structure_checks.mqh`: 153 development-only deterministic
+conditions, no orders or chart objects. `python3 tests/check_market_structure.py`
+runs these fixtures through the C++ adapter with sanitizers. Additional rolling-window
+and checkpoint-storage regressions are in `tests/check_myfibo_regressions.py`.
+Tests are not included in the Windows package; the example MetaTrader script has
+been removed. These checks do not replace native F7/GUI verification of the EA.

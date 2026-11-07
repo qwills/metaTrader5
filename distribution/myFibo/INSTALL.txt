@@ -1,4 +1,4 @@
-myFibo 2.14 - Windows (source)
+myFibo 2.18 - Windows (source)
 
 1. Simpan myFibo.zip dan install-myFibo.cmd rilis yang sama berdampingan, lalu
    jalankan CMD. Atau ekstrak lengkap ZIP dan jalankan CMD dari hasil ekstrak.
@@ -6,7 +6,7 @@ myFibo 2.14 - Windows (source)
    ZIP lalu menyalin isi folder MQL5 dengan XCOPY /E /I /Y.
 3. File paket langsung ditimpa tanpa backup. Jika gagal menyalin, perbaiki error
    lalu jalankan ulang CMD. Proyek lain tidak dihapus.
-4. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, F7, attach kembali versi 2.14.
+4. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, F7, attach kembali versi 2.18.
 
 Tujuan default:
 C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
@@ -30,7 +30,7 @@ baru dipakai setelah upgrade; pergantian timeframe berikutnya mempertahankan lay
 
 Paket berisi source, tanpa manifest.json atau EX5. Kalkulasi/model terpisah dari
 MyFiboChart.mqh (gambar) dan MyFiboState.mqh (persistence). Changelog ada di folder EA.
-Script pemeriksaan native: Scripts/Structure/MarketStructureExample.mq5 (153 kondisi).
+Paket tidak lagi berisi script contoh Market Structure. Test tetap ada di workspace.
 Runner lokal C++/fake API tidak membuktikan kompilasi atau rendering native MQL5.
 F7, interaksi GUI/chart, server history dan CMD perlu diverifikasi di Windows.
 
@@ -50,3 +50,8 @@ Melepas kunci melanjutkan analisis pada TF chart baru.
 
 Versi 2.14: GUI tidak lagi menampilkan TF, Chart atau nama timeframe. Analisis
 tetap mengikuti timeframe chart. Sumber menunjukkan asal anchor Fibo yang digambar.
+
+Versi 2.18: semua program contoh dikeluarkan dari paket. Salinan lama
+FibonacciExample, SwingDetectorExample, dan MarketStructureExample di
+MQL5/Scripts boleh dihapus manual (.mq5 dan .ex5). CMD hanya menyalin file;
+tidak menghapus file lama di terminal.

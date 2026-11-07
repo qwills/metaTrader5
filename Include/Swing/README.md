@@ -69,40 +69,21 @@ candle). Panggil saat candle analisis baru tutup, bukan setiap gerakan mouse/tic
 Tolak hasil CopyRates yang belum memenuhi jumlah riwayat yang diminta sebelum
 memanggil Update jika EA ingin mempertahankan hasil sebelumnya.
 
-## Build dan pemeriksaan
+## Instalasi dan pemeriksaan
 
-Header `.mqh` dipakai oleh program MQL5 dan tidak menghasilkan EX5 sendiri.
-Compile `MQL5/Scripts/Swing/SwingDetectorExample.mq5` untuk memeriksa seluruh class.
-Jalankan script di chart; Experts log harus menampilkan:
+Header `.mqh` dipakai oleh EA dan tidak menghasilkan EX5 sendiri. Library ini
+sudah disertakan di `distribution/myFibo/myFibo.zip`, di bawah MQL5/Include/Swing.
+Gunakan installer myFibo untuk menyalinnya bersama EA. Tidak ada paket atau
+installer SwingDetector terpisah. Untuk penggunaan pada EA lain, salin folder
+Include/Swing ke MQL5/Include/Swing lalu gunakan `<Swing\SwingDetector.mqh>`.
 
-```text
-SwingDetector checks: 46 checks, 0 failure(s)
-```
+Jalankan `python3 tests/check_swing_detector.py` dari workspace untuk 46 pemeriksaan
+di `tests/fixtures/swing_detector_checks.mqh`. Runner C++17 menggunakan adapter
+array MQL serta AddressSanitizer/UndefinedBehaviorSanitizer. Ini bukan compiler
+MQL5; F7 pada EA pengguna tetap perlu dilakukan di MetaEditor Windows.
 
-Paket Windows workspace berada di `distribution/swingDetector/`. Jalankan
-`build-swingDetector.cmd` di samping ZIP atau dari hasil ekstraknya. Tujuan default
-adalah terminal qwills yang telah ditentukan. CMD menyalin file, menemukan
-MetaEditor dari `origin.txt` terminal (atau lokasi standar), lalu mengompilasi
-script pemeriksaan. Untuk tujuan/compiler lain:
-
-```bat
-build-swingDetector.cmd "C:\path\data-folder" "C:\path\metaeditor64.exe"
-```
-
-Dari workspace macOS dengan compiler tersedia:
-
-```bash
-./compile_mql5.sh Scripts/Swing/SwingDetectorExample.mq5
-```
-
-Pemeriksaan lokal tambahan: `python3 tests/check_swing_detector.py`.
-Runner C++17 menjalankan algoritma dan 46 pemeriksaan yang sama melalui adapter
-array MQL, dengan AddressSanitizer/UndefinedBehaviorSanitizer. Ini **bukan**
-kompilasi MQL5 dan tidak menghasilkan EX5. Native build belum dijalankan pada Mac
-karena Wine/MetaEditor tidak tersedia. Paket tidak berisi binary EX5.
-
-Class ini belum dihubungkan ke mode Auto myFibo; pemilihan pasangan anchor dan
-BOS/CHoCH tetap berada di luar detector.
+Detector digunakan mode Auto myFibo. Pemilihan pasangan anchor berada di
+MyFiboAuto, sedangkan BOS/CHoCH dihitung oleh CMarketStructure.
 
 Referensi API: [CopyRates](https://www.mql5.com/en/docs/series/copyrates),
 [ArrayGetAsSeries](https://www.mql5.com/en/docs/array/arraygetasseries),

@@ -6,6 +6,7 @@ import re
 import shutil
 import tempfile
 import zipfile
+from check_release_packages import forbidden
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT/'distribution/myFibo'
@@ -24,7 +25,6 @@ PAYLOAD = {
     'MQL5/Include/Swing/SwingTypes.mqh': ROOT/'Include/Swing/SwingTypes.mqh',
     'MQL5/Include/Structure/MarketStructure.mqh': ROOT/'Include/Structure/MarketStructure.mqh',
     'MQL5/Include/Structure/README.md': ROOT/'Include/Structure/README.md',
-    'MQL5/Scripts/Structure/MarketStructureExample.mq5': ROOT/'Scripts/Structure/MarketStructureExample.mq5',
     'reference/standard-library-guide.md': ROOT/'docs/reference/standard-library-guide.md',
     'reference/download-reference.cmd': ROOT/'docs/reference/download-reference.cmd',
     'install-myFibo.cmd': DIST/'install-myFibo.cmd',
@@ -40,6 +40,8 @@ def version(source):
 
 
 def check_inputs():
+    if any(forbidden(name) for name in PAYLOAD):
+        raise ValueError("Examples and development files cannot be packaged.")
     for path in PAYLOAD.values():
         if not path.is_file():
             raise ValueError(f'Missing package input: {path}')
@@ -103,7 +105,8 @@ def main():
                 with zipfile.ZipFile(PACKAGE) as previous:
                     old = version(previous.read('MQL5/Experts/myFibo/myFibo.mq5').decode())
                 if old != release:
-                    backup = ROOT/f'archive/packages/myFibo-{old}.zip'
+                    backup = ROOT/f'archive/packages/myFibo/myFibo-{old}.zip'
+                    backup.parent.mkdir(parents=True, exist_ok=True)
                     if not backup.exists():
                         shutil.copy2(PACKAGE, backup)
             temporary.replace(PACKAGE)

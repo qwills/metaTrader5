@@ -1,6 +1,4 @@
-#property strict
-#property version "1.00"
-#property description "Deterministic closed-candle pivot tests; no orders or chart objects."
+// Development-only CSwingDetector checks; not an installable script.
 
 #include <Swing\SwingDetector.mqh>
 
@@ -147,7 +145,7 @@ void RunChecks(void)
    PrintFormat("SwingDetector checks: %d checks, %d failure(s)", g_checks, g_failures);
 }
 
-void OnStart(void)
+void RunSwingDetectorChecks(void)
 {
    RunChecks();
 }

@@ -1,5 +1,29 @@
 # myFibo changelog
 
+## 2.18
+
+- Hapus distribusi dan builder SwingDetector terpisah; header tetap di Include/Swing
+  dan disertakan dalam myFibo.zip. Perbarui panduan instalasi dan validasi.
+
+## 2.17
+
+- Rapikan dokumentasi historis ke docs/history dan helper build ke tools.
+- Kelompokkan arsip paket menurut proyek; perbarui path, indeks folder dan builder.
+- Pertahankan layout source MQL5 dan perilaku EA; bangun ulang paket distribusi.
+
+## 2.16
+
+- Hapus seluruh program contoh Fibonacci/Swing dari source dan ZIP; pindahkan
+  pemeriksaan ke tests/fixtures tanpa mengubah algoritma produksi.
+- Paket SwingDetector hanya menginstal header dengan CMD copy/overwrite.
+- Bersihkan contoh dari arsip lokal dan tambahkan validasi isi paket.
+
+## 2.15
+
+- Hapus script contoh MarketStructureExample dari Scripts dan paket Windows.
+- Pertahankan 153 pemeriksaan serta fixture BOS sebagai test pengembangan di
+  tests/fixtures/market_structure_checks.mqh; tidak diinstal ke MetaTrader.
+
 ## 2.14
 
 - Hapus label TF, Chart dan nama timeframe dari GUI. Analisis tetap mengikuti

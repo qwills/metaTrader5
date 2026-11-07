@@ -5,8 +5,8 @@ set -euo pipefail
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'EOF'
-Usage: ./compile_mql5.sh [source.mq5] [compile.log]
-       ./compile_mql5.sh --doctor
+Usage: ./tools/compile_mql5.sh [source.mq5] [compile.log]
+       ./tools/compile_mql5.sh --doctor
 
 With no source, the current folder must contain exactly one .mq5 file.
 Optional environment variables:

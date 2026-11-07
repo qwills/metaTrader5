@@ -40,7 +40,7 @@ Changing inputs or dragging the entry line clears the confirmation state.
 From this directory:
 
 ```bash
-../../compile_mql5.sh AutoSL.mq5 compile.log
+../../tools/compile_mql5.sh AutoSL.mq5 compile.log
 ```
 
 A successful build prints:

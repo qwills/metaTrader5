@@ -1,5 +1,5 @@
 #property strict
-#property version "2.14"
+#property version "2.18"
 #property description "Select two candle extremes to draw 50%, 61.8%, and 78.6% retracements."
 
 #include <Fibo\Fibonacci.mqh>

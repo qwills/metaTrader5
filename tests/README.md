@@ -1,0 +1,20 @@
+# Development checks
+
+Run from the workspace root:
+
+```bash
+python3 tests/check_fibonacci.py
+python3 tests/check_swing_detector.py
+python3 tests/check_market_structure.py
+python3 tests/check_myfibo_modes.py
+python3 tests/check_myfibo_regressions.py
+```
+
+The first three runners exercise library assertions from fixtures/. The myFibo
+runners check controller behavior and GUI contracts with fake MT5 APIs. Shared
+C++ adaptation helpers currently live in check_swing_detector.py; the fixtures
+have no standalone script entry point and are excluded from release packages.
+
+A C++17 compiler is required. Tests use AddressSanitizer/UndefinedBehaviorSanitizer
+and temporary build directories. These adapters are not MQL5 compilers;
+MetaEditor F7, chart rendering and Windows CMD execution need Windows validation.
