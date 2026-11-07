@@ -4,6 +4,7 @@
 - [Package review](package-review.md): current cleanup findings and validation limits.
 - [Standard Library guide](reference/standard-library-guide.md): local API guidance.
   The adjacent download-reference.cmd downloads official PDF/CHM manuals.
+- [manualFibo](../Experts/manualFibo/README.md): manual swing drawing with ratio checkboxes.
 - [Historical documents](history/README.md): earlier reviews and the original file
   inventory. These describe earlier snapshots and may contain old paths.
 

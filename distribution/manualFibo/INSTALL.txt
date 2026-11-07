@@ -1,0 +1,25 @@
+manualFibo 1.02 - Windows (source)
+
+1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
+2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
+   without creating backups or checking hashes/versions. It does not delete old files.
+3. Default terminal Data Folder:
+   C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
+   Other location: install-manualFibo.cmd "C:\path\data-folder"
+4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
+5. Attach manualFibo 1.02 to a chart. Use a separate chart if running myFibo too.
+
+Package includes Experts/manualFibo, Include/Fibo/Fibonacci.mqh, the CMD and
+instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
+Standard Library Controls headers come from the installed MT5 terminal.
+
+Click Pilih Swing, select two candle highs/lows, then tick desired ratios.
+23.6%, 38.2%, 50%, 61.8%, 78.6% and 88.6% are available.
+Defaults: 50%, 61.8%, 78.6%. No checkbox or drawn level for 0% or 100%.
+Kunci anchor is unchecked by default. Double-click the object to edit anchors.
+Unchecking every ratio hides the object without discarding anchors. Batal/Esc
+retains the previous completed swing; Reset removes it but keeps checkbox choices.
+Timeframe changes preserve completed anchors/choices and cancel pending selection.
+
+Build checks on macOS use C++ adapters, not MetaEditor. F7, native GUI rendering,
+panel drag/minimize, object edits, persistence and this CMD need Windows testing.

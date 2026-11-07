@@ -8,10 +8,11 @@ python3 tests/check_swing_detector.py
 python3 tests/check_market_structure.py
 python3 tests/check_myfibo_modes.py
 python3 tests/check_myfibo_regressions.py
+python3 tests/check_manualfibo.py
 ```
 
 The first three runners exercise library assertions from fixtures/. The myFibo
-runners check controller behavior and GUI contracts with fake MT5 APIs. Shared
+and manualFibo runners check controller behavior and GUI contracts with fake MT5 APIs. Shared
 C++ adaptation helpers currently live in check_swing_detector.py; the fixtures
 have no standalone script entry point and are excluded from release packages.
 

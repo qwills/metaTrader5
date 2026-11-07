@@ -7,6 +7,8 @@ Run these commands from the workspace root:
 ./tools/compile_mql5.sh Experts/myFibo/myFibo.mq5
 python3 tools/package_myfibo.py
 python3 tools/package_myfibo.py --check
+python3 tools/package_manualfibo.py
+python3 tools/package_manualfibo.py --check
 python3 tools/check_release_packages.py
 ```
 

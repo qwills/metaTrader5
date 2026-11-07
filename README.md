@@ -13,6 +13,7 @@ Experts/
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
   myFibo/         Manual/Auto Pivot atau Market Structure, TF chart otomatis, tiga level fibo
+  manualFibo/     Manual saja, checkbox enam rasio Fibonacci termasuk 88.6%
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/
@@ -28,6 +29,7 @@ archive/
   metadata/       Metadata dan catatan perapihan lama
 distribution/
   myFibo/         ZIP struktur MQL5, installer Windows .cmd, petunjuk
+  manualFibo/     ZIP/CMD terpisah untuk EA manual saja
 docs/            Panduan aktif, reference API, dan history/ untuk dokumen lama
 tests/           Fibonacci, detector, structure, controller dan GUI melalui adapter
 tools/           Helper build, builder/validator paket, history/ untuk helper lama
@@ -72,3 +74,7 @@ catatan hash pemindahan lama merupakan catatan historis sebelum perubahan ini.
 Mulai dari indeks [docs](docs/README.md), [tools](tools/README.md),
 [tests](tests/README.md), atau [distribution](distribution/README.md). Folder source
 mempertahankan layout MetaEditor; binary EX5 lama tetap di samping source.
+
+EA manual baru: [manualFibo](Experts/manualFibo/README.md), dengan enam checkbox
+rasio termasuk 88.6%. Source, ZIP dan state chart terpisah dari myFibo, tetap
+menggunakan satu repositori Git dan class kalkulasi Fibonacci bersama.

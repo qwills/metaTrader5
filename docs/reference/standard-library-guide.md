@@ -27,6 +27,7 @@ Jika suatu signature berbeda, periksa header terminal yang dipakai untuk F7.
 | Kebutuhan | Include terminal |
 | --- | --- |
 | Dialog dan application dialog | `Controls\Dialog.mqh` |
+| Bingkai group | `Controls\Panel.mqh` (`CPanel`) |
 | Tombol / label | `Controls\Button.mqh`, `Controls\Label.mqh` |
 | Pilihan / checkbox / angka | `Controls\ComboBox.mqh`, `Controls\CheckBox.mqh`, `Controls\SpinEdit.mqh` |
 | Informasi chart / objek chart | `Charts\`, `Objects\` |
@@ -115,3 +116,15 @@ hanya daftar dropdown lama. Referensi: [Chart Timeframes](https://www.mql5.com/e
 
 Mulai 2.14, informasi TF di GUI dihapus seluruhnya. Timeframe tetap mengikuti
 `_Period`; parameter timeframe tidak lagi diperlukan oleh SetSettings dialog.
+
+## Bingkai group manualFibo (1.02)
+
+`CPanel` adalah rectangle label untuk mengelompokkan kontrol. Gunakan
+`BorderType(BORDER_FLAT)`, `ColorBorder(clrSilver)`, dan
+`ColorBackground(CONTROLS_DIALOG_COLOR_BG)` untuk bingkai abu-abu tipis.
+Buat/tambahkan bingkai sebelum kontrol di dalamnya agar kontrol tampil di depan.
+Kontrol tetap anak dialog; bingkai adalah pengelompokan visual. Native dialog
+mengurus perpindahan, minimize dan restore, tanpa handler mouse tambahan.
+Signature diperiksa pada [CPanel resmi](https://www.mql5.com/en/docs/standardlibrary/controls/cpanel)
+dan [ColorBorder](https://www.mql5.com/en/docs/standardlibrary/controls/cwndobj/cwndobjcolorborder).
+Header terminal tetap menjadi acuan F7; rendering perlu diverifikasi Windows.
