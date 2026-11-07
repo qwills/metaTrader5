@@ -27,13 +27,12 @@ class CMyFiboDialog : public CAppDialog
 {
 private:
    CComboBox m_mode;
-   CLabel m_timeframe;
    CComboBox m_auto_method;
    CLabel m_auto_method_label;
    CMyFiboSpinEdit m_left;
    CMyFiboSpinEdit m_right;
    CCheckBox m_lock;
-   CLabel m_mode_label, m_tf_label, m_method, m_left_label, m_right_label;
+   CLabel m_mode_label, m_method, m_left_label, m_right_label;
    CLabel m_swing_title, m_fibo_title, m_start, m_end, m_direction, m_origin;
    CLabel m_level50, m_level618, m_level786, m_status, m_status2;
    CButton m_draw, m_reset;
@@ -61,11 +60,9 @@ public:
       if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("myFibo"))
          return false;
       if(!Label(m_mode_label, chart, name + ".ModeLabel", "Mode", 20, 10, 75, 34)
-         || !Label(m_tf_label, chart, name + ".TFLabel", "TF", 300, 10, 345, 34)
          || !m_mode.Create(chart, name + ".Mode", subwin, 80, 10, 235, 34)
          || !m_mode.AddItem("Manual", FIBO_MANUAL) || !m_mode.AddItem("Auto", FIBO_AUTO)
-         || !Add(m_mode)
-         || !Label(m_timeframe, chart, name + ".Timeframe", "Chart: " + MyFiboTimeframeName(_Period), 350, 10, 550, 34))
+         || !Add(m_mode))
          return false;
       m_mode.SelectByValue(FIBO_MANUAL);
       m_mode.ListViewItems(2);
@@ -143,14 +140,11 @@ public:
    int RightBars(void) { return m_right.Value(); }
    bool AnchorLocked(void) { return m_lock.Checked(); }
 
-   void SetSettings(const MyFiboMode mode, const ENUM_TIMEFRAMES timeframe,
-                    const int left, const int right, const bool locked,
+   void SetSettings(const MyFiboMode mode, const int left, const int right, const bool locked,
                     const MyFiboAutoMethod method = FIBO_PIVOT)
    {
       if(m_auto_method.Value() != method) m_auto_method.SelectByValue(method);
       if(m_mode.Value() != mode) m_mode.SelectByValue(mode);
-      string tf_text = "Chart: " + MyFiboTimeframeName(timeframe);
-      if(m_timeframe.Text() != tf_text) m_timeframe.Text(tf_text);
       m_left.SetDisplayedValue(left);
       m_right.SetDisplayedValue(right);
       if(m_lock.Checked() != locked) m_lock.Checked(locked);
@@ -215,7 +209,7 @@ public:
    }
    virtual string IniFileName(void) const
    {
-      return "myFibo_" + IntegerToString(ChartID()) + "_GUI_v6";
+      return "myFibo_" + IntegerToString(ChartID()) + "_GUI_v7";
    }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void)

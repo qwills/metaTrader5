@@ -112,3 +112,6 @@ checkpoint TF berbeda tidak boleh dipakai ulang. Pertahankan anchor Manual atau
 terkunci; jadwalkan analisis Auto TF baru pada timer. Konfigurasi kiri/kanan tetap
 berlaku untuk Pivot dan Market Structure. Dukung semua interval native MT5, bukan
 hanya daftar dropdown lama. Referensi: [Chart Timeframes](https://www.mql5.com/en/docs/constants/chartconstants/enum_timeframes).
+
+Mulai 2.14, informasi TF di GUI dihapus seluruhnya. Timeframe tetap mengikuti
+`_Period`; parameter timeframe tidak lagi diperlukan oleh SetSettings dialog.

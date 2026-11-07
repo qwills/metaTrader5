@@ -1,5 +1,12 @@
 # myFibo changelog
 
+## 2.14
+
+- Hapus label TF, Chart dan nama timeframe dari GUI. Analisis tetap mengikuti
+  timeframe chart. Hapus parameter timeframe yang tidak dipakai dari API dialog.
+- Layout native memakai GUI_v7; label Sumber tetap menunjukkan asal anchor yang
+  sedang digambar, terpisah dari metode yang dipilih.
+
 ## 2.13
 
 - Auto selalu mengikuti timeframe chart. Ganti dropdown TF dengan label read-only.

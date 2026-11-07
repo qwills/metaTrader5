@@ -1,11 +1,11 @@
-# myFibo 2.13
+# myFibo 2.14
 
 EA untuk memilih anchor dan menggambar Fibonacci **50%, 61.8%, 78.6%**.
 GUI memakai Standard Library `CAppDialog`, objek gambar `OBJ_FIBO` berwarna hitam.
 EA tidak mengirim order.
 
 ```text
-Mode [Manual / Auto]                 TF Chart: M15
+Mode [Manual / Auto]
 Metode [Pivot / Market Structure]    Struktur: Bullish/Bearish/Belum jelas
 Candle kiri [2]  Candle kanan [2]     (baris Metode/pivot hanya terlihat di Auto)
 
@@ -41,8 +41,8 @@ dengan penanda `(edit)`; metode terpilih tidak menyamarkan asal Fibo yang masih 
 
 ## Auto
 
-Timeframe analisis otomatis mengikuti chart. GUI hanya menampilkan `Chart: M15`
-(contoh) sebagai label read-only, tanpa dropdown TF terpisah. Semua timeframe native
+Timeframe analisis otomatis mengikuti chart. GUI tidak menampilkan tulisan TF,
+Chart atau nama timeframe, dan tidak menyediakan pilihan TF terpisah. Semua timeframe native
 MT5 didukung, termasuk M2/M3/M4/M6/M10/M12/M20 dan H2/H3/H6/H8/H12.
 Candle kiri/kanan langsung terisi 2/2, rentang 1..20, pada **kedua metode**.
 Pivot memakai pivot terkonfirmasi untuk pasangan anchor; Market Structure memakai
@@ -132,7 +132,7 @@ mengambil histori di OnInit. Fibo lama tetap ada sampai pengganti valid tersedia
 Anchor terkunci dan hasil Manual tidak dihitung ulang. Melepas kunci melanjutkan
 Auto pada TF chart yang sekarang. Snapshot lama dengan TF independen tidak
 mengunci TF lagi. Posisi/minimize memakai native IniFileSave /
-IniFileLoad, nama per ChartID `GUI_v6`. Layout lama tidak dimuat pada upgrade yang
+IniFileLoad, nama per ChartID `GUI_v7`. Layout lama tidak dimuat pada upgrade yang
 menambah kontrol; perpindahan timeframe selanjutnya memakai layout versi sama.
 Snapshot schema 6 membaca juga schema 5 dari 2.00; schema 1..4 sudah dihentikan.
 Asal anchor dari schema lama ditampilkan Unknown karena dulu belum dicatat.
@@ -141,7 +141,7 @@ Asal anchor dari schema lama ditampilkan Unknown karena dulu belum dicatat.
 2. CMD memprioritaskan ZIP yang berdampingan dibanding folder MQL5 lama, lalu
    mengekstrak dan menyalin isi folder MQL5. Tidak ada manifest/hash/version check.
 3. File paket langsung ditimpa, tanpa backup Windows; proyek lain tidak dihapus.
-4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.13.
+4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.14.
 
 Tujuan default:
 `C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A`.

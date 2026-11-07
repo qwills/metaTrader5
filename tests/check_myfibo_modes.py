@@ -106,7 +106,7 @@ DIALOG = r'''
 enum MyFiboPanelAction{PANEL_NONE,PANEL_DRAW,PANEL_RESET,PANEL_SETTINGS,PANEL_LOCK};
 class CMyFiboDialog {
 public:
- MyFiboMode mode=FIBO_MANUAL;MyFiboAutoMethod method=FIBO_PIVOT;ENUM_TIMEFRAMES tf=PERIOD_H1;int left=2,right=2;
+ MyFiboMode mode=FIBO_MANUAL;MyFiboAutoMethod method=FIBO_PIVOT;int left=2,right=2;
  bool locked=false,dragging=false;MyFiboPanelAction next=PANEL_NONE;
  double start=0,end=0,a=0,b=0,c=0;int x=12,y=24;string message,structure_trend,anchor_source;
  static inline std::map<int,std::pair<int,int>> geometry;
@@ -122,7 +122,7 @@ public:
  MyFiboAutoMethod AutoMethod(){return method;}
  MyFiboMode Mode()const{return mode;}
  int LeftBars()const{return left;}int RightBars()const{return right;}bool AnchorLocked()const{return locked;}
- void SetSettings(MyFiboMode m,ENUM_TIMEFRAMES t,int l,int r,bool k,MyFiboAutoMethod a=FIBO_PIVOT){mode=m;tf=t;left=l;right=r;locked=k;method=a;}
+ void SetSettings(MyFiboMode m,int l,int r,bool k,MyFiboAutoMethod a=FIBO_PIVOT){mode=m;left=l;right=r;locked=k;method=a;}
  void SetAnchorSource(const string&s){anchor_source=s;}
  void SetStructureTrend(const string&t){structure_trend=t;}
  void SetStatus(const string&m,bool){message=m;}
@@ -433,13 +433,12 @@ void CheckUI(bool value,const char*label){if(!value){std::cerr<<"FAIL UI: "<<lab
 int main(){
  CMyFiboDialog panel;CheckUI(panel.Create(0,"ui",0,12,24,592,464),"create");
  CheckUI(panel.Mode()==FIBO_MANUAL&&!panel.AnchorLocked()&&panel.AutoMethod()==FIBO_PIVOT,"default manual and unchecked");
- CheckUI(controls["ui.Timeframe"]->text=="Chart: M15","chart timeframe shown read-only");
+ CheckUI(controls.count("ui.Timeframe")==0&&controls.count("ui.TFLabel")==0,"no timeframe information in GUI");
  CheckUI(!controls["ui.Method"]->visible&&!controls["ui.Left"]->visible,"manual hides pivot controls");
  int original=controls["ui.SwingTitle"]->m_rect.top;
  panel.SetSwingStart(1.2345);panel.SetSwingEnd(1.4567);
  CheckUI(controls["ui.Start"]->text=="Awal : 1.23450"&&controls["ui.End"]->text=="Akhir : 1.45670","prices only");
- panel.SetSettings(FIBO_AUTO,PERIOD_H1,2,2,false);
- CheckUI(controls["ui.Timeframe"]->text=="Chart: H1","read-only timeframe display updates");
+ panel.SetSettings(FIBO_AUTO,2,2,false);
  CheckUI(panel.Height()==524&&controls["ui.SwingTitle"]->m_rect.top==original+84,"automatic layout height and offset");
  CheckUI(controls["ui.Method"]->visible&&controls["ui.Left"]->visible&&controls["ui.AutoMethod"]->visible,"auto shows method selector and pivots");
  CheckUI(controls["ui.Draw"]->text=="Cari Swing","auto caption");
@@ -448,17 +447,17 @@ int main(){
  CheckUI(controls["ui.Left"]->text=="2"&&controls["ui.Right"]->text=="2","auto displays default numeric values");
  // Reproduce an empty edit with unchanged stored values, as after recreation.
  controls["ui.Left"]->text="";controls["ui.Right"]->text="";
- panel.SetSettings(FIBO_AUTO,PERIOD_H1,2,2,false);
+ panel.SetSettings(FIBO_AUTO,2,2,false);
  CheckUI(controls["ui.SwingTitle"]->m_rect.top==original+84,"idempotent layout");
  CheckUI(controls["ui.Left"]->text=="2"&&controls["ui.Right"]->text=="2","same values refresh empty edit text");
- panel.SetSettings(FIBO_MANUAL,PERIOD_H4,3,4,true);
+ panel.SetSettings(FIBO_MANUAL,3,4,true);
  CheckUI(panel.Height()==440&&controls["ui.SwingTitle"]->m_rect.top==original,"manual restores compact layout");
  CheckUI(panel.AnchorLocked()&&!controls["ui.Method"]->visible,"checkbox independent of mode");
  long zero=0;double real=0;string empty;
  panel.OnEvent(TEST_MINIMIZE,zero,real,empty);panel.OnEvent(TEST_RESTORE,zero,real,empty);
  CheckUI(!controls["ui.Method"]->visible&&controls["ui.Start"]->visible,"restore keeps manual settings hidden");
  panel.OnEvent(TEST_MINIMIZE,zero,real,empty);
- panel.SetSettings(FIBO_AUTO,PERIOD_H4,3,4,true);
+ panel.SetSettings(FIBO_AUTO,3,4,true);
  CheckUI(!controls["ui.Method"]->visible,"hidden while minimized");
  panel.OnEvent(TEST_RESTORE,zero,real,empty);
  CheckUI(panel.Height()==524&&controls["ui.Method"]->visible,"restore honors automatic normal geometry");
@@ -475,7 +474,7 @@ int main(){
  CheckUI(panel.TakeAction()==PANEL_LOCK&&panel.TakeAction()==PANEL_NONE,"checkbox event consumed once");
  long mode_id=controls["ui.Mode"]->Id();panel.OnEvent(CHARTEVENT_CUSTOM+ON_CHANGE,mode_id,real,empty);
  CheckUI(panel.TakeAction()==PANEL_SETTINGS,"combo settings event");
- panel.SetSettings(FIBO_AUTO,PERIOD_H4,3,4,true,FIBO_MARKET_STRUCTURE);
+ panel.SetSettings(FIBO_AUTO,3,4,true,FIBO_MARKET_STRUCTURE);
  CheckUI(panel.AutoMethod()==FIBO_MARKET_STRUCTURE&&panel.AnchorLocked()&&panel.Height()==524,"method selector does not change geometry or lock");
  long method_id=controls["ui.AutoMethod"]->Id();panel.OnEvent(CHARTEVENT_CUSTOM+ON_CHANGE,method_id,real,empty);
  CheckUI(panel.TakeAction()==PANEL_SETTINGS,"auto method change routes to settings");
@@ -535,7 +534,7 @@ def main():
     assert 'CComboBox m_mode' in header and 'CCheckBox m_lock' in header
     assert 'm_lock.Checked(false)' in header and 'return CAppDialog' not in source
     assert '.OnMouseEvent(' not in source and 'ShouldDispatch' not in source
-    assert "CComboBox m_timeframe" not in header and "g_dialog.Timeframe()" not in source
+    assert "m_timeframe" not in header and "g_dialog.Timeframe()" not in source
     assert source.count('g_dialog.ChartEvent(id, lparam, dparam, sparam);')==1
     print('Source contracts checked; native GUI rendering and Windows compilation remain untested.')
 

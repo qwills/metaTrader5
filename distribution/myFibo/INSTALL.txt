@@ -1,4 +1,4 @@
-myFibo 2.13 - Windows (source)
+myFibo 2.14 - Windows (source)
 
 1. Simpan myFibo.zip dan install-myFibo.cmd rilis yang sama berdampingan, lalu
    jalankan CMD. Atau ekstrak lengkap ZIP dan jalankan CMD dari hasil ekstrak.
@@ -6,7 +6,7 @@ myFibo 2.13 - Windows (source)
    ZIP lalu menyalin isi folder MQL5 dengan XCOPY /E /I /Y.
 3. File paket langsung ditimpa tanpa backup. Jika gagal menyalin, perbaiki error
    lalu jalankan ulang CMD. Proyek lain tidak dihapus.
-4. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, F7, attach kembali versi 2.13.
+4. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, F7, attach kembali versi 2.14.
 
 Tujuan default:
 C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
@@ -25,7 +25,7 @@ Retry label terpisah dari data/Fibo. Error data dibedakan dari no-pair. Normal
 sliding windows meneruskan checkpoint arah/protected swing; gap tanpa overlap
 memerlukan Cari Swing untuk reseed. Revisi histori yang masih tercache memicu
 replay. Detail batas checkpoint/cache ada di MQL5/Experts/myFibo/README.md.
-Schema 6 mendukung upgrade schema 5 (2.00). Schema 1..4 dihentikan. Layout GUI_v6
+Schema 6 mendukung upgrade schema 5 (2.00). Schema 1..4 dihentikan. Layout GUI_v7
 baru dipakai setelah upgrade; pergantian timeframe berikutnya mempertahankan layout.
 
 Paket berisi source, tanpa manifest.json atau EX5. Kalkulasi/model terpisah dari
@@ -47,3 +47,6 @@ manifest, hash atau versi, dan tidak ada backup Windows.
 Versi 2.13: Auto mengikuti TF chart dan analisis baru dijadwalkan lewat timer.
 Label/checkpoint TF lama dibersihkan; Manual/anchor terkunci tetap dipertahankan.
 Melepas kunci melanjutkan analisis pada TF chart baru.
+
+Versi 2.14: GUI tidak lagi menampilkan TF, Chart atau nama timeframe. Analisis
+tetap mengikuti timeframe chart. Sumber menunjukkan asal anchor Fibo yang digambar.

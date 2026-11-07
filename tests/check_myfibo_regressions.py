@@ -124,7 +124,7 @@ int main(){
  g_dialog.x=170;g_dialog.y=120;
  OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H2;Fixture(13);calls=copy_calls;
  Check(OnInit()==INIT_SUCCEEDED,"follow H2 reinit");
- Check(g_analysis_tf==PERIOD_H2&&g_dialog.tf==PERIOD_H2&&copy_calls==calls&&g_auto_force_pending,"new TF follows chart and defers CopyRates");
+ Check(g_analysis_tf==PERIOD_H2&&copy_calls==calls&&g_auto_force_pending,"new TF follows chart and defers CopyRates");
  StructureCheckpoint active;g_auto.GetCheckpoint(active);
  Check(active.last_bar==0&&ObjectFind(0,"myFibo.Structure.0")<0&&g_structure_trend==STRUCTURE_UNCLEAR,"old timeframe checkpoint and labels are discarded");
  Check(g_end_price==6.5&&g_dialog.x==170&&g_dialog.y==120&&g_left_bars==2&&g_right_bars==2,"settings geometry and prior drawing survive until update");

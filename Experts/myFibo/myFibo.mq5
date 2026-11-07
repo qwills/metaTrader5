@@ -1,5 +1,5 @@
 #property strict
-#property version "2.13"
+#property version "2.14"
 #property description "Select two candle extremes to draw 50%, 61.8%, and 78.6% retracements."
 
 #include <Fibo\Fibonacci.mqh>
@@ -174,7 +174,7 @@ void RestoreChartSnapshot(const MyFiboSnapshot &snapshot)
    else if(g_has_swing) UpdateSwingDisplay();
    if(g_state != IDLE)
       LockSelection();
-   g_dialog.SetSettings(g_mode, g_analysis_tf, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
+   g_dialog.SetSettings(g_mode, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
    if(g_has_swing && g_anchor_locked) RestoreValidSwing();
    else ApplyAnchorLock();
    g_structure_trend = (ENUM_STRUCTURE_TREND)snapshot.structure_trend;
@@ -232,7 +232,7 @@ int OnInit(void)
    if(!g_dialog.Create(0, g_prefix + "Panel", 0, 12, 24, 592, 464))
       return INIT_FAILED;
    g_dialog_created = true;
-   g_dialog.SetSettings(g_mode, g_analysis_tf, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
+   g_dialog.SetSettings(g_mode, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
    if(!g_dialog.Run())
       return INIT_FAILED;
    if(restoring)
@@ -496,7 +496,7 @@ void ApplyPanelSettings(void)
    int left = g_dialog.LeftBars(), right = g_dialog.RightBars();
    if(!IsValidMyFiboSettings(mode, timeframe, left, right, method))
    {
-      g_dialog.SetSettings(g_mode, g_analysis_tf, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
+      g_dialog.SetSettings(g_mode, g_left_bars, g_right_bars, g_anchor_locked, g_auto_method);
       SetStatus("Pengaturan tidak valid.");
       return;
    }
@@ -510,7 +510,7 @@ void ApplyPanelSettings(void)
    ClearStructureLabels();
    g_last_auto_bar = 0; g_auto_pair_key = "";
    g_auto_force_pending = false; g_auto_retry_after = 0;
-   g_dialog.SetSettings(g_mode, g_analysis_tf, left, right, g_anchor_locked, g_auto_method);
+   g_dialog.SetSettings(g_mode, left, right, g_anchor_locked, g_auto_method);
    if(g_anchor_locked) SetStatus("Pengaturan disimpan. Anchor masih terkunci.");
    else if(g_mode == FIBO_AUTO) RequestAutoSearch(true);
    else SetStatus("Manual: klik Pilih Swing atau edit objek fibo.");
@@ -581,7 +581,7 @@ void OnChartEvent(const int id, const long &lparam,
       {
          g_anchor_locked = previous;
          ApplyAnchorLock();
-         g_dialog.SetSettings(g_mode, g_analysis_tf, g_left_bars, g_right_bars, previous, g_auto_method);
+         g_dialog.SetSettings(g_mode, g_left_bars, g_right_bars, previous, g_auto_method);
          SetStatus("Gagal mengubah kunci anchor. Status sebelumnya dipulihkan.");
          return;
       }
