@@ -1,4 +1,4 @@
-# manualFibo 1.02
+# manualFibo 1.03
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 indicators or order submission. This is a separate EA in the same Git repository;
@@ -18,7 +18,9 @@ want both EAs running.
    Ratio checkboxes remain usable while locked. Lock is off by default.
 
 The plain Standard Library panel has Swing and Fibonacci groups outlined by
-thin grey CPanel frames, with the same background as the dialog. Start/end display prices only. The drawing and text are
+thin grey CPanel frames, with each title set into the top border. The background
+matches the dialog. Start/end display prices only; the direction row is removed.
+The drawing and text are
 black, in the chart background so the dialog remains in front. On a dark chart,
 choose a light background for visibility.
 
@@ -43,14 +45,14 @@ and styling. Other chart objects are left intact.
 - ManualFiboState.mqh: chart-local timeframe handoff.
 - Include/Fibo/Fibonacci.mqh: shared calculation class; its defaults are unchanged.
 
-All chart objects use the manualFibo. prefix. GUI settings use manualFibo_<chart>_GUI_v2,
+All chart objects use the manualFibo. prefix. GUI settings use manualFibo_<chart>_GUI_v3,
 separate from myFibo. No SwingDetector or MarketStructure header is needed.
 
 ## Install and validate
 
 Use distribution/manualFibo/manualFibo.zip with install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.02.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.03.
 
 ```bash
 python3 tests/check_manualfibo.py

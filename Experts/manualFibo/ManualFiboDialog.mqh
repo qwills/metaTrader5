@@ -12,9 +12,9 @@ enum ManualFiboAction { MANUAL_NONE, MANUAL_DRAW, MANUAL_RESET, MANUAL_LEVELS, M
 class CManualFiboDialog : public CAppDialog
 {
 private:
-   CPanel m_swing_group, m_fibo_group;
+   CPanel m_swing_group, m_fibo_group, m_swing_caption_bg, m_fibo_caption_bg;
    CButton m_draw, m_reset;
-   CLabel m_swing_title, m_start, m_end, m_direction, m_fibo_title, m_status;
+   CLabel m_swing_title, m_start, m_end, m_fibo_title, m_status;
    CCheckBox m_levels[MANUAL_FIBO_RATIOS];
    CCheckBox m_lock;
    ManualFiboAction m_action;
@@ -26,28 +26,27 @@ public:
       m_action = MANUAL_NONE;
       if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("manualFibo")) return false;
       // Register decorative frames first so native controls are created above them.
-      if(!Group(m_swing_group, chart, name + ".SwingGroup", subwin, 6, 4, 374, 154)
-         || !Group(m_fibo_group, chart, name + ".FiboGroup", subwin, 6, 156, 374, 342)) return false;
-      if(!Label(m_swing_title, chart, name + ".SwingTitle", "Swing", 14, 8, 360, 28)
+      if(!Group(m_swing_group, chart, name + ".SwingGroup", subwin, 6, 14, 374, 128)
+         || !Group(m_fibo_group, chart, name + ".FiboGroup", subwin, 6, 142, 374, 316)) return false;
+      if(!GroupTitle(m_swing_caption_bg, m_swing_title, chart, name + ".SwingTitle", "Swing", 20, 4, 64)
+         || !GroupTitle(m_fibo_caption_bg, m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 20, 132, 96)
          || !m_draw.Create(chart, name + ".Draw", subwin, 14, 34, 180, 62)
          || !m_draw.Text("Pilih Swing") || !Add(m_draw)
          || !m_reset.Create(chart, name + ".Reset", subwin, 194, 34, 300, 62)
          || !m_reset.Text("Reset") || !Add(m_reset)
          || !Label(m_start, chart, name + ".Start", "Awal: -", 14, 74, 360, 94)
-         || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 360, 120)
-         || !Label(m_direction, chart, name + ".Direction", "Arah: -", 14, 126, 360, 146)
-         || !Label(m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 14, 160, 360, 180)) return false;
+         || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 360, 120)) return false;
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
       {
-         int top = 186 + i * 26;
+         int top = 160 + i * 26;
          if(!m_levels[i].Create(chart, name + ".Level" + IntegerToString(i), subwin, 14, top, 360, top + 22)
             || !m_levels[i].Text(DoubleToString(ManualFiboRatio(i) * 100.0, 1) + "%: -")
             || !m_levels[i].Checked((MANUAL_FIBO_DEFAULT_MASK & (1 << i)) != 0)
             || !Add(m_levels[i])) return false;
       }
-      return m_lock.Create(chart, name + ".Lock", subwin, 14, 350, 360, 374)
+      return m_lock.Create(chart, name + ".Lock", subwin, 14, 324, 360, 348)
              && m_lock.Text("Kunci anchor") && m_lock.Checked(false) && Add(m_lock)
-             && Label(m_status, chart, name + ".Status", "Klik Pilih Swing.", 14, 386, 365, 408);
+             && Label(m_status, chart, name + ".Status", "Klik Pilih Swing.", 14, 360, 365, 382);
    }
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
    {
@@ -77,7 +76,6 @@ public:
    {
       SetText(m_start, model.Ready() ? "Awal: " + DoubleToString(model.StartPrice(), _Digits) : "Awal: -");
       SetText(m_end, model.Ready() ? "Akhir: " + DoubleToString(model.EndPrice(), _Digits) : "Akhir: -");
-      SetText(m_direction, !model.Ready() ? "Arah: -" : (model.EndPrice() > model.StartPrice() ? "Arah: Naik" : "Arah: Turun"));
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
       {
          if(m_levels[i].Checked() != model.Enabled(i)) m_levels[i].Checked(model.Enabled(i));
@@ -88,10 +86,20 @@ public:
    }
    void SetStatus(const string text, const bool selecting)
    { SetText(m_status, text); SetText(m_draw, selecting ? "Batal" : "Pilih Swing"); ChartRedraw(m_chart_id); }
-   virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v2"; }
+   virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v3"; }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void) { if(Dragging()) CDialog::OnDialogDragEnd(); MouseFocusKill(); }
 protected:
+   bool GroupTitle(CPanel &background, CLabel &label, const long chart, const string name,
+                   const string text, const int x, const int y, const int width)
+   {
+      // A small dialog-colored backing breaks the frame's top edge behind its title.
+      return background.Create(chart, name + ".Background", 0, x - 6, y, x + width, y + 20)
+             && background.BorderType(BORDER_FLAT)
+             && background.ColorBackground(CONTROLS_DIALOG_COLOR_BG)
+             && background.ColorBorder(CONTROLS_DIALOG_COLOR_BG) && Add(background)
+             && Label(label, chart, name, text, x, y, x + width, y + 20);
+   }
    bool Group(CPanel &panel, const long chart, const string name, const int subwin,
               const int x1, const int y1, const int x2, const int y2)
    {

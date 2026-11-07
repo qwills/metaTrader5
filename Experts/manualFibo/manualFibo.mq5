@@ -1,5 +1,5 @@
 #property strict
-#property version "1.02"
+#property version "1.03"
 #property description "Manual candle Fibonacci with selectable ratios, including 88.6%."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboChart.mqh"
@@ -77,7 +77,7 @@ int OnInit(void)
    g_saved_delete = (bool)ChartGetInteger(0, CHART_EVENT_OBJECT_DELETE);
    g_init_scroll = (bool)ChartGetInteger(0, CHART_MOUSE_SCROLL); g_events_saved = true;
    g_dialog.Minimized(false);
-   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 412, 472)) return INIT_FAILED;
+   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 412, 446)) return INIT_FAILED;
    g_created = true; g_dialog.Refresh(g_model);
    if(!g_dialog.Run()) return INIT_FAILED;
    if(restoring) g_dialog.IniFileLoad();

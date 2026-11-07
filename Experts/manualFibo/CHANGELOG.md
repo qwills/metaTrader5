@@ -1,5 +1,10 @@
 # manualFibo changelog
 
+## 1.03
+
+- Place Swing and Fibonacci titles into their group frame top borders.
+- Remove the Arah direction label/value and compact the panel.
+
 ## 1.02
 
 - Add thin grey CPanel group frames around Swing and Fibonacci controls.
