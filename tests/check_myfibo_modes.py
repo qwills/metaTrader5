@@ -18,14 +18,16 @@ PLATFORM = r'''
 #include <cfloat>
 using ulong=unsigned long;
 using ENUM_OBJECT_PROPERTY_INTEGER=int;
-enum ENUM_TIMEFRAMES : int { PERIOD_M1=1, PERIOD_M5=5, PERIOD_M15=15, PERIOD_M30=30,
- PERIOD_H1=16385, PERIOD_H4=16388, PERIOD_D1=16408, PERIOD_W1=32769, PERIOD_MN1=49153 };
+enum ENUM_TIMEFRAMES : int { PERIOD_CURRENT=0, PERIOD_M1=1,PERIOD_M2=2,PERIOD_M3=3,PERIOD_M4=4,
+ PERIOD_M5=5,PERIOD_M6=6,PERIOD_M10=10,PERIOD_M12=12,PERIOD_M15=15,PERIOD_M20=20,PERIOD_M30=30,
+ PERIOD_H1=16385,PERIOD_H2=16386,PERIOD_H3=16387,PERIOD_H4=16388,PERIOD_H6=16390,PERIOD_H8=16392,
+ PERIOD_H12=16396,PERIOD_D1=16408,PERIOD_W1=32769,PERIOD_MN1=49153 };
 enum : int { clrBlack=0, STYLE_SOLID=0, OBJ_LABEL=1, OBJ_FIBO, OBJ_ARROW, OBJ_TEXT,
  OBJPROP_TIMEFRAMES=100,OBJPROP_HIDDEN,OBJPROP_SELECTABLE,OBJPROP_SELECTED,OBJPROP_TEXT,OBJPROP_TOOLTIP,
  OBJPROP_TIME,OBJPROP_PRICE,OBJPROP_COLOR,OBJPROP_LEVELS,OBJPROP_LEVELVALUE,OBJPROP_LEVELCOLOR,
  OBJPROP_LEVELSTYLE,OBJPROP_LEVELWIDTH,OBJPROP_LEVELTEXT,OBJPROP_STYLE,OBJPROP_WIDTH,
  OBJPROP_RAY_LEFT,OBJPROP_RAY_RIGHT,OBJPROP_BACK,OBJPROP_ARROWCODE,
- OBJPROP_FONTSIZE,OBJPROP_ANCHOR,ANCHOR_LOWER,ANCHOR_UPPER,
+ OBJPROP_FONTSIZE,OBJPROP_ANCHOR,OBJPROP_ZORDER,ANCHOR_LOWER,ANCHOR_UPPER,
  OBJ_NO_PERIODS=0,CHART_EVENT_MOUSE_MOVE=200,CHART_EVENT_OBJECT_CREATE,CHART_EVENT_OBJECT_DELETE,
  CHART_MOUSE_SCROLL,CHARTEVENT_CUSTOM=1000,ON_CLICK=1,ON_CHANGE=2,
  CHARTEVENT_MOUSE_MOVE=300,CHARTEVENT_CHART_CHANGE,CHARTEVENT_OBJECT_DRAG,CHARTEVENT_OBJECT_CHANGE,
@@ -96,7 +98,7 @@ bool ChartXYToTimePrice(int,int x,int y,int&window,datetime&time,double&price){
  int index=(time-history[0].time)/60;index=index<0?0:(index>=ArraySize(history)?ArraySize(history)-1:index);
  return ArraySize(history)-1-index;}
  int Bars(const string&,int){return geometry_enabled?ArraySize(history):0;}
-const ENUM_TIMEFRAMES _Period=PERIOD_M15;
+ENUM_TIMEFRAMES _Period=PERIOD_M15;
 double MathAbs(double v){return std::abs(v);}
 double MathMax(double a,double b){return a>b?a:b;}
 '''
@@ -118,7 +120,7 @@ public:
  void CancelDrag(){dragging=false;}
  MyFiboPanelAction TakeAction(){auto action=next;next=PANEL_NONE;return action;}
  MyFiboAutoMethod AutoMethod(){return method;}
- MyFiboMode Mode()const{return mode;}ENUM_TIMEFRAMES Timeframe()const{return tf;}
+ MyFiboMode Mode()const{return mode;}
  int LeftBars()const{return left;}int RightBars()const{return right;}bool AnchorLocked()const{return locked;}
  void SetSettings(MyFiboMode m,ENUM_TIMEFRAMES t,int l,int r,bool k,MyFiboAutoMethod a=FIBO_PIVOT){mode=m;tf=t;left=l;right=r;locked=k;method=a;}
  void SetAnchorSource(const string&s){anchor_source=s;}
@@ -160,7 +162,7 @@ int main(){
  Check(ObjectFind(0,"myFibo.Structure.0")>=0&&Objects()["myFibo.Structure.0"].type==OBJ_TEXT,"auto renders structure labels");
  Check(Objects()["myFibo.Structure.0"].strings[{OBJPROP_TEXT,0}]=="H"&&Objects()["myFibo.Structure.2"].strings[{OBJPROP_TEXT,0}]=="LH","seed and LH chart labels");
  Check(Objects()["myFibo.Structure.2"].ints[{OBJPROP_SELECTABLE,0}]==0,"structure label is not draggable");
- Check(g_analysis_tf==PERIOD_H1&&last_copy_tf==PERIOD_H1&&_Period==PERIOD_M15,"independent H1 analysis on M15 chart");
+ Check(g_analysis_tf==_Period&&last_copy_tf==PERIOD_M15,"Auto follows M15 chart");
  Check(Objects()["myFibo.Swing.Fibo"].ints[{OBJPROP_SELECTABLE,0}]==1,"unlocked object is editable");
  Check(Objects()["myFibo.Swing.Fibo"].ints[{OBJPROP_LEVELS,0}]==3,"exactly three levels");
  int copies=copy_calls;OnTimer();Check(copy_calls==copies,"no rescan within same closed bar");
@@ -185,19 +187,19 @@ int main(){
  Fixture(11);
  // Timeframe reinit restores mode/TF/pivot settings, explicit lock, geometry and actual object.
  g_dialog.locked=true;Action(PANEL_LOCK);g_dialog.x=170;g_dialog.y=120;
- copies=copy_calls;g_dialog.tf=PERIOD_H4;g_dialog.left=1;Action(PANEL_SETTINGS);
- Check(copy_calls==copies&&g_analysis_tf==PERIOD_H4&&g_left_bars==1,"locked settings changes do not search or replace anchors");
+ copies=copy_calls;g_dialog.left=1;Action(PANEL_SETTINGS);
+ Check(copy_calls==copies&&g_analysis_tf==_Period&&g_left_bars==1,"locked settings changes do not search or replace anchors");
  string key=g_auto_pair_key;OnDeinit(REASON_CHARTCHANGE);Check(!timer&&ObjectFind(0,"myFibo.Swing.Fibo")>=0,"handoff retains fibo");
  Check(OnInit()==INIT_SUCCEEDED,"timeframe reinitialization");
  Check(g_mode==FIBO_AUTO&&g_anchor_locked&&g_dialog.locked&&g_dialog.x==170&&g_dialog.y==120,"mode/lock/geometry persistence");
  Check(g_auto_pair_key==key&&g_start_price==6&&g_end_price==-1,"candidate key and edited model persistence");
- Check(g_analysis_tf==PERIOD_H4&&g_left_bars==1&&g_right_bars==2,"analysis timeframe and pivot settings persist");
+ Check(g_analysis_tf==_Period&&g_left_bars==1&&g_right_bars==2,"analysis timeframe and pivot settings persist");
  // Lock does not prevent Reset, and Reset does not silently untick the user's checkbox.
  Action(PANEL_RESET);Check(!g_has_swing&&g_anchor_locked&&g_dialog.locked,"reset retains explicit checkbox");
  Check(ObjectFind(0,"myFibo.Structure.0")<0,"reset clears structure labels");
  g_dialog.locked=false;Action(PANEL_LOCK);Action(PANEL_DRAW);
  Check(g_has_swing&&g_start_price==6,"explicit search regenerates same pair");
- g_dialog.mode=FIBO_MANUAL;g_dialog.left=2;g_dialog.tf=PERIOD_H1;Action(PANEL_SETTINGS);
+ g_dialog.mode=FIBO_MANUAL;g_dialog.left=2;Action(PANEL_SETTINGS);
  Check(g_mode==FIBO_MANUAL&&g_has_swing,"mode switch retains completed fibo");
  Check(ObjectFind(0,"myFibo.Structure.0")<0,"manual mode clears auto labels");
  copies=copy_calls;OnTimer();Check(copy_calls==copies,"manual mode never scans history");
@@ -277,8 +279,8 @@ int main(){
  Check(g_labels_pending&&!g_auto_force_pending,"label failure schedules independent render retry");
  clock_value+=6000;OnTimer();
  Check(g_end_price==6.5,"label retry preserves manual fibo edits on same pair");
- g_dialog.tf=PERIOD_H4;g_dialog.next=PANEL_SETTINGS;
- OnChartEvent(CHARTEVENT_CUSTOM+ON_CHANGE,0,0,"");
+ OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H4;
+ Check(OnInit()==INIT_SUCCEEDED,"chart timeframe change reinit");
  Check(ObjectFind(0,"myFibo.Structure.0")<0,"analysis timeframe change clears stale labels immediately");
  OnTimer();Check(ObjectFind(0,"myFibo.Structure.0")>=0,"new analysis repopulates labels");
  OnDeinit(REASON_REMOVE);
@@ -286,6 +288,8 @@ int main(){
  BreakFixture(history,16);
  Check(OnInit()==INIT_SUCCEEDED,"break chart init");
  g_dialog.mode=FIBO_AUTO;g_dialog.left=1;g_dialog.right=1;Action(PANEL_SETTINGS);
+ for(const auto &entry:Objects())if(entry.second.type==OBJ_TEXT)
+  Check(entry.second.ints.at({OBJPROP_BACK,0})==1&&entry.second.ints.at({OBJPROP_ZORDER,0})==0,"pivot and BOS/CHoCH labels are behind GUI with low click priority");
  Check(g_auto.BreakCount()==4&&g_structure_trend==STRUCTURE_BEARISH&&g_dialog.structure_trend=="Bearish","GUI displays replayed direction");
  Check(Objects()["myFibo.Structure.Break.0"].strings[{OBJPROP_TEXT,0}]=="BOS Bullish","BOS chart text");
  Check(Objects()["myFibo.Structure.Break.2"].strings[{OBJPROP_TEXT,0}]=="CHoCH Bearish","CHoCH chart text");
@@ -429,11 +433,13 @@ void CheckUI(bool value,const char*label){if(!value){std::cerr<<"FAIL UI: "<<lab
 int main(){
  CMyFiboDialog panel;CheckUI(panel.Create(0,"ui",0,12,24,592,464),"create");
  CheckUI(panel.Mode()==FIBO_MANUAL&&!panel.AnchorLocked()&&panel.AutoMethod()==FIBO_PIVOT,"default manual and unchecked");
+ CheckUI(controls["ui.Timeframe"]->text=="Chart: M15","chart timeframe shown read-only");
  CheckUI(!controls["ui.Method"]->visible&&!controls["ui.Left"]->visible,"manual hides pivot controls");
  int original=controls["ui.SwingTitle"]->m_rect.top;
  panel.SetSwingStart(1.2345);panel.SetSwingEnd(1.4567);
  CheckUI(controls["ui.Start"]->text=="Awal : 1.23450"&&controls["ui.End"]->text=="Akhir : 1.45670","prices only");
  panel.SetSettings(FIBO_AUTO,PERIOD_H1,2,2,false);
+ CheckUI(controls["ui.Timeframe"]->text=="Chart: H1","read-only timeframe display updates");
  CheckUI(panel.Height()==524&&controls["ui.SwingTitle"]->m_rect.top==original+84,"automatic layout height and offset");
  CheckUI(controls["ui.Method"]->visible&&controls["ui.Left"]->visible&&controls["ui.AutoMethod"]->visible,"auto shows method selector and pivots");
  CheckUI(controls["ui.Draw"]->text=="Cari Swing","auto caption");
@@ -529,6 +535,7 @@ def main():
     assert 'CComboBox m_mode' in header and 'CCheckBox m_lock' in header
     assert 'm_lock.Checked(false)' in header and 'return CAppDialog' not in source
     assert '.OnMouseEvent(' not in source and 'ShouldDispatch' not in source
+    assert "CComboBox m_timeframe" not in header and "g_dialog.Timeframe()" not in source
     assert source.count('g_dialog.ChartEvent(id, lparam, dparam, sparam);')==1
     print('Source contracts checked; native GUI rendering and Windows compilation remain untested.')
 

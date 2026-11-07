@@ -27,7 +27,7 @@ class CMyFiboDialog : public CAppDialog
 {
 private:
    CComboBox m_mode;
-   CComboBox m_timeframe;
+   CLabel m_timeframe;
    CComboBox m_auto_method;
    CLabel m_auto_method_label;
    CMyFiboSpinEdit m_left;
@@ -65,19 +65,10 @@ public:
          || !m_mode.Create(chart, name + ".Mode", subwin, 80, 10, 235, 34)
          || !m_mode.AddItem("Manual", FIBO_MANUAL) || !m_mode.AddItem("Auto", FIBO_AUTO)
          || !Add(m_mode)
-         || !m_timeframe.Create(chart, name + ".Timeframe", subwin, 350, 10, 510, 34))
+         || !Label(m_timeframe, chart, name + ".Timeframe", "Chart: " + MyFiboTimeframeName(_Period), 350, 10, 550, 34))
          return false;
       m_mode.SelectByValue(FIBO_MANUAL);
       m_mode.ListViewItems(2);
-      if(!m_timeframe.AddItem("M1", PERIOD_M1) || !m_timeframe.AddItem("M5", PERIOD_M5)
-         || !m_timeframe.AddItem("M15", PERIOD_M15) || !m_timeframe.AddItem("M30", PERIOD_M30)
-         || !m_timeframe.AddItem("H1", PERIOD_H1) || !m_timeframe.AddItem("H4", PERIOD_H4)
-         || !m_timeframe.AddItem("D1", PERIOD_D1) || !m_timeframe.AddItem("W1", PERIOD_W1)
-         || !m_timeframe.AddItem("MN1", PERIOD_MN1)
-         || !Add(m_timeframe))
-         return false;
-      m_timeframe.SelectByValue(PERIOD_H1);
-      m_timeframe.ListViewItems(5);
       if(!Label(m_auto_method_label, chart, name + ".AutoMethodLabel", "Metode", 20, 44, 95, 64)
          || !m_auto_method.Create(chart, name + ".AutoMethod", subwin, 100, 44, 310, 68)
          || !m_auto_method.AddItem("Pivot", FIBO_PIVOT)
@@ -127,7 +118,7 @@ public:
       if(id == CHARTEVENT_CUSTOM + ON_CHANGE)
       {
          if(lparam == m_lock.Id()) { m_action = PANEL_LOCK; return true; }
-         if(lparam == m_mode.Id() || lparam == m_timeframe.Id() || lparam == m_auto_method.Id()
+         if(lparam == m_mode.Id() || lparam == m_auto_method.Id()
             || lparam == m_left.Id() || lparam == m_right.Id())
          { m_action = PANEL_SETTINGS; return true; }
       }
@@ -147,7 +138,6 @@ public:
 
    // Some terminal library versions expose non-const Value/Checked getters.
    MyFiboMode Mode(void) { return (MyFiboMode)m_mode.Value(); }
-   ENUM_TIMEFRAMES Timeframe(void) { return (ENUM_TIMEFRAMES)m_timeframe.Value(); }
    MyFiboAutoMethod AutoMethod(void) { return (MyFiboAutoMethod)m_auto_method.Value(); }
    int LeftBars(void) { return m_left.Value(); }
    int RightBars(void) { return m_right.Value(); }
@@ -159,7 +149,8 @@ public:
    {
       if(m_auto_method.Value() != method) m_auto_method.SelectByValue(method);
       if(m_mode.Value() != mode) m_mode.SelectByValue(mode);
-      if(m_timeframe.Value() != timeframe) m_timeframe.SelectByValue(timeframe);
+      string tf_text = "Chart: " + MyFiboTimeframeName(timeframe);
+      if(m_timeframe.Text() != tf_text) m_timeframe.Text(tf_text);
       m_left.SetDisplayedValue(left);
       m_right.SetDisplayedValue(right);
       if(m_lock.Checked() != locked) m_lock.Checked(locked);
@@ -224,7 +215,7 @@ public:
    }
    virtual string IniFileName(void) const
    {
-      return "myFibo_" + IntegerToString(ChartID()) + "_GUI_v5";
+      return "myFibo_" + IntegerToString(ChartID()) + "_GUI_v6";
    }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void)

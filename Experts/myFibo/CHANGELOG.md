@@ -1,5 +1,30 @@
 # myFibo changelog
 
+## 2.13
+
+- Auto selalu mengikuti timeframe chart. Ganti dropdown TF dengan label read-only.
+- Rebuild analisis setelah perubahan TF tanpa mengambil histori di OnInit; jangan
+  memuat checkpoint dari TF berbeda. Setting, GUI, Manual dan anchor terkunci
+  dipertahankan. Unlock melanjutkan analisis pada TF chart baru.
+- Dukung seluruh 21 timeframe native MT5, termasuk interval yang sebelumnya tidak
+  ada di dropdown. Snapshot lama tidak lagi menentukan TF analisis.
+- Tegaskan Candle kiri/kanan digunakan Pivot dan Market Structure; sensitivitas
+  pivot tetap dipertahankan saat berpindah TF. Layout native memakai GUI_v6.
+
+## 2.12
+
+- Hapus manifest.json dari paket dan builder.
+- Sederhanakan installer menjadi ekstrak ZIP lalu XCOPY isi folder MQL5 dengan
+  overwrite, tanpa daftar file, pemeriksaan versi/hash atau backup Windows.
+
+## 2.11
+
+- Letakkan label HH/HL/LH/LL, BOS/CHoCH, Fibo dan marker preview pada background
+  plane agar tidak menutupi panel native. Prioritas klik anotasi tetap rendah.
+- Inisialisasi SwingPoint last/first/other secara eksplisit untuk menghindari
+  warning possible use of uninitialized variable pada compiler MQL5.
+- Pertahankan cache label, sifat editable Fibo dan driver drag native.
+
 ## 2.10
 
 - Pisahkan chart drawing/geometry ke MyFiboChart dan persistence ke MyFiboState.

@@ -11,7 +11,7 @@ Experts/
   myCalc/          Pending limit order, SL sebagai input, lot dihitung dari risiko
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
-  myFibo/         Manual/Auto Pivot atau Market Structure, TF, kunci, tiga level fibo
+  myFibo/         Manual/Auto Pivot atau Market Structure, TF chart otomatis, tiga level fibo
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/

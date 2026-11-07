@@ -93,3 +93,22 @@ MyFiboState. The main EA coordinates events and retries; model classes remain
 independent of chart APIs. Use the typed analysis outcome instead of treating
 false/no-pair as a data error. Label rendering failures must never block valid
 anchor calculation or force a data fetch.
+
+## Chart object layering (2.11)
+
+`OBJPROP_BACK` mengatur background plane. `OBJPROP_ZORDER` adalah prioritas
+penerimaan klik ketika objek bertumpuk, bukan urutan gambar. Anotasi myFibo
+menggunakan BACK=true dan ZORDER=0 agar panel Standard Library tetap di depan;
+Fibo tetap selectable jika anchor tidak dikunci. Tidak perlu recreate dialog
+atau loop mengatur properti pada mouse move. Konfirmasi visual tetap di Windows.
+Referensi: [Object Properties](https://www.mql5.com/en/docs/constants/objectconstants/enum_object_property),
+[OBJ_TEXT](https://www.mql5.com/en/docs/constants/objectconstants/enum_object/obj_text).
+
+## Timeframe chart (2.13)
+
+Gunakan `_Period` sebagai timeframe analisis EA. TF pada GUI hanya label chart,
+bukan parameter user terpisah. Pada handoff, bandingkan TF snapshot dan chart:
+checkpoint TF berbeda tidak boleh dipakai ulang. Pertahankan anchor Manual atau
+terkunci; jadwalkan analisis Auto TF baru pada timer. Konfigurasi kiri/kanan tetap
+berlaku untuk Pivot dan Market Structure. Dukung semua interval native MT5, bukan
+hanya daftar dropdown lama. Referensi: [Chart Timeframes](https://www.mql5.com/en/docs/constants/chartconstants/enum_timeframes).

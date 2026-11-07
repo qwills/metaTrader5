@@ -34,6 +34,14 @@ int main(){
  Check(g_has_swing&&g_labels_pending&&g_auto_retry_after==0,"label failure cannot block valid Fibo or schedule a data retry");
  int calls=copy_calls;clock_value+=6000;OnTimer();
  Check(!g_labels_pending&&copy_calls==calls&&g_status.find("Label: retry")==string::npos,"label recovery is independent and clears warning");
+ for(const auto &entry:Objects())if(entry.second.type==OBJ_TEXT)
+  Check(entry.second.ints.at({OBJPROP_BACK,0})==1&&entry.second.ints.at({OBJPROP_SELECTABLE,0})==0,"structure labels draw behind GUI without selection");
+ Check(Objects()["myFibo.Swing.Fibo"].ints[{OBJPROP_BACK,0}]==1&&Objects()["myFibo.Swing.Fibo"].ints[{OBJPROP_SELECTABLE,0}]==1,"background Fibo retains native editing");
+ // Updating retained foreground labels must apply layering without replacing them.
+ auto label_time=Objects()["myFibo.Structure.0"].times[0];
+ Objects()["myFibo.Structure.0"].ints[{OBJPROP_BACK,0}]=0;
+ g_chart.ResetCache();Check(DrawStructureLabels(),"retained label refresh");
+ Check(Objects()["myFibo.Structure.0"].times[0]==label_time&&Objects()["myFibo.Structure.0"].ints[{OBJPROP_BACK,0}]==1,"existing label moves to background without anchor changes");
  int writes=object_writes,moves=object_moves,deletes=object_deletes;
  DrawStructureLabels();DrawStructureLabels();
  Check(object_writes==writes&&object_moves==moves&&object_deletes==deletes,"unchanged label snapshots cause no chart writes/moves/deletions");
@@ -62,13 +70,14 @@ int main(){
  Check(DrawSwing(history[2].time,7),"initial manual fibo");
  Action(PANEL_DRAW);Check(g_has_swing&&g_state==SELECT_START,"manual reselection retains completed object");
  OnChartEvent(CHARTEVENT_CLICK,140,985,"");
+ Check(Objects()["myFibo.Start"].ints[{OBJPROP_BACK,0}]==1,"manual preview marker stays behind GUI");
  Check(g_state==SELECT_END&&g_pick_time==history[4].time&&g_pick_price==3,"manual midpoint snaps to selected candle high");
  OnChartEvent(CHARTEVENT_KEYDOWN,27,0,"");
  Check(g_state==IDLE&&g_has_swing&&g_start_price==2&&g_end_price==7&&g_dialog.end==7,"Esc restores completed model/GUI");
  Check(ChartGetInteger(0,CHART_MOUSE_SCROLL)==1,"selection cancellation restores chart scrolling");
  Action(PANEL_DRAW);clock_value+=1000;OnChartEvent(CHARTEVENT_CLICK,140,985,"");
- OnDeinit(REASON_CHARTCHANGE);Check(OnInit()==INIT_SUCCEEDED,"manual pending handoff");
- Check(g_has_swing&&g_state==SELECT_END&&g_pick_price==3&&g_end_price==7&&g_dialog.start==3,"preview and completed result both survive timeframe handoff");
+ OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H3;Check(OnInit()==INIT_SUCCEEDED,"manual pending handoff");
+ Check(g_has_swing&&g_state==SELECT_END&&g_pick_price==3&&g_end_price==7&&g_dialog.start==3&&g_analysis_tf==PERIOD_H3,"preview and completed result both survive timeframe handoff");
  clock_value+=1000;OnChartEvent(CHARTEVENT_CLICK,160,940,"");
  Check(g_state==IDLE&&g_has_swing&&g_start_time==history[4].time&&g_end_time==history[6].time&&g_end_price==6,"valid replacement commits only after second click");
  datetime time=0;double price=0;
@@ -106,7 +115,46 @@ int main(){
  Window(all,110,610,window);for(int i=0;i<ArraySize(window);i++)window[i].time+=100000;
  Check(quiet.Analyze(window,start,end,FIBO_MARKET_STRUCTURE)==FIBO_ANALYSIS_ERROR,"non-overlapping history gap is explicit");
  Check(quiet.Analyze(window,start,end,FIBO_MARKET_STRUCTURE,true)==FIBO_WAITING_PAIR&&quiet.Reseeded(),"explicit search can reseed a gap");
- std::cout<<"PASS: review regressions, independent label retries/cache, error recovery, provenance, manual geometry/cancel, sliding windows, checkpoint persistence and gap handling.\n";
+ // Chart timeframe changes rebuild only the analysis, preserving settings/anchors
+ // until the deferred result is ready. Locked anchors remain frozen.
+ Fixture(9);_Period=PERIOD_M15;Check(OnInit()==INIT_SUCCEEDED,"follow-chart init");
+ g_dialog.mode=FIBO_AUTO;Action(PANEL_SETTINGS);
+ Objects()["myFibo.Swing.Fibo"].prices[1]=6.5;
+ OnChartEvent(CHARTEVENT_OBJECT_DRAG,0,0,"myFibo.Swing.Fibo");
+ g_dialog.x=170;g_dialog.y=120;
+ OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H2;Fixture(13);calls=copy_calls;
+ Check(OnInit()==INIT_SUCCEEDED,"follow H2 reinit");
+ Check(g_analysis_tf==PERIOD_H2&&g_dialog.tf==PERIOD_H2&&copy_calls==calls&&g_auto_force_pending,"new TF follows chart and defers CopyRates");
+ StructureCheckpoint active;g_auto.GetCheckpoint(active);
+ Check(active.last_bar==0&&ObjectFind(0,"myFibo.Structure.0")<0&&g_structure_trend==STRUCTURE_UNCLEAR,"old timeframe checkpoint and labels are discarded");
+ Check(g_end_price==6.5&&g_dialog.x==170&&g_dialog.y==120&&g_left_bars==2&&g_right_bars==2,"settings geometry and prior drawing survive until update");
+ OnTimer();Check(last_copy_tf==PERIOD_H2&&g_start_price==-1&&g_end_price==5&&!g_anchor_edited,"unlocked Auto updates using new TF candles");
+ g_dialog.locked=true;Action(PANEL_LOCK);double held_start=g_start_price,held_end=g_end_price;
+ OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_M2;Fixture(9);calls=copy_calls;
+ Check(OnInit()==INIT_SUCCEEDED,"locked follow M2 reinit");OnTimer();
+ Check(g_analysis_tf==PERIOD_M2&&g_anchor_locked&&g_start_price==held_start&&g_end_price==held_end&&copy_calls==calls&&!g_auto_force_pending,"locked TF change keeps anchors and performs no analysis");
+ g_dialog.locked=false;Action(PANEL_LOCK);
+ Check(last_copy_tf==PERIOD_M2&&g_end_price==6,"unlock resumes new chart timeframe");
+ // An older snapshot with an independently selected TF cannot pin the new EA.
+ OnDeinit(REASON_CHARTCHANGE);MyFiboSnapshot prior;
+ Check(ReadChartSnapshot(prior),"prior snapshot available");prior.timeframe=PERIOD_H1;
+ Check(g_storage.Write(prior,_Symbol),"legacy selected TF snapshot");
+ _Period=PERIOD_M20;calls=copy_calls;
+ Check(OnInit()==INIT_SUCCEEDED&&g_analysis_tf==PERIOD_M20&&g_auto_force_pending&&copy_calls==calls,"legacy fixed TF ignored in favor of chart");
+ OnTimer();Check(last_copy_tf==PERIOD_M20,"legacy migration analyzes chart TF");
+ OnDeinit(REASON_REMOVE);
+ BreakFixture(history,16);_Period=PERIOD_H12;Check(OnInit()==INIT_SUCCEEDED,"structure chart TF init");
+ g_dialog.mode=FIBO_AUTO;g_dialog.method=FIBO_MARKET_STRUCTURE;g_dialog.left=1;g_dialog.right=1;Action(PANEL_SETTINGS);
+ Check(last_copy_tf==PERIOD_H12&&g_start_price==13&&g_end_price==5,"Market Structure also follows chart TF");
+ OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_M3;BreakFixture(history,10);
+ Check(OnInit()==INIT_SUCCEEDED&&g_auto_method==FIBO_MARKET_STRUCTURE&&g_left_bars==1&&g_right_bars==1,"method and pivot sensitivity retained across TF");
+ OnTimer();Check(last_copy_tf==PERIOD_M3&&g_start_price==11&&g_end_price==17,"Market Structure rebuilds BOS on new TF");
+ OnDeinit(REASON_REMOVE);
+ int chart_periods[]={PERIOD_M1,PERIOD_M2,PERIOD_M3,PERIOD_M4,PERIOD_M5,PERIOD_M6,PERIOD_M10,PERIOD_M12,
+  PERIOD_M15,PERIOD_M20,PERIOD_M30,PERIOD_H1,PERIOD_H2,PERIOD_H3,PERIOD_H4,PERIOD_H6,PERIOD_H8,PERIOD_H12,PERIOD_D1,PERIOD_W1,PERIOD_MN1};
+ for(int tf:chart_periods)Check(IsValidMyFiboSettings(FIBO_AUTO,tf,2,2)&&!MyFiboTimeframeName(tf).empty(),"every native chart timeframe is supported");
+ Check(!IsMyFiboTimeframe(123456),"invalid timeframe rejected");
+ std::cout<<"PASS: review regressions, independent label retries/cache, error recovery, provenance, manual geometry/cancel, sliding windows, checkpoint persistence, gap handling and chart-timeframe following.\n";
 }
 '''
 

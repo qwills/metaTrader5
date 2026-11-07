@@ -1,11 +1,11 @@
-# myFibo 2.10
+# myFibo 2.13
 
 EA untuk memilih anchor dan menggambar Fibonacci **50%, 61.8%, 78.6%**.
 GUI memakai Standard Library `CAppDialog`, objek gambar `OBJ_FIBO` berwarna hitam.
 EA tidak mengirim order.
 
 ```text
-Mode [Manual / Auto]                 TF [H1]
+Mode [Manual / Auto]                 TF Chart: M15
 Metode [Pivot / Market Structure]    Struktur: Bullish/Bearish/Belum jelas
 Candle kiri [2]  Candle kanan [2]     (baris Metode/pivot hanya terlihat di Auto)
 
@@ -28,7 +28,7 @@ Status
 Default Manual, Kunci anchor tidak dicentang. Pilih Swing lalu dua candle dekat
 high/low yang diinginkan. Titik memakai ekstrem candle terpilih, bukan harga bebas;
 jarak sama ke high/low memilih high. Klik ruang kosong sesudah candle terakhir
-ditolak. Manual memakai timeframe chart; TF di GUI untuk analisis Auto.
+ditolak. Manual dan Auto sama-sama memakai timeframe chart yang sedang aktif.
 
 Saat memilih pengganti, Fibo lama tetap ada. Batal/Esc mengembalikan GUI ke hasil
 lama; pengganti baru diterapkan setelah dua titik valid dipilih. Preview dan hasil
@@ -41,8 +41,12 @@ dengan penanda `(edit)`; metode terpilih tidak menyamarkan asal Fibo yang masih 
 
 ## Auto
 
-TF analisis default H1; pilihan M1/M5/M15/M30/H1/H4/D1/W1/MN1. Candle kiri/kanan
-langsung terisi 2/2, rentang 1..20. Kedua metode memakai konfigurasi pivot yang sama.
+Timeframe analisis otomatis mengikuti chart. GUI hanya menampilkan `Chart: M15`
+(contoh) sebagai label read-only, tanpa dropdown TF terpisah. Semua timeframe native
+MT5 didukung, termasuk M2/M3/M4/M6/M10/M12/M20 dan H2/H3/H6/H8/H12.
+Candle kiri/kanan langsung terisi 2/2, rentang 1..20, pada **kedua metode**.
+Pivot memakai pivot terkonfirmasi untuk pasangan anchor; Market Structure memakai
+pivot yang sama untuk HH/HL/LH/LL, arah dan BOS/CHoCH sebelum memilih impuls BOS.
 Deteksi strict: equal high/low menggugurkan pivot. Candle yang sekaligus menjadi
 pivot high dan low dilewati karena urutan intrabar tidak diketahui.
 
@@ -109,7 +113,9 @@ Riwayat diambil di timer, bukan handler klik/mouse move. Timer dilewati selama
 GUI digeser atau mouse ditekan. Tidak ada throttle pada driver mouse native.
 Timer tetap memakai antrean EA; pemuatan riwayat server bisa memiliki latensi.
 
-Maksimal 30 label pivot + 20 label break hitam. Objek yang tidak berubah tidak
+Maksimal 30 label pivot + 20 label break hitam. Label, Fibo dan marker memakai
+background plane agar berada di belakang panel native; Fibo tetap bisa diedit.
+Tidak ada recreate panel atau pekerjaan tambahan pada mouse move untuk layering. Objek yang tidak berubah tidak
 ditulis ulang. Label error tidak memblokir Fibo: retry rendering terpisah, tanpa
 CopyRates/perhitungan ulang anchor. Pesan transient hilang setelah recovery dan
 pesan edit manual dipertahankan. Data invalid tidak dicache sebagai hasil no-pair;
@@ -118,18 +124,24 @@ retry data berjeda 5 detik. Hasil waiting pada histori pendek dicoba ulang maksi
 
 ## Pindah timeframe dan instalasi
 
-Pada symbol sama, mode, metode, pivot, lock, harga, sumber/edit, preview, arah,
-checkpoint dan gambar dipertahankan. Posisi/minimize memakai native IniFileSave /
-IniFileLoad, nama per ChartID `GUI_v5`. Layout lama tidak dimuat pada upgrade yang
+Pada symbol sama, mode, metode, pivot, lock, harga, sumber/edit dan preview
+dipertahankan. Jika timeframe chart tetap sama, arah/checkpoint juga dipulihkan.
+Jika timeframe chart berubah, label dan checkpoint TF lama dibersihkan, kemudian
+Auto yang tidak terkunci menjadwalkan analisis TF chart baru lewat timer; tidak
+mengambil histori di OnInit. Fibo lama tetap ada sampai pengganti valid tersedia.
+Anchor terkunci dan hasil Manual tidak dihitung ulang. Melepas kunci melanjutkan
+Auto pada TF chart yang sekarang. Snapshot lama dengan TF independen tidak
+mengunci TF lagi. Posisi/minimize memakai native IniFileSave /
+IniFileLoad, nama per ChartID `GUI_v6`. Layout lama tidak dimuat pada upgrade yang
 menambah kontrol; perpindahan timeframe selanjutnya memakai layout versi sama.
 Snapshot schema 6 membaca juga schema 5 dari 2.00; schema 1..4 sudah dihentikan.
 Asal anchor dari schema lama ditampilkan Unknown karena dulu belum dicatat.
 
 1. Gunakan ZIP dan CMD rilis yang sama, atau ekstrak lengkap ZIP dan jalankan CMD.
-2. CMD memprioritaskan ZIP yang berdampingan dibanding folder MQL5 lama. Semua
-   file incoming diverifikasi dengan versi dan SHA-256 manifest sebelum disalin.
+2. CMD memprioritaskan ZIP yang berdampingan dibanding folder MQL5 lama, lalu
+   mengekstrak dan menyalin isi folder MQL5. Tidak ada manifest/hash/version check.
 3. File paket langsung ditimpa, tanpa backup Windows; proyek lain tidak dihapus.
-4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.10.
+4. Buka Experts/myFibo/myFibo.mq5 di MetaEditor, F7; attach kembali versi 2.13.
 
 Tujuan default:
 `C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A`.

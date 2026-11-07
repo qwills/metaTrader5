@@ -38,55 +38,9 @@ try {
     if (-not (Test-Path -LiteralPath $payload -PathType Container)) {
         throw 'Letakkan myFibo.zip di sebelah CMD, atau jalankan CMD dari hasil ekstrak lengkap.'
     }
-    # Only these package files are installed. Other terminal files are untouched.
-    $files = @(
-        'Experts\myFibo\myFibo.mq5',
-        'Experts\myFibo\MyFiboDialog.mqh',
-        'Experts\myFibo\MyFiboAuto.mqh',
-        'Experts\myFibo\MyFiboTypes.mqh',
-        'Experts\myFibo\MyFiboChart.mqh',
-        'Experts\myFibo\MyFiboState.mqh',
-        'Experts\myFibo\README.md',
-        'Experts\myFibo\CHANGELOG.md',
-        'Include\Fibo\Fibonacci.mqh',
-        'Include\Swing\SwingTypes.mqh',
-        'Include\Swing\SwingDetector.mqh',
-        'Include\Structure\MarketStructure.mqh',
-        'Include\Structure\README.md',
-        'Scripts\Structure\MarketStructureExample.mq5'
-    )
-    $expectedVersion = '2.10'
-    $manifestPath = Join-Path $payloadRoot 'manifest.json'
-    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw 'Manifest paket tidak ditemukan.' }
-    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    if ($manifest.version -cne $expectedVersion -or @($manifest.files).Count -ne $files.Count) {
-        throw 'Versi atau daftar file manifest tidak sesuai CMD. Gunakan CMD dan paket rilis yang sama.'
-    }
-    # Verify every incoming file before the first destination overwrite.
-    foreach ($file in $files) {
-        $incoming = Join-Path $payload $file
-        $entry = @($manifest.files | Where-Object { $_.path -ceq $file.Replace('\', '/') })
-        if ($entry.Count -ne 1 -or -not (Test-Path -LiteralPath $incoming -PathType Leaf)) {
-            throw ('Isi paket tidak lengkap: ' + $file)
-        }
-        if ((Get-FileHash -LiteralPath $incoming -Algorithm SHA256).Hash -ine $entry[0].sha256) {
-            throw ('File paket tidak sesuai manifest: ' + $file)
-        }
-    }
-    # Validate destination types before overwriting package files.
-    foreach ($file in $files) {
-        $destination = Join-Path $mql5 $file
-        if ((Test-Path -LiteralPath $destination) -and
-            -not (Test-Path -LiteralPath $destination -PathType Leaf)) {
-            throw ('Tujuan bukan file: ' + $destination)
-        }
-    }
-    foreach ($file in $files) {
-        $destination = Join-Path $mql5 $file
-        [IO.Directory]::CreateDirectory((Split-Path -Parent $destination)) | Out-Null
-        Copy-Item -LiteralPath (Join-Path $payload $file) -Destination $destination -Force
-        Write-Host ('Disalin: ' + $destination)
-    }
+    # Merge the extracted MQL5 contents, overwriting existing package files.
+    & xcopy.exe (Join-Path $payload '*') $mql5 /E /I /Y
+    if ($LASTEXITCODE -ne 0) { throw 'Penyalinan file gagal. Periksa pesan XCOPY di atas.' }
     Write-Host ''
     Write-Host 'Selesai. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, lalu tekan F7.'
     Write-Host 'Paket berisi source; file EX5 dibuat setelah kompilasi.'

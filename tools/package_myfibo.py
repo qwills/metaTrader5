@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Build or validate the Windows myFibo source package; no terminal installation."""
 import argparse
-import hashlib
-import json
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -31,7 +29,6 @@ PAYLOAD = {
     'reference/download-reference.cmd': ROOT/'docs/reference/download-reference.cmd',
     'install-myFibo.cmd': DIST/'install-myFibo.cmd',
     'INSTALL.txt': DIST/'INSTALL.txt',
-    'manifest.json': DIST/'manifest.json',
 }
 
 
@@ -40,13 +37,6 @@ def version(source):
     if not match:
         raise ValueError('EA version was not found.')
     return match[1]
-
-
-def manifest_bytes():
-    release = version((ROOT/'Experts/myFibo/myFibo.mq5').read_text())
-    files = [{'path': name.removeprefix('MQL5/'), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
-             for name, path in PAYLOAD.items() if name.startswith('MQL5/')]
-    return (json.dumps({'version': release, 'files': files}, indent=2) + '\n').encode()
 
 
 def check_inputs():
@@ -61,22 +51,15 @@ def check_inputs():
     cmd = (DIST/'install-myFibo.cmd').read_bytes()
     if b'\n' in cmd.replace(b'\r\n', b''):
         raise ValueError('Windows CMD must use CRLF newlines.')
-    if (DIST/'manifest.json').read_bytes() != manifest_bytes():
-        raise ValueError('Incoming manifest does not match source hashes/version.')
     text = cmd.decode('ascii')
-    if f"$expectedVersion = '{release}'" not in text:
-        raise ValueError('Installer version mismatch.')
     if text.index("if (Test-Path -LiteralPath $zip -PathType Leaf)") > text.index("$payload = Join-Path"):
         raise ValueError('Installer must prefer the adjacent ZIP.')
-    if 'Get-FileHash' not in text or 'ConvertFrom-Json' not in text:
-        raise ValueError('Installer must verify the incoming manifest.')
+    if any(token in text for token in ('Get-FileHash', 'ConvertFrom-Json', '$expectedVersion')):
+        raise ValueError('Installer must only extract and copy the payload.')
+    if "& xcopy.exe (Join-Path $payload '*') $mql5 /E /I /Y" not in text:
+        raise ValueError('Installer must copy the extracted MQL5 contents.')
     if len(re.split(r'(?m)^# POWERSHELL\r?$', text, maxsplit=1)) != 2:
         raise ValueError('Invalid CMD/PowerShell boundary.')
-    block = text.split('$files = @(', 1)[1].split(')', 1)[0]
-    installed = ['MQL5/'+name.replace('\\', '/') for name in re.findall(r"'([^']+)'", block)]
-    expected = {name for name in PAYLOAD if name.startswith('MQL5/')}
-    if len(installed) != len(set(installed)) or set(installed) != expected:
-        raise ValueError('Installer payload does not match package payload.')
     for name, path in PAYLOAD.items():
         if path.suffix not in ('.mq5', '.mqh'):
             continue
@@ -107,8 +90,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Validate current ZIP without changing it.')
     args = parser.parse_args()
-    if not args.check:
-        (DIST/'manifest.json').write_bytes(manifest_bytes())
     release = check_inputs()
     if not args.check:
         with tempfile.NamedTemporaryFile(dir=DIST, suffix='.zip', delete=False) as handle:

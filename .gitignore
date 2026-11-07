@@ -32,7 +32,6 @@ venv/
 # Local archives and generated release artifacts
 /archive/
 /distribution/**/*.zip
-/distribution/myFibo/manifest.json
 
 # Downloaded copies of the official reference
 /docs/reference/mql5.pdf

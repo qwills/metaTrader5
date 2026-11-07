@@ -1,5 +1,5 @@
 #property strict
-#property version "2.10"
+#property version "2.13"
 #property description "Select two candle extremes to draw 50%, 61.8%, and 78.6% retracements."
 
 #include <Fibo\Fibonacci.mqh>
@@ -24,7 +24,7 @@ string g_base_status = "";
 ENUM_STRUCTURE_TREND g_structure_trend = STRUCTURE_UNCLEAR;
 MyFiboMode g_mode = FIBO_MANUAL;
 MyFiboAutoMethod g_auto_method = FIBO_PIVOT;
-ENUM_TIMEFRAMES g_analysis_tf = PERIOD_H1;
+ENUM_TIMEFRAMES g_analysis_tf = PERIOD_CURRENT;
 int g_left_bars = 2, g_right_bars = 2;
 bool g_anchor_locked = false;
 datetime g_last_auto_bar = 0;
@@ -154,7 +154,7 @@ void RestoreChartSnapshot(const MyFiboSnapshot &snapshot)
    g_pick_time = snapshot.pick_time; g_pick_price = snapshot.pick_price;
    g_mode = (MyFiboMode)snapshot.mode;
    g_auto_method = (MyFiboAutoMethod)snapshot.auto_method;
-   g_analysis_tf = (ENUM_TIMEFRAMES)snapshot.timeframe;
+   g_analysis_tf = (ENUM_TIMEFRAMES)_Period;
    g_left_bars = snapshot.left; g_right_bars = snapshot.right;
    g_anchor_locked = snapshot.anchor_locked;
    g_last_auto_bar = snapshot.auto_bar; g_auto_pair_key = snapshot.auto_key;
@@ -189,7 +189,7 @@ int OnInit(void)
    g_attached_symbol = _Symbol;
    g_mode = restoring ? (MyFiboMode)snapshot.mode : FIBO_MANUAL;
    g_auto_method = restoring ? (MyFiboAutoMethod)snapshot.auto_method : FIBO_PIVOT;
-   g_analysis_tf = restoring ? (ENUM_TIMEFRAMES)snapshot.timeframe : PERIOD_H1;
+   g_analysis_tf = (ENUM_TIMEFRAMES)_Period;
    g_left_bars = restoring ? snapshot.left : 2;
    g_right_bars = restoring ? snapshot.right : 2;
    g_anchor_locked = restoring && snapshot.anchor_locked;
@@ -241,7 +241,19 @@ int OnInit(void)
       // and the minimize button together, without a new manual GUI driver.
       g_dialog.IniFileLoad();
       RestoreChartSnapshot(snapshot);
-      if(!g_storage.LoadCheckpoint(g_auto, CheckpointContext()))
+      if(snapshot.timeframe != (int)_Period)
+      {
+         // A checkpoint is specific to its candle timeframe. Keep completed
+         // anchors/selection, but rebuild Auto from the new chart's closed bars.
+         g_auto.ResetAnalysis(); ClearStructureLabels();
+         g_last_auto_bar = 0; g_auto_pair_key = ""; g_auto_retry_after = 0;
+         g_auto_force_pending = g_mode == FIBO_AUTO && !g_anchor_locked;
+         g_analysis_transient = false;
+         if(g_mode == FIBO_AUTO)
+            SetStatus(g_anchor_locked ? "TF mengikuti chart; anchor tetap terkunci."
+                                      : "TF mengikuti chart; analisis Auto dijadwalkan.");
+      }
+      else if(!g_storage.LoadCheckpoint(g_auto, CheckpointContext()))
       {
          g_last_auto_bar = 0;
          if(g_mode == FIBO_AUTO && !g_anchor_locked)
@@ -480,7 +492,7 @@ void ApplyPanelSettings(void)
 {
    MyFiboMode mode = g_dialog.Mode();
    MyFiboAutoMethod method = g_dialog.AutoMethod();
-   ENUM_TIMEFRAMES timeframe = g_dialog.Timeframe();
+   ENUM_TIMEFRAMES timeframe = (ENUM_TIMEFRAMES)_Period;
    int left = g_dialog.LeftBars(), right = g_dialog.RightBars();
    if(!IsValidMyFiboSettings(mode, timeframe, left, right, method))
    {

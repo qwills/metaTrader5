@@ -26,6 +26,10 @@ private:
          || !ObjectSetInteger(0, name, OBJPROP_COLOR, clrBlack)
          || !ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 8)
          || !ObjectSetInteger(0, name, OBJPROP_ANCHOR, anchor)
+         // Background plane keeps annotations behind the native dialog.
+         // ZORDER controls mouse priority, not visual stacking.
+         || !ObjectSetInteger(0, name, OBJPROP_BACK, true)
+         || !ObjectSetInteger(0, name, OBJPROP_ZORDER, 0)
          || !ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false)
          || !ObjectSetInteger(0, name, OBJPROP_HIDDEN, true)) return false;
       m_keys[slot] = key;
@@ -89,7 +93,8 @@ public:
                 && ObjectSetInteger(0, name, OBJPROP_WIDTH, 1)
                 && ObjectSetInteger(0, name, OBJPROP_RAY_LEFT, false)
                 && ObjectSetInteger(0, name, OBJPROP_RAY_RIGHT, true)
-                && ObjectSetInteger(0, name, OBJPROP_BACK, false)
+                && ObjectSetInteger(0, name, OBJPROP_BACK, true)
+                && ObjectSetInteger(0, name, OBJPROP_ZORDER, 0)
                 // Allow native selection, anchor dragging, and Properties editing.
                 && ObjectSetInteger(0, name, OBJPROP_SELECTABLE, !locked)
                 && ObjectSetInteger(0, name, OBJPROP_HIDDEN, false)
@@ -119,6 +124,8 @@ public:
       if(!ObjectCreate(0, name, OBJ_ARROW, 0, time, price)) return false;
       bool ok = ObjectSetInteger(0, name, OBJPROP_ARROWCODE, 159)
                 && ObjectSetInteger(0, name, OBJPROP_COLOR, clrBlack)
+                && ObjectSetInteger(0, name, OBJPROP_BACK, true)
+                && ObjectSetInteger(0, name, OBJPROP_ZORDER, 0)
                 && ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
       if(!ok) ObjectDelete(0, name);
       return ok;

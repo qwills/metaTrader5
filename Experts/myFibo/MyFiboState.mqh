@@ -94,7 +94,6 @@ public:
       snapshot.end_price = StringToDouble(fields[7]);
       snapshot.status = ObjectGetString(0, m_prefix + "State", OBJPROP_TOOLTIP);
       snapshot.mode = FIBO_MANUAL;
-      snapshot.timeframe = PERIOD_H1;
       snapshot.left = 2; snapshot.right = 2;
       snapshot.anchor_locked = false;
       snapshot.auto_bar = 0;

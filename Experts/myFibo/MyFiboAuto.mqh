@@ -17,7 +17,7 @@ private:
 
    bool Ambiguous(const int index, const SwingPoint &point) const
    {
-      SwingPoint other;
+      SwingPoint other = {};
       return (m_detector.GetSwing(index - 1, other) && other.time == point.time)
              || (m_detector.GetSwing(index + 1, other) && other.time == point.time);
    }
@@ -146,7 +146,7 @@ public:
 private:
    bool FindPivotPair(SwingPoint &start, SwingPoint &end) const
    {
-      SwingPoint last;
+      SwingPoint last = {};
       bool found = false;
       int last_index = -1;
       for(int i = m_detector.Count() - 1; i >= 0; i--)
@@ -160,7 +160,7 @@ private:
       }
       if(!found)
          return false;
-      SwingPoint first;
+      SwingPoint first = {};
       for(int i = last_index - 1; i >= 0; i--)
       {
          if(!m_detector.GetSwing(i, first) || Ambiguous(i, first)
