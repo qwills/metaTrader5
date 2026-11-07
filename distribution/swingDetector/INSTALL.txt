@@ -1,0 +1,26 @@
+CSwingDetector 1.00 - Windows
+
+1. Simpan swingDetector.zip dan build-swingDetector.cmd terbaru berdampingan.
+   Atau ekstrak ZIP dan jalankan CMD yang ada di dalamnya.
+2. Klik dua kali build-swingDetector.cmd.
+3. File disalin ke terminal berikut, lalu MetaEditor dipanggil untuk build:
+   C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
+4. Bila BUILD OK, jalankan Scripts/Swing/SwingDetectorExample pada chart MT5.
+5. Log harus berisi: SwingDetector checks: 46 checks, 0 failure(s).
+
+Tujuan/compiler lain (opsional):
+  build-swingDetector.cmd "C:\path\data-folder" "C:\path\metaeditor64.exe"
+
+Isi:
+  MQL5/Include/Swing/SwingTypes.mqh
+  MQL5/Include/Swing/SwingDetector.mqh
+  MQL5/Include/Swing/README.md
+  MQL5/Scripts/Swing/SwingDetectorExample.mq5
+  MQL5/Scripts/Swing/README.md
+
+File tujuan yang sudah ada langsung ditimpa tanpa membuat backup.
+Tidak perlu Python. CMD memakai PowerShell bawaan Windows untuk unzip/copy/build.
+Native MQL5 build dan eksekusi CMD belum dijalankan pada mesin macOS pengembangan.
+Paket ini berisi source, belum termasuk EX5. Header MQH tidak menjadi EX5 sendiri;
+EX5 yang dibangun adalah program pemeriksaan SwingDetectorExample.
+Mode Auto GUI myFibo belum diubah pada paket ini.

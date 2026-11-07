@@ -1,0 +1,39 @@
+# OS/editor files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled MetaTrader programs and build/runtime logs
+*.ex5
+*.ex4
+*.log
+
+# Python environments and caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment configuration (keep shareable templates)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Local archives and generated release artifacts
+/archive/
+/distribution/**/*.zip
+/distribution/myFibo/manifest.json
+
+# Downloaded copies of the official reference
+/docs/reference/mql5.pdf
+/docs/reference/mql5.chm

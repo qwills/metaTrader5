@@ -1,0 +1,38 @@
+myFibo 2.10 - Windows (source)
+
+1. Simpan myFibo.zip dan install-myFibo.cmd rilis yang sama berdampingan, lalu
+   jalankan CMD. Atau ekstrak lengkap ZIP dan jalankan CMD dari hasil ekstrak.
+2. Jika ZIP dan folder MQL5 sama-sama ada, ZIP diprioritaskan. Versi dan semua
+   hash file incoming diverifikasi terhadap manifest.json sebelum overwrite.
+3. File paket langsung ditimpa tanpa backup. Jika gagal menyalin, perbaiki error
+   lalu jalankan ulang CMD. Proyek lain tidak dihapus.
+4. Buka Experts\myFibo\myFibo.mq5 di MetaEditor, F7, attach kembali versi 2.10.
+
+Tujuan default:
+C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
+Lokasi lain: install-myFibo.cmd "C:\path\data-folder"
+
+Manual: pilih dua high/low candle. Memilih pengganti mempertahankan Fibo lama;
+Cancel/Esc mengembalikan hasil lama. Replacement diterapkan setelah dua titik valid.
+Auto: pilih Pivot (default) atau Market Structure. TF H1 dan pivot 2/2 default;
+left/right 1..20. Market Structure memakai opposing pivot sebelum BOS ke high/low
+candle BOS tertutup; CHoCH menunggu BOS berikutnya dan mempertahankan gambar lama.
+Sumber anchor dan penanda edit ditampilkan, terpisah dari metode yang dipilih.
+Kunci anchor default off, hanya berubah melalui checkbox.
+
+Retry label terpisah dari data/Fibo. Error data dibedakan dari no-pair. Normal
+sliding windows meneruskan checkpoint arah/protected swing; gap tanpa overlap
+memerlukan Cari Swing untuk reseed. Revisi histori yang masih tercache memicu
+replay. Detail batas checkpoint/cache ada di MQL5/Experts/myFibo/README.md.
+Schema 6 mendukung upgrade schema 5 (2.00). Schema 1..4 dihentikan. Layout GUI_v5
+baru dipakai setelah upgrade; pergantian timeframe berikutnya mempertahankan layout.
+
+Paket berisi source dan manifest, tanpa EX5. Kalkulasi/model terpisah dari
+MyFiboChart.mqh (gambar) dan MyFiboState.mqh (persistence). Changelog ada di folder EA.
+Script pemeriksaan native: Scripts/Structure/MarketStructureExample.mq5 (153 kondisi).
+Runner lokal C++/fake API tidak membuktikan kompilasi atau rendering native MQL5.
+F7, interaksi GUI/chart, server history dan CMD perlu diverifikasi di Windows.
+
+Referensi lokal ada di reference/standard-library-guide.md. Downloader PDF/CHM
+resmi: reference/download-reference.cmd; perlu internet dan tidak dijalankan
+secara otomatis oleh installer.
