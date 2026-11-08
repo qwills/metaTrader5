@@ -150,3 +150,18 @@ serta SYMBOL_TRADE_TICK_SIZE dari terminal. Referensi volume memakai minimum
 broker, lalu hasil akhir diverifikasi lagi agar estimasi loss tidak di atas
 budget. Ini bukan validasi margin/order, dan tidak menyertakan biaya/slippage.
 Signature CEdit: [dokumentasi resmi](https://www.mql5.com/en/docs/standardlibrary/controls/cedit).
+
+## Limit-only preview manualFibo 1.13
+
+[SymbolInfoTick](https://www.mql5.com/en/docs/marketinformation/symbolinfotick)
+mengambil Bid/Ask bersama dalam MqlTick. Preview menolak area Bid..Ask (termasuk
+batas) terlebih dahulu, lalu memilih BUY LIMIT di bawahnya atau SELL LIMIT di
+atasnya. Ini aturan retracement proyek; bukan batas seluruh kemampuan order MT5.
+SYMBOL_TRADE_STOPS_LEVEL (dari SymbolInfoInteger, overload bool dengan output long)
+dikalikan SYMBOL_POINT untuk minimum jarak. Pending BUY diukur dari Ask dan SELL
+dari Bid; SL pending diukur terhadap entry. Freeze level bukan batas preview
+penempatan awal karena belum ada order yang dimodifikasi.
+
+Acuan jarak: [panduan resmi MetaQuotes](https://www.mql5.com/en/book/automation/symbols/symbols_spreads_levels).
+OrderCalcProfit tetap menerima ORDER_TYPE_BUY/SELL untuk estimasi, bukan tipe
+pending. EA hanya menampilkan preview limit; tidak ada OrderSend atau tipe stop.

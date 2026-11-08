@@ -1,5 +1,5 @@
 #property strict
-#property version "1.12"
+#property version "1.13"
 #property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboChart.mqh"

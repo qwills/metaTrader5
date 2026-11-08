@@ -1,5 +1,17 @@
 # manualFibo changelog
 
+## 1.13
+
+- Infer BUY LIMIT / SELL LIMIT from a shared latest Bid/Ask quote, replacing
+  swing-based direction. Never select a stop-order type or submit an order.
+- Reject spread entries, missing/crossed quotes, insufficient pending-entry
+  distance, and invalid or too-close SLs. Clear invalid lot/loss estimates.
+- Include limit type in lot tooltips; retain the existing columns and controls.
+- Keep quote/stops/point reads shared across all levels per refresh.
+- Rename the dialog control-prefix member to avoid shadowing inherited m_name.
+- Cover quote changes, both limit directions independent of swing, normalized
+  entry prices and distance boundaries in adapter regressions.
+
 ## 1.12
 
 - Share one equity/symbol snapshot across all lot estimates in a refresh.

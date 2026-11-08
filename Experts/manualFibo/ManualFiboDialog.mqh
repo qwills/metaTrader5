@@ -22,7 +22,7 @@ private:
    CLabel m_risk_title, m_risk_label, m_budget, m_risk_note;
    CLabel m_entry_header, m_sl_header, m_lot_header, m_loss_header;
    CLabel m_lots[MANUAL_FIBO_RATIOS], m_losses[MANUAL_FIBO_RATIOS];
-   string m_name, m_tooltips[MANUAL_FIBO_RATIOS];
+   string m_control_prefix, m_tooltips[MANUAL_FIBO_RATIOS];
    int m_edit_index;
    ManualFiboAction m_action;
 public:
@@ -30,7 +30,7 @@ public:
    virtual bool Create(const long chart, const string name, const int subwin,
                        const int x1, const int y1, const int x2, const int y2)
    {
-      m_action = MANUAL_NONE; m_edit_index = -1; m_name = name;
+      m_action = MANUAL_NONE; m_edit_index = -1; m_control_prefix = name;
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++) m_tooltips[i] = "";
       if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("manualFibo")) return false;
       // Register decorative frames first so native controls are created above them.
@@ -85,9 +85,9 @@ public:
       bool handled = CAppDialog::OnEvent(id, lparam, dparam, sparam);
       if(id == CHARTEVENT_OBJECT_ENDEDIT)
       {
-         if(sparam == m_name + ".Risk") { m_action = MANUAL_RISK; return true; }
+         if(sparam == m_control_prefix + ".Risk") { m_action = MANUAL_RISK; return true; }
          for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
-            if(sparam == m_name + ".SL" + IntegerToString(i))
+            if(sparam == m_control_prefix + ".SL" + IntegerToString(i))
             { m_edit_index = i; m_action = MANUAL_SL; return true; }
       }
       return handled;
@@ -147,10 +147,10 @@ public:
          string lot = valid ? DoubleToString(result.volume, context.volume_digits) : result.error;
          if(SetText(m_lots[i], lot)) changed = true;
          if(SetText(m_losses[i], valid ? DoubleToString(result.loss, 2) : "-")) changed = true;
-         string tooltip = valid ? "Entry " + DoubleToString(result.entry, _Digits) + "; SL "
+         string tooltip = ManualFiboLimitName(result.kind) + "; " + (valid ? "Entry " + DoubleToString(result.entry, _Digits) + "; SL "
                           + DoubleToString(result.stop, _Digits) + "; loss " + DoubleToString(result.loss, 2) + " " + currency
-                          : result.error;
-         if(m_tooltips[i] != tooltip && ObjectSetString(m_chart_id, m_name + ".Lot" + IntegerToString(i), OBJPROP_TOOLTIP, tooltip))
+                          : result.error);
+         if(m_tooltips[i] != tooltip && ObjectSetString(m_chart_id, m_control_prefix + ".Lot" + IntegerToString(i), OBJPROP_TOOLTIP, tooltip))
             m_tooltips[i] = tooltip;
       }
       return changed;

@@ -1,4 +1,4 @@
-# manualFibo 1.12
+# manualFibo 1.13
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 indicators or order submission. This is a separate EA in the same Git repository;
@@ -44,8 +44,18 @@ and styling. Other chart objects are left intact.
 
 ## Lot calculator
 
-Each row uses its Fibonacci price as entry. An upward swing is estimated as BUY;
-a downward swing as SELL. The SL must be below a BUY entry or above a SELL entry.
+Each row uses its Fibonacci price as entry. Direction comes from the latest
+Bid/Ask snapshot, independently of swing direction: below the spread is
+**BUY LIMIT**, above the spread is **SELL LIMIT**. Entries inside the spread or
+exactly at Bid/Ask are unavailable. No BUY STOP or SELL STOP type is selected.
+The lot tooltip includes the selected limit type; no order column or per-level
+send controls are added. A future single button can use the same limit-only rule.
+
+Broker minimum stop distances are checked using Ask for BUY LIMIT and Bid for
+SELL LIMIT. The SL must be below a BUY entry or above a SELL entry and at least
+the minimum stop distance from entry. Direction and availability update on each
+refresh, so an unchanged default SL can become invalid when market price crosses
+a level. SLs are never moved automatically to accommodate a new direction.
 Manual SL overrides stay fixed when anchors move, including when choosing a new
 swing. If an override becomes invalid for the new direction, that row shows
 **SL invalid** until edited or cleared. Risk/SL edits apply when editing finishes. Risk supports up to eight decimal
@@ -56,6 +66,9 @@ normalizes entry/SL to the symbol tick size, and rounds volume down to its volum
 step. Lots respect minimum/maximum symbol volume. **Min lot** means the requested
 budget cannot support a permitted volume; **Data?** means broker data/calculation
 is unavailable; **Risk?** means risk is zero or account equity is unavailable.
+**Quotes?** means no usable Bid/Ask quote is available, **Spread** marks an entry
+within the spread, **Near market** marks an entry below the required pending-order
+distance, and **SL too close** marks an SL below the required entry-to-stop distance.
 The Lot tooltip shows the normalized entry/SL prices used in the estimate.
 
 Results refresh once per second for changes in equity/conversion rates without
@@ -63,7 +76,7 @@ rewriting an edit in progress. Each refresh shares one equity/symbol snapshot
 across the checked levels. Calculations pause while minimized and refresh
 immediately on restore. Unchecked levels show no lot estimate. A 5% setting
 is **per level**, so three independent filled orders can use up to 15% before
-costs. Estimates exclude commission, swap, slippage and gaps. Margin, existing
+costs. Estimates exclude commission, swap, slippage and gaps. Margin, trading permissions, existing
 position exposure and aggregate volume limits are not checked. This is a lot
 calculator for manual orders; there are no order-submission controls.
 
@@ -84,7 +97,7 @@ separate from myFibo. No SwingDetector or MarketStructure header is needed.
 
 Use distribution/manualFibo/manualFibo.zip with install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.12.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.13.
 
 ```bash
 python3 tests/check_manualfibo.py

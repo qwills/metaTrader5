@@ -12,19 +12,26 @@ EXTRA = r'''
 const int OBJ_ALL_PERIODS=0x1fffff;
 const int BORDER_FLAT=0,clrSilver=0xc0c0c0;
 const int CHARTEVENT_OBJECT_ENDEDIT=6100,ACCOUNT_EQUITY=1,ACCOUNT_CURRENCY=2;
-const int SYMBOL_VOLUME_STEP=1,SYMBOL_VOLUME_MIN=2,SYMBOL_VOLUME_MAX=3,SYMBOL_TRADE_TICK_SIZE=4;
+const int SYMBOL_VOLUME_STEP=1,SYMBOL_VOLUME_MIN=2,SYMBOL_VOLUME_MAX=3,SYMBOL_TRADE_TICK_SIZE=4,SYMBOL_POINT=5,SYMBOL_TRADE_STOPS_LEVEL=6;
 enum ENUM_ORDER_TYPE {ORDER_TYPE_BUY,ORDER_TYPE_SELL};
 using ushort=unsigned short;
 double equity=10000,volume_step=.01,volume_min=.01,volume_max=100,tick_size=.00001,profit_factor=100;
+double bid=19.9,ask=20,point_size=.01;
+long stops_level=0;bool quote_failure=false,stops_failure=false;
+int quote_reads=0,stops_reads=0;
+struct MqlTick {datetime time;double bid,ask;};
+bool SymbolInfoTick(const string&,MqlTick&quote){++quote_reads;if(quote_failure)return false;quote={1700000000,bid,ask};return true;}
+bool SymbolInfoInteger(const string&,int,long&value){++stops_reads;if(stops_failure)return false;value=stops_level;return true;}
 bool profit_failure=false;int profit_calls=0,account_reads=0,symbol_reads=0;
 double AccountInfoDouble(int){++account_reads;return equity;}
 string AccountInfoString(int){return "USD";}
 double SymbolInfoDouble(const string&,int prop){
  ++symbol_reads;
  if(prop==SYMBOL_VOLUME_STEP)return volume_step;if(prop==SYMBOL_VOLUME_MIN)return volume_min;
- if(prop==SYMBOL_VOLUME_MAX)return volume_max;return tick_size;
+ if(prop==SYMBOL_VOLUME_MAX)return volume_max;if(prop==SYMBOL_POINT)return point_size;return tick_size;
 }
 bool OrderCalcProfit(ENUM_ORDER_TYPE side,const string&,double volume,double entry,double close,double&profit){
+ if(side!=ORDER_TYPE_BUY&&side!=ORDER_TYPE_SELL)std::abort();
  ++profit_calls;if(profit_failure||volume<volume_min-1e-12||volume>volume_max+1e-12)return false;
  profit=(close-entry)*volume*profit_factor*(side==ORDER_TYPE_BUY?1:-1);return true;
 }
@@ -106,14 +113,19 @@ int main(){
  Click(190,810);Check(g_model.Ready()&&g_model.StartPrice()==11&&g_model.EndPrice()==19,"manual candle anchors");
  Check(g_selection==MANUAL_IDLE&&!g_scroll_locked,"selection restores scrolling");
  Check(profit_calls-finishing_profits==6,"completing selection calculates each checked level only once");
- int reads=account_reads,metadata=symbol_reads;OnTimer();
- Check(account_reads-reads==1&&symbol_reads-metadata==4,"one account/symbol snapshot per full refresh");
+ int reads=account_reads,metadata=symbol_reads,quotes=quote_reads,stops=stops_reads;OnTimer();
+ Check(account_reads-reads==1&&symbol_reads-metadata==5&&quote_reads-quotes==1&&stops_reads-stops==1,"one account/symbol/quote snapshot per full refresh");
+ Check(controls.count("manualFibo.Panel.OrderHeader")==0,"no per-level order column");
  int idle_profits=profit_calls;OnChartEvent(TEST_MINIMIZE,0,0,"");equity=20000;
  reads=account_reads;metadata=symbol_reads;OnTimer();
  Check(profit_calls==idle_profits&&account_reads==reads&&symbol_reads==metadata,"no broker work while minimized");
  OnChartEvent(TEST_RESTORE,0,0,"");
  Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","restore refreshes changed equity immediately");
  equity=10000;OnTimer();
+ bid=14;ask=14.1;OnTimer();
+ Check(controls["manualFibo.Panel.Lot2"]->text=="SL invalid"&&controls["manualFibo.Panel.Loss2"]->text=="-","live quote crossing clears stale BUY preview");
+ Edit("SL2","17");Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","SELL preview uses edited SL above entry");
+ bid=19.9;ask=20;Edit("SL2","");
  for(int i=0;i<6;i++)Check(g_model.StopPrice(i)==11&&!g_model.StopCustom(i),"SL defaults to swing start");
  Check(controls["manualFibo.Panel.SL2"]->text=="11.00000","SL price displayed");
  Edit("SL2","11.00000");Check(!g_model.StopCustom(2),"focus without change does not freeze default SL");
@@ -148,7 +160,7 @@ int main(){
  int hidden_profits=profit_calls,hidden_metadata=symbol_reads;OnTimer();
  Check(profit_calls==hidden_profits&&symbol_reads==hidden_metadata,"no symbol/profit work with no checked levels");
  Tick(5,true);Check(node.ints[{OBJPROP_TIMEFRAMES,0}]==OBJ_ALL_PERIODS,"re-enable restores drawing");
- node.prices[0]=25;node.prices[1]=10;
+ bid=9.9;ask=10;node.prices[0]=25;node.prices[1]=10;
  OnChartEvent(CHARTEVENT_OBJECT_DRAG,0,0,name);
  Check(g_model.StartPrice()==25&&g_model.EndPrice()==10&&std::abs(g_model.Price(5)-23.29)<1e-12,"native bearish edit recalculates");
  Check(g_model.StopPrice(2)==25&&g_model.StopPrice(5)==12&&controls["manualFibo.Panel.Lot5"]->text=="SL invalid","default SL follows anchors, custom remains fixed with direction validation");
@@ -167,7 +179,7 @@ int main(){
  Check(g_model.StartPrice()==25&&g_model.EndPrice()==10&&g_selection==MANUAL_IDLE&&!g_scroll_locked,"cancel keeps previous drawing");
  lock->Checked(true);Action("Lock",ON_CHANGE);
  Edit("SL3","30");
- g_dialog.m_rect={50,70,670,644};int mask=g_model.Mask();
+ g_dialog.m_rect={50,70,670,554};int mask=g_model.Mask();
  OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H4;
  Check(OnInit()==INIT_SUCCEEDED&&g_model.StartPrice()==25&&g_model.EndPrice()==10&&g_model.Mask()==mask,"timeframe handoff retains anchors/ratios");
  Check(g_model.Locked()&&g_dialog.AnchorLocked(),"lock survives timeframe change");
@@ -202,6 +214,7 @@ int main(){
  OnChartEvent(CHARTEVENT_KEYDOWN,27,0,"");Check(!ChartGetInteger(0,CHART_MOUSE_SCROLL),"preexisting disabled scrolling restored");
  OnDeinit(REASON_REMOVE);Check(Objects().empty(),"removal clears owned objects");
  Check(CFibonacci().LevelCount()==7,"shared Fibonacci defaults unchanged");
+ bid=209.9;ask=210;
  CManualFiboModel risk_model;risk_model.SetAnchors(100,100,200,200);risk_model.SetMask(63);
  CManualFiboRisk calculator;ManualFiboLot result;
  Check(calculator.Calculate(risk_model,2,result)&&result.volume==.1&&result.loss<=500,"risk estimate respects budget");
@@ -223,8 +236,38 @@ int main(){
  Check(context.valid&&context.volume_digits==8,"eight-decimal lot step is recognized");
  volume_step=.000000001;calculator.ReadContext(risk_model,context);
  Check(!context.valid,"unsupported volume precision is rejected");
+ equity=10000;profit_factor=100;volume_step=.01;volume_min=.01;volume_max=100;tick_size=.01;
+ CManualFiboModel limits;limits.SetAnchors(100,100,200,200);limits.SetMask(63);
+ bid=160;ask=161;stops_level=0;
+ Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"entry below quote is BUY LIMIT");
+ bid=140;ask=141;
+ Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL&&result.error=="SL invalid"&&result.volume==0,"direction follows quote even for bullish anchors");
+ limits.SetStop(2,180);
+ Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL,"custom SL allows SELL LIMIT on bullish swing");
+ bid=149;ask=151;int spread_profits=profit_calls;
+ Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_NONE&&result.error=="Spread"&&result.volume==0&&profit_calls==spread_profits,"spread rejected without any fallback order");
+ bid=150;ask=151;Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","entry at Bid is unavailable");
+ bid=149;ask=150;Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","entry at Ask is unavailable");
+ stops_level=100;bid=149;ask=149.5;
+ Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL,"SELL market distance boundary accepted");
+ stops_level=101;Check(!calculator.Calculate(limits,2,result)&&result.error=="Near market"&&result.volume==0,"SELL too near market blocked");
+ limits.ResetStop(2);stops_level=100;bid=150.5;ask=151;
+ Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"BUY market distance boundary accepted");
+ stops_level=101;Check(!calculator.Calculate(limits,2,result)&&result.error=="Near market","BUY too near market blocked");
+ stops_level=100;limits.SetStop(2,149.5);
+ Check(!calculator.Calculate(limits,2,result)&&result.error=="SL too close","minimum SL distance enforced");
+ limits.SetStop(2,149);Check(calculator.Calculate(limits,2,result),"SL distance boundary accepted");
+ quote_failure=true;Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_NONE&&result.error=="Quotes?"&&result.volume==0,"missing quote clears preview");
+ quote_failure=false;bid=152;ask=151;
+ Check(!calculator.Calculate(limits,2,result)&&result.error=="Quotes?","crossed quote rejected");
+ bid=150.5;ask=151;stops_failure=true;
+ Check(!calculator.Calculate(limits,2,result)&&result.error=="Data?","missing broker stops data rejected");
+ stops_failure=false;stops_level=0;limits.SetAnchors(100,200,200,100);limits.SetStop(2,100);bid=160;ask=161;
+ Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"BUY LIMIT also independent of bearish swing direction");
+ tick_size=1;limits.SetAnchors(100,100,200,200.98);bid=149.9;ask=150.3;
+ Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","classify normalized entry rather than raw Fibonacci price");
  Check(!timer,"timer stopped on removal");
- std::cout<<"PASS: manual geometry/GUI, per-level SL, equity risk and lot rounding, native edits, input validation, timer and timeframe persistence.\n";
+ std::cout<<"PASS: limit-only direction, quote/spread/stops validation, equity risk/SL/lots, native geometry/GUI, timer and timeframe persistence.\n";
 }
 '''
 
@@ -236,6 +279,10 @@ def main():
     names = ['Include/Fibo/Fibonacci.mqh', 'Experts/manualFibo/ManualFiboModel.mqh',
              'Experts/manualFibo/ManualFiboRisk.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh', 'Experts/manualFibo/ManualFiboChart.mqh',
              'Experts/manualFibo/ManualFiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
+    for source in names:
+        text = (ROOT/source).read_text()
+        for forbidden in ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync('):
+            assert forbidden not in text, (source, forbidden)
     platform = PLATFORM.replace('void ChartRedraw(int=0){}', 'int redraw_count=0;void ChartRedraw(int=0){++redraw_count;}')
     # MQL accepts fixed arrays through array references; use an equivalent fixed
     # C++ array reference for the five native CPanel edge controls.
