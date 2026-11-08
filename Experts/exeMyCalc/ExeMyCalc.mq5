@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "will_santoso"
 #property link      ""
-#property version   "1.01"
+#property version   "1.02"
 #include "MMDialog.mqh"
 
 input double risk_pct = 1.0; //Risk in %;

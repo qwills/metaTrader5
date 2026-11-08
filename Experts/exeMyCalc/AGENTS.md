@@ -65,7 +65,7 @@ cp ExeMyCalc.mq5 ExeMyCalc.ex5 MMCalculator.mqh MMConfig.mqh MMDialog.mqh MMName
 
 ## Current UI Behavior
 
-- The compact panel has a shared top risk row and BUY/SELL group boxes with transparent titles.
+- The compact panel has a centered shared top risk row and BUY/SELL group boxes with transparent titles.
 - SL/TP/RR/LOT rows are aligned inside each group, with its market button below them.
 - The shared `ENTRY` and `RR` controls are removed.
 - The BUY side has `SL`, `TP`, `RR`, and `LOT` rows backed by `BuySL` and `BuyTP`.

@@ -1,5 +1,5 @@
 #property strict
-#property version "3.00"
+#property version "3.01"
 #property description "Automatic Pivot/Market Structure Fibonacci with equity-risk lot previews."
 #include "AutoFiboDialog.mqh"
 #include "AutoFiboChart.mqh"
@@ -301,7 +301,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(!down) g_panel_pressed = false;
       g_left_down = down;
    }
-   g_dialog.ChartEvent(id, lparam, dparam, sparam);
+   g_dialog.DispatchEvent(id, lparam, dparam, sparam);
    if(IsStopped()) return;
    if(minimized && !g_dialog.IsMinimized()) RefreshResults();
    if(id == CHARTEVENT_MOUSE_MOVE || id == CHARTEVENT_CHART_CHANGE) return;

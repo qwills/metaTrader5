@@ -7,6 +7,26 @@ from mt5_adapter import PLATFORM
 from check_manualfibo import EXTRA, UI
 
 ROOT = Path(__file__).resolve().parents[1]
+
+LAYOUT_EXTRA = r'''
+const int CHART_HEIGHT_IN_PIXELS=6200,CONTROLS_BORDER_WIDTH=1;
+int child_layout_events=0;
+'''
+# Model the native documented resize/minimize branch, without changing the
+# shared manualFibo test platform. This remains a fake, not native rendering.
+AUTO_UI = UI.replace('name=n;m_rect=', 'visible=true;name=n;m_rect=')
+AUTO_UI = AUTO_UI.replace('struct CDialog:CWnd{bool OnDialogDragEnd()',
+    'struct CDialog:CWnd{virtual bool OnEvent(int id,const long&,const double&,const string&){if(id==CHARTEVENT_CHART_CHANGE)++child_layout_events;return false;}bool OnDialogDragEnd()')
+_start=AUTO_UI.index('struct CAppDialog:')
+_end=AUTO_UI.index('\n};',_start)+3
+_app=AUTO_UI[_start:_end]
+_app=_app.replace('OnEvent(int id,const long&,const double&,const string&)', 'OnEvent(int id,const long&l,const double&d,const string&s)')
+_app=_app.replace('return false;}', 'return CDialog::OnEvent(id,l,d,s);}',1)
+_app=_app.replace('static inline std::map<int,Rect> saved;', 'static inline std::map<int,Rect> saved;static inline std::map<int,bool> saved_min;\n void SubwinOff(){}')
+_app=_app.replace('saved[chart_context]=m_rect;', 'saved[chart_context]=m_minimized?m_norm_rect:m_rect;saved_min[chart_context]=m_minimized;')
+_app=_app.replace('if(saved.count(chart_context))m_rect=saved[chart_context];', 'if(saved.count(chart_context)){m_rect=saved[chart_context];m_norm_rect=m_rect;if(saved_min[chart_context])OnEvent(TEST_MINIMIZE,0,0,"");}')
+_app=_app.replace('++native_calls;OnEvent(id,l,d,s);', '++native_calls;if(id==CHARTEVENT_CHART_CHANGE&&ChartGetInteger(0,CHART_HEIGHT_IN_PIXELS)<Height()+CONTROLS_BORDER_WIDTH){OnEvent(TEST_MINIMIZE,l,d,s);return;}OnEvent(id,l,d,s);')
+AUTO_UI=AUTO_UI[:_start]+_app+AUTO_UI[_end:]
 TESTS = r'''
 void Check(bool ok,const char*label){if(!ok){std::cerr<<"FAIL: "<<label<<'\n';std::abort();}}
 void Fixture(int count){
@@ -25,6 +45,20 @@ void Lock(bool value){static_cast<CCheckBox*>(controls["AutoFibo.Panel.Lock"])->
 int main(){
  Fixture(9);bid=119.9;ask=120;
  Check(OnInit()==INIT_SUCCEEDED&&copy_calls==0&&g_auto_force_pending,"auto startup defers history work");
+ chart_properties[chart_context][CHART_HEIGHT_IN_PIXELS]=400;
+ int forwarded=native_calls,notifications=child_layout_events;
+ for(int i=0;i<3;i++)OnChartEvent(CHARTEVENT_CHART_CHANGE,0,0,"");
+ Check(!g_dialog.IsMinimized()&&native_calls==forwarded&&child_layout_events==notifications+3,"small-chart auto-minimize bypass keeps child notifications");
+ for(auto*c:g_dialog.children)Check(c->visible,"fresh attachment stays expanded");
+ chart_properties[chart_context][CHART_HEIGHT_IN_PIXELS]=0;OnChartEvent(CHARTEVENT_CHART_CHANGE,0,0,"");
+ Check(!g_dialog.IsMinimized(),"zero height during repaint does not minimize");
+ chart_properties[chart_context][CHART_HEIGHT_IN_PIXELS]=900;forwarded=native_calls;
+ OnChartEvent(CHARTEVENT_CHART_CHANGE,0,0,"");Check(native_calls==forwarded+1&&!g_dialog.IsMinimized(),"normal resize uses native driver");
+ chart_properties[chart_context][CHART_HEIGHT_IN_PIXELS]=400;
+ OnChartEvent(TEST_MINIMIZE,0,0,"");OnChartEvent(CHARTEVENT_CHART_CHANGE,0,0,"");
+ Check(g_dialog.IsMinimized(),"explicit user minimization still works");
+ OnDeinit(REASON_CHARTCHANGE);Check(OnInit()==INIT_SUCCEEDED&&g_dialog.IsMinimized(),"user minimization survives timeframe handoff");
+ OnChartEvent(TEST_RESTORE,0,0,"");Check(!g_dialog.IsMinimized(),"native restore remains available on small chart");
  Check(controls.count("AutoFibo.Panel.Mode")==0&&controls.count("AutoFibo.Panel.Timeframe")==0,"no Manual/Auto or timeframe selector");
  Check(controls["AutoFibo.Panel.Draw"]->text=="Cari Swing"&&g_model.RiskPercent()==5&&g_dialog.RatioMask()==28,"auto search and same manualFibo risk defaults");
  Check(controls["AutoFibo.Panel.Left"]->text=="2"&&controls["AutoFibo.Panel.Right"]->text=="2","pivot defaults visibly filled");
@@ -105,7 +139,7 @@ def compile_run(code, prefix):
 
 def shared_code():
     platform=PLATFORM.replace('void ChartRedraw(int=0){}','int redraw_count=0;void ChartRedraw(int=0){++redraw_count;}')
-    return SHIM+platform+EXTRA+UI+'\n'.join(adapt((ROOT/name).read_text().replace('CPanel &edges[]','CPanel (&edges)[5]')) for name in SOURCES)
+    return SHIM+platform+EXTRA+LAYOUT_EXTRA+AUTO_UI+'\n'.join(adapt((ROOT/name).read_text().replace('CPanel &edges[]','CPanel (&edges)[5]')) for name in SOURCES)
 
 def main():
     source=adapt((ROOT/'Experts/AutoFibo/AutoFibo.mq5').read_text())
@@ -114,7 +148,7 @@ def main():
     fixtures=(ROOT/'tests/fixtures/market_structure_checks.mqh').read_text()
     fixture=adapt(fixtures[fixtures.index('void BreakFixture('):fixtures.index('void RunBreakChecks(')])
     assert 'FIBO_MANUAL' not in source and 'CHARTEVENT_CLICK' not in source
-    assert source.count('g_dialog.ChartEvent(id, lparam, dparam, sparam);')==1
+    assert source.count('g_dialog.DispatchEvent(id, lparam, dparam, sparam);')==1
     compile_run(shared_code()+prototypes+source+fixture+TESTS,'autofibo-checks-')
     print('C++ adapters only; F7, native GUI and broker validation remain Windows checks.')
 

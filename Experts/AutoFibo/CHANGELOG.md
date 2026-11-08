@@ -1,5 +1,12 @@
 # AutoFibo changelog (formerly myFibo)
 
+## 3.01
+
+- Prevent native automatic minimization when the main chart is shorter than the
+  608-pixel dialog or reports zero height during repaint. Child layout notifications
+  are retained, and other events still use the native CAppDialog driver.
+- Keep user-requested minimize/maximize and minimized-state timeframe persistence.
+
 ## 3.00
 
 - Rename EA/folder/installer to AutoFibo and remove the Manual/Auto selector and

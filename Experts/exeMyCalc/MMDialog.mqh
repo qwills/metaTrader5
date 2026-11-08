@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "will_santoso"
 #property link      "https://www.mql5.com"
-#property version   "1.01"
+#property version   "1.02"
 
 #include <Controls\Dialog.mqh>
 #include <Controls\Button.mqh>
@@ -195,10 +195,16 @@ bool CMMDialog::Create(const long chart, const string name, const int subwin, co
       || !CreateLabel(m_SellGroupTitle, chart, "SellGroupTitle", subwin, "SELL", sellX + 14, 52, sellX + 76, 72))
       return false;
 
-   // Shared risk row above both execution groups.
-   if(!CreateLabel(m_RiskLabel, chart, "Risk", subwin, "Risk %", 14, 16, 84, 40)
-      || !CreateEdit(m_RiskEdit, chart, "Risk", subwin, DoubleToString(m_inpRiskPct, 2), 92, 12, 208, 40, false)
-      || !CreateLabel(m_RiskUSDLabel, chart, "RiskUSD", subwin, StringFormat("$ %.2f", m_riskUSD), 232, 16, clientRight - 12, 40))
+   // Center the complete Risk-label/edit/amount row over the two groups.
+   int riskLabelWidth = 64, riskEditWidth = 116, riskAmountWidth = 148;
+   int riskEditGap = 12, riskAmountGap = 20;
+   int riskRowWidth = riskLabelWidth + riskEditGap + riskEditWidth + riskAmountGap + riskAmountWidth;
+   int riskX = (groupLeft + clientRight - riskRowWidth) / 2;
+   int riskEditX = riskX + riskLabelWidth + riskEditGap;
+   int riskAmountX = riskEditX + riskEditWidth + riskAmountGap;
+   if(!CreateLabel(m_RiskLabel, chart, "Risk", subwin, "Risk %", riskX, 16, riskX + riskLabelWidth, 40)
+      || !CreateEdit(m_RiskEdit, chart, "Risk", subwin, DoubleToString(m_inpRiskPct, 2), riskEditX, 12, riskEditX + riskEditWidth, 40, false)
+      || !CreateLabel(m_RiskUSDLabel, chart, "RiskUSD", subwin, StringFormat("$ %.2f", m_riskUSD), riskAmountX, 16, riskAmountX + riskAmountWidth, 40))
       return false;
 
    if(!CreateInputRow(m_BuySLLabel, m_BuySLEdit, chart, "BuySL", subwin, "SL", DoubleToString(DefaultBuySL(bid), Digits()), buyX, 84, groupWidth)

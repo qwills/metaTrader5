@@ -44,6 +44,22 @@ public:
              && AnalysisLabel(m_structure_label, chart, name + ".Trend", "Struktur: Belum jelas", 374, 66, 584, 86)
              && AnalysisLabel(m_status2, chart, name + ".Status2", "", 14, 546, 584, 568);
    }
+   // CAppDialog's chart-resize branch can minimize a tall main-chart EA panel.
+   // Keep its explicit minimize button behavior, without losing child notifications.
+   void DispatchEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+   {
+      if(id == CHARTEVENT_CHART_CHANGE && !IsMinimized())
+      {
+         long chart_height = ChartGetInteger(m_chart_id, CHART_HEIGHT_IN_PIXELS, 0);
+         if(chart_height <= 0 || chart_height < Height() + CONTROLS_BORDER_WIDTH)
+         {
+            if(CDialog::OnEvent(id, lparam, dparam, sparam)) ChartRedraw(m_chart_id);
+            SubwinOff();
+            return;
+         }
+      }
+      ChartEvent(id, lparam, dparam, sparam);
+   }
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
    {
       if(id == CHARTEVENT_CUSTOM + ON_CHANGE

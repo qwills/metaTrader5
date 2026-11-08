@@ -176,3 +176,19 @@ menerima offset isi agar AutoFibo dapat menambahkan group Swing Otomatis di atas
 Swing/Risk/Fibonacci tanpa menduplikasi kalkulator. Tidak ada event-driver drag
 baru atau pembacaan histori di mouse move/GUI callback. Data candle diambil timer;
 preview risiko memakai satu snapshot akun/simbol/quote untuk setiap refresh.
+
+## AutoFibo 3.01: panel otomatis mengecil
+
+Cabang CHARTEVENT_CHART_CHANGE pada CAppDialog dapat memanggil Minimize ketika
+tinggi chart lebih kecil dari Height()+CONTROLS_BORDER_WIDTH. Cuplikan kode native
+dan laporan perilakunya tersedia di [forum MQL5](https://www.mql5.com/en/forum/450636).
+AutoFibo setinggi 608 piksel dapat terkena cabang ini pada chart pendek, termasuk
+ketika tinggi sementara nol saat repaint.
+
+AutoFiboDialog.DispatchEvent meneruskan perubahan chart pendek langsung ke
+CDialog::OnEvent dan SubwinOff; event lain tetap melalui CAppDialog.ChartEvent.
+Tombol minimize/maximize native dan pemulihan status saat timeframe berubah tetap
+dipakai. Jangan memaksa Maximize dari timer atau mengubah tombol minmax private.
+Acuan kelas/metode: [CAppDialog](https://www.mql5.com/en/docs/standardlibrary/controls/cappdialog).
+Adapter menguji routing dan persistence, bukan rendering atau signature header
+terminal pengguna; verifikasi F7 dan chart pendek di Windows tetap diperlukan.

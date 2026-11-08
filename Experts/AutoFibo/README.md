@@ -1,4 +1,4 @@
-# AutoFibo 3.00
+# AutoFibo 3.01
 
 Automatic Fibonacci EA, renamed from myFibo. Swing selection is always automatic;
 there is no Manual/Auto selector and no candle-click selection. Choose **Pivot**
@@ -53,6 +53,10 @@ commission, swap, slippage/gaps, margin and existing exposure checks.
 
 ## Timeframe changes and persistence
 
+Fresh attachment opens the panel expanded. Chart resize/repaint events do not
+automatically minimize it when the chart is shorter than the panel; use the native
+minimize button when needed. A short chart may clip the bottom of the expanded panel.
+
 Completed anchors, native panel position/minimize state, analysis settings, ratio
 choices, lock, risk and custom SLs survive chart timeframe changes. Old-timeframe
 structure checkpoints/labels are discarded; unlocked analysis is rebuilt on the
@@ -76,7 +80,7 @@ from the Windows MT5 installation.
 Copy **Experts/AutoFibo**, **Include/Fibo**, **Include/Swing**, and
 **Include/Structure** to the corresponding folders under MQL5. Remove the old
 myFibo EA from the chart; open Experts/AutoFibo/AutoFibo.mq5 in MetaEditor, press
-F7 and attach AutoFibo 3.00. Old myFibo chart state is not imported into the renamed
+F7 and attach AutoFibo 3.01. Old myFibo chart state is not imported into the renamed
 EA. The copy-only CMD does not delete older myFibo source/EX5 files automatically;
 you may remove those manually once AutoFibo works.
 
