@@ -1,4 +1,4 @@
-# manualFibo 1.16
+# manualFibo 1.17
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 or indicators. It submits pending LIMIT orders on demand. This is a separate EA in the same Git repository;
@@ -17,7 +17,9 @@ want both EAs running.
    Tick **Kunci anchor** to prevent anchor editing or selection of a new swing.
    Ratio checkboxes, risk and SL fields remain usable while locked. Lock is off by default.
 5. Enter **Risk % Equity** (default **5%**). The budget is a percentage of the
-   current account equity and applies independently to each checked level.
+   current account equity. Select **Per level** (default) to apply it independently
+   to each checked level, or **All** to share one budget across all checked levels.
+   The smaller input and the numeric money amount sit on the same row.
 6. Edit the **SL price** beside each level if needed. An untouched SL follows the
    swing-start price. Clear the field and finish editing to restore that default.
    Each checked row displays its lot size and estimated loss in account currency.
@@ -40,7 +42,7 @@ ratios are unchecked the drawing is hidden; rechecking a ratio shows the same
 anchors. The selection order defines the swing direction, including reverse-time
 clicks. A live candle's extreme is captured at click time and does not follow ticks.
 
-Timeframe changes retain the completed anchors, checkboxes, risk percentage, custom SL prices, lock and native panel
+Timeframe changes retain the completed anchors, checkboxes, risk percentage/mode, custom SL prices, lock and native panel
 position. A pending selection is cancelled. Symbol changes start fresh; removing
 or reattaching the EA clears its state and owned drawings. The Properties dialog
 can edit anchors; the checkbox panel is authoritative for level selection, text
@@ -79,8 +81,12 @@ Results refresh once per second for changes in equity/conversion rates without
 rewriting an edit in progress. Each refresh shares one equity/symbol snapshot
 across the checked levels. Calculations pause while minimized and refresh
 immediately on restore. Unchecked levels show no lot estimate. A 5% setting
-is **per level**, so three independent filled orders can use up to 15% before
-costs. Estimates exclude commission, swap, slippage and gaps. Total est. loss
+in **Per level** mode can total approximately 15% across three levels before
+costs. **All** divides that same 5% budget equally among selected levels, so
+their combined estimated SL loss stays at or below 5% after lot rounding.
+Actual SL loss can exceed estimates due to costs or execution. A minimum lot
+that exceeds a share blocks that level; the EA never rounds lots up or silently
+drops invalid selected levels. Estimates exclude commission, swap, slippage and gaps. Total est. loss
 sums all checked rows, not outstanding orders or existing positions. Invalid
 rows make the combined estimate unavailable. Trading preflight is described below.
 
@@ -99,6 +105,16 @@ OrderCalcMargin estimates against free margin. Requests use GTC and
 ORDER_FILLING_RETURN; brokers that do not support these settings reject preflight.
 Margin estimates exclude existing positions/pending orders; OrderCheck and the
 server remain authoritative, and prices/account state can change mid-batch.
+All mode also retains the estimated loss reserved for every previously sent or
+uncertain level of the same anchor setup, including deselected, filled and
+cancelled levels. These reservations are subtracted before retrying/new levels.
+New levels receive no more than their displayed equal share and the remaining
+budget divided among new levels. A retry can therefore use smaller lots than the
+fresh preview. Reducing risk, changing modes or unchecking successful levels never
+reclaims their reservations. Already submitted orders are not modified. Older
+1.16 setup records without a saved loss block continuation in All mode rather
+than guessing; use a new anchor setup. Reservations are initial SL estimates,
+not portfolio exposure or a guarantee of realized loss.
 Each request is checked again just before submission. Orders are independent;
 there is no atomic basket operation or automatic rollback of successful orders.
 
@@ -114,8 +130,22 @@ records prevent repeated sends. Identity includes both anchors and the ratio;
 changing risk, SL or TP does not rearm an already submitted level. Active orders
 and full account order history are checked too, so filled/cancelled levels are
 not sent again for the same setup. Only definitely failed levels are retried.
-A timeout/connection/unknown result keeps a blocking submission record; inspect
-the Trade/History tabs and Experts log rather than blindly retrying. Terminal
+A timeout/connection/unknown result keeps a blocking submission record.
+OnTradeTransaction only captures relevant request/order notifications; it never
+scans history or submits orders. A timer reconciles unknown records using exact
+request IDs, owned tickets or matching active/history orders. A matched definite
+rejection releases the record for the next user click; acceptance/fill/cancellation
+keeps duplicate protection. Missing orders, unavailable history, mismatched IDs
+and unknown return codes do not unlock a submission. Requests and broker events
+can arrive in different orders, so the result is checked rather than assumed.
+
+Pending records recover on initialization and are checked after reconnect, even
+when the GUI is minimized. Polls back off from 5 to 30 seconds, probe at most 32
+known tickets and scan at most 128 active and 128 history entries per pass, using
+round-robin cursors and a history window from the earliest unresolved intent.
+Once no unknown remains, reconciliation stops. The existing status line reports
+only a summary; no per-level status column or automatic retry is added. Inspect
+Trade/History and the Experts log when an outcome remains uncertain. Terminal
 records expire after four weeks without access; history provides the second
 check. Protection is local to this terminal, not coordinated across separate
 terminal installations. Keep broker order comments/history and terminal records
@@ -131,7 +161,8 @@ recreation on another click. Select a genuinely new anchor setup for a new batch
 
 - Experts/manualFibo/manualFibo.mq5: lifecycle, manual selection and event coordination.
 - Experts/manualFibo/ManualFiboDialog.mqh: TP checkbox, total loss, send/delete controls.
-- Experts/manualFibo/ManualFiboOrders.mqh: batch preflight, limit execution, deduplication and deletion.
+- Experts/manualFibo/ManualFiboOrders.mqh: batch preflight, limit execution, risk reservations and deletion.
+- Experts/manualFibo/ManualFiboReconcile.mqh: durable intent metadata, transaction matching and bounded recovery.
 - Include/_common/Fibo/FiboModel.mqh: shared anchors, ratio choices and calculation wrapper.
 - Include/_common/Fibo/FiboRisk.mqh: shared input parser and limit-only equity-risk calculator.
 - Include/_common/Fibo/FiboDialog.mqh: shared native grouped GUI and risk/SL fields.
@@ -149,7 +180,7 @@ MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
 When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
 install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.16.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.17.
 
 ```bash
 python3 tests/check_manualfibo.py
@@ -163,5 +194,6 @@ python3 -c "import sys; sys.path.insert(0, 'tools'); import package_manualfibo a
 The runner uses actual project source with C++ adapters and fake chart/GUI APIs.
 It is not a compiler MQL5 test. In Windows verify F7, panel drag/minimize, checkbox
 clicks, both swing directions, 88.6% prices, anchor edits, lock, cancel, reset,
-all-unchecked visibility and timeframe persistence. Windows CMD and native chart
+all-unchecked visibility and timeframe persistence. Also test All/Per level totals,
+partial-batch retries, reconnects, transaction ordering and unknown results on demo. Windows CMD and native chart
 rendering have not been tested on this Mac.

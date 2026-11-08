@@ -75,7 +75,7 @@ void Edit(const string&control,const string&text){
 void Click(int x,int y){OnChartEvent(CHARTEVENT_CLICK,x,y,"");}
 int main(){
  Check(OnInit()==INIT_SUCCEEDED,"initialize");
- Check(g_dialog.children.size()==60&&controls.size()==61,"unique control registration");
+ Check(g_dialog.children.size()==61&&controls.size()==62,"unique control registration");
  for(size_t i=0;i<g_dialog.children.size();i++){
   auto*a=g_dialog.children[i];
   Check(a->name.find(".Background")==string::npos,"no title background objects");
@@ -280,7 +280,7 @@ def main():
     names = ['Include/_common/Fibo/Fibonacci.mqh', 'Include/_common/Fibo/FiboModel.mqh',
              'Include/_common/Fibo/FiboRisk.mqh', 'Include/_common/Fibo/FiboDialog.mqh', 'Include/_common/Fibo/FiboChart.mqh',
              'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh',
-             'Experts/manualFibo/ManualFiboOrders.mqh', 'Experts/manualFibo/manualFibo.mq5']
+             'Experts/manualFibo/ManualFiboReconcile.mqh', 'Experts/manualFibo/ManualFiboOrders.mqh', 'Experts/manualFibo/manualFibo.mq5']
     for source in names:
         text = (ROOT/source).read_text()
         for forbidden in (('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSendAsync(') if source.endswith('ManualFiboOrders.mqh') else ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync(')):
@@ -293,7 +293,7 @@ def main():
     ui = UI.replace('struct CDialog:CWnd{', 'struct CDialog:CWnd{virtual bool OnEvent(int,const long&,const double&,const string&){return false;}')
     ui = ui.replace(' bool Caption(', ' void SubwinOff(){}\n bool Caption(')
     code = SHIM + platform + extra + TRADE_API + 'double FakeFreeMargin(){return free_margin;}\n' + ui + '\n'.join(
-        adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]').replace('input ulong', 'ulong'))
+        adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]').replace('input ulong', 'ulong').replace('ManualFiboPending m_pending[];', 'MqlArray<ManualFiboPending> m_pending;'))
         for name in names) + '\nvoid RunOrderChecks();\n' + TESTS.replace(' std::cout<<"PASS: limit-only', ' RunOrderChecks();\n std::cout<<"PASS: limit-only') + TRADE_TESTS
     with tempfile.TemporaryDirectory(prefix='manualfibo-checks-') as folder:
         cpp = Path(folder)/'checks.cpp'

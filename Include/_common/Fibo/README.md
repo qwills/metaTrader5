@@ -63,3 +63,10 @@ chart object/state prefix so risk, anchors and drawings cannot cross namespaces.
 The automatic detector and structure checkpoint live in Experts/AutoFibo rather
 than in the shared UI/risk/model code. Copy the complete Include/_common/Fibo folder when
 updating either EA. No terminal Standard Library headers are bundled here.
+
+CFiboModel defaults to Per level allocation and can opt into RiskAll. In All,
+CFiboRisk divides a single equity budget by the selected-level count before
+rounding each lot down. FiboRiskContext exposes total_budget separately from the
+per-level budget. State schema 5 saves this mode; schemas 1–4 load as Per level.
+The compact risk-row layout is enabled by manualFibo only; AutoFibo retains its
+existing layout and defaults. Execution/reconciliation remain EA-local.

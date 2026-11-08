@@ -13,7 +13,7 @@ public:
    bool Save(const CFiboModel &model, const string symbol)
    {
       string name = m_prefix + "State";
-      string text = "4|" + symbol + "|" + IntegerToString(model.Mask())
+      string text = "5|" + symbol + "|" + IntegerToString(model.Mask())
                     + "|" + IntegerToString(model.Locked() ? 1 : 0)
                     + "|" + IntegerToString(model.Ready() ? 1 : 0)
                     + "|" + IntegerToString((long)model.StartTime())
@@ -22,6 +22,7 @@ public:
                     + "|" + StringFormat("%.17g", model.EndPrice());
       text += "|" + StringFormat("%.17g", model.RiskPercent()) + "|" + IntegerToString(model.CustomStops());
       for(int i = 0; i < FIBO_RATIOS; i++) text += "|" + StringFormat("%.17g", model.RawStop(i));
+      text += model.RiskAll() ? "|1" : "|0";
       if(ObjectFind(0, name) < 0 && !ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0)) return false;
       return ObjectSetInteger(0, name, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS)
              && ObjectSetInteger(0, name, OBJPROP_HIDDEN, true)
@@ -34,7 +35,7 @@ public:
       string text = ObjectGetString(0, m_prefix + "State", OBJPROP_TEXT);
       int count = StringSplit(text, '|', fields);
       if(count < 9 || !(((fields[0] == "1" || fields[0] == "2") && count == 9)
-                       || ((fields[0] == "3" || fields[0] == "4") && count == 17)) || fields[1] != symbol
+                       || ((fields[0] == "3" || fields[0] == "4") && count == 17) || (fields[0] == "5" && count == 18)) || fields[1] != symbol
          || (fields[3] != "0" && fields[3] != "1") || (fields[4] != "0" && fields[4] != "1")) return false;
       int mask = (int)StringToInteger(fields[2]);
       if(fields[2] != IntegerToString(mask)) return false;
@@ -56,7 +57,7 @@ public:
       if(fields[4] == "1"
          && !candidate.SetAnchors((datetime)StringToInteger(fields[5]), StringToDouble(fields[6]),
                                   (datetime)StringToInteger(fields[7]), StringToDouble(fields[8]))) return false;
-      if(fields[0] == "3" || fields[0] == "4")
+      if(fields[0] == "3" || fields[0] == "4" || fields[0] == "5")
       {
          double risk = StringToDouble(fields[9]);
          int custom = (int)StringToInteger(fields[10]);
@@ -72,6 +73,11 @@ public:
             if((custom & (1 << i)) != 0) { if(!candidate.SetStop(i, stop)) return false; }
             else if(stop != 0) return false;
          }
+      }
+      if(fields[0] == "5")
+      {
+         if(fields[17] != "0" && fields[17] != "1") return false;
+         candidate.SetRiskAll(fields[17] == "1");
       }
       model.CopyFrom(candidate); return true;
    }

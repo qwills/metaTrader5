@@ -40,7 +40,7 @@ struct FiboLot
 // One account/symbol snapshot shared by every level in a refresh.
 struct FiboRiskContext
 {
-   double budget, step, minimum, maximum, tick, bid, ask, stop_distance;
+   double total_budget, budget, step, minimum, maximum, tick, bid, ask, stop_distance;
    int volume_digits;
    string currency;
    bool valid, quotes_valid;
@@ -66,7 +66,10 @@ public:
    }
    void ReadContext(const CFiboModel &model, FiboRiskContext &context) const
    {
-      context.budget = Budget(model); context.currency = AccountInfoString(ACCOUNT_CURRENCY);
+      context.total_budget = Budget(model);
+      context.budget = context.total_budget;
+      if(model.RiskAll() && model.SelectedCount() > 0) context.budget /= model.SelectedCount();
+      context.currency = AccountInfoString(ACCOUNT_CURRENCY);
       context.step = 0; context.minimum = 0; context.maximum = 0; context.tick = 0;
       context.volume_digits = 0; context.valid = false; context.quotes_valid = false;
       context.bid = 0; context.ask = 0; context.stop_distance = 0;

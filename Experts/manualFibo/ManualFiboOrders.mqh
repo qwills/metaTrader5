@@ -1,11 +1,13 @@
 #ifndef MANUAL_FIBO_ORDERS_MQH
 #define MANUAL_FIBO_ORDERS_MQH
 #include <_common\Fibo\FiboRisk.mqh>
+#include "ManualFiboReconcile.mqh"
 
 // Execution is private to manualFibo; the shared model/calculator never trades.
 class CManualFiboOrders
 {
 private:
+   CManualFiboReconcile m_reconcile;
    ulong m_magic;
    string m_scope, m_mutex;
    string Hex(uint value) const
@@ -55,13 +57,6 @@ private:
              && MQLInfoInteger(MQL_TRADE_ALLOWED) && AccountInfoInteger(ACCOUNT_TRADE_ALLOWED)
              && AccountInfoInteger(ACCOUNT_TRADE_EXPERT);
    }
-   bool Accepted(const uint code) const
-   { return code == TRADE_RETCODE_PLACED || code == TRADE_RETCODE_DONE || code == TRADE_RETCODE_DONE_PARTIAL; }
-   bool Uncertain(const uint code) const
-   {
-      return code == 0 || code == TRADE_RETCODE_TIMEOUT || code == TRADE_RETCODE_CONNECTION
-             || code == TRADE_RETCODE_ERROR || code == TRADE_RETCODE_LOCKED;
-   }
    string Level(const int index) const { return DoubleToString(FiboRatio(index) * 100, 1) + "%"; }
    bool Prepare(const CFiboModel &model, const bool use_tp, const int index,
                 const FiboRiskContext &context, MqlTradeRequest &request, double &loss, string &error) const
@@ -90,18 +85,43 @@ private:
       if(!model.Ready() || model.Mask() == 0) return "Pilih swing dan minimal satu level.";
       if(!HistorySelect(0, TimeCurrent())) return "History belum tersedia; tidak mengirim.";
       CFiboRisk risk; FiboRiskContext context; risk.ReadContext(model, context);
+      double available = context.total_budget;
+      // All uses the same equal shares as the preview. Retained reservations
+      // (including deselected/filled/cancelled levels) cap later retries too.
+      if(model.RiskAll())
+      {
+         double held = 0; int new_count = 0;
+         for(int i = 0; i < FIBO_RATIOS; i++)
+         {
+            string comment = Comment(model, i);
+            if(AlreadySent(comment))
+            {
+               double loss = m_reconcile.HeldLoss(comment);
+               if(loss <= 0) return "All: risiko order lama belum diketahui; tidak mengirim.";
+               held += loss;
+            }
+            else if(model.Enabled(i)) new_count++;
+         }
+         double remaining = context.total_budget - held;
+         available = remaining;
+         if(new_count > 0 && (!MathIsValidNumber(remaining) || remaining <= 0))
+            return "All: anggaran sudah terpakai order sebelumnya.";
+         if(new_count > 0) context.budget = MathMin(context.budget, remaining / new_count);
+      }
       MqlTradeRequest requests[FIBO_RATIOS];
+      double losses[FIBO_RATIOS];
       bool pending[FIBO_RATIOS];
       int skipped = 0, count = 0;
-      double total_margin = 0;
+      double total_margin = 0, total_loss = 0;
       // Full preflight: no OrderSend until every new selected level is valid.
       for(int i = 0; i < FIBO_RATIOS; i++)
       {
-         ZeroMemory(requests[i]); pending[i] = false;
+         ZeroMemory(requests[i]); pending[i] = false; losses[i] = 0;
          if(!model.Enabled(i)) continue;
          if(AlreadySent(Comment(model, i))) { skipped++; continue; }
-         string error = ""; double loss = 0;
-         if(!Prepare(model, use_tp, i, context, requests[i], loss, error)) return Level(i) + ": " + error;
+         string error = "";
+         if(!Prepare(model, use_tp, i, context, requests[i], losses[i], error)) return Level(i) + ": " + error;
+         total_loss += losses[i];
          MqlTradeCheckResult check = {};
          if(!OrderCheck(requests[i], check) || (check.retcode != 0 && check.retcode != TRADE_RETCODE_DONE))
             return Level(i) + ": check " + IntegerToString(check.retcode) + " " + check.comment;
@@ -112,6 +132,8 @@ private:
          total_margin += margin; pending[i] = true; count++;
       }
       if(count == 0) return "Tidak ada level baru; sudah dikirim: " + IntegerToString(skipped);
+      if(model.RiskAll() && (!MathIsValidNumber(total_loss) || total_loss > available))
+         return "All: estimasi loss melebihi sisa anggaran.";
       double free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
       if(!MathIsValidNumber(total_margin) || !MathIsValidNumber(free_margin) || total_margin > free_margin)
          return "Margin tidak cukup untuk seluruh level baru.";
@@ -124,16 +146,15 @@ private:
          if(!Permissions() || !OrderCheck(requests[i], check)
             || (check.retcode != 0 && check.retcode != TRADE_RETCODE_DONE))
          { failed++; Print("manualFibo ", Level(i), ": not sent; check ", check.retcode, " ", check.comment); continue; }
-         string marker = m_scope + requests[i].comment;
          // Persist BEFORE sending: ambiguous timeouts must never be blindly retried.
-         if(GlobalVariableSet(marker, 1) == 0)
+         if(!m_reconcile.Begin(requests[i].comment, losses[i]))
          { failed++; Print("manualFibo ", Level(i), ": cannot save submission marker"); continue; }
-         GlobalVariablesFlush();
          MqlTradeResult result = {};
          bool ok = OrderSend(requests[i], result);
-         if(Accepted(result.retcode)) { sent++; GlobalVariableSet(marker, 2); }
-         else if(Uncertain(result.retcode)) { unknown++; }
-         else { failed++; GlobalVariableDel(marker); }
+         if(m_reconcile.AcceptedCode(result.retcode)) sent++;
+         else if(m_reconcile.UncertainCode(result.retcode)) unknown++;
+         else failed++;
+         m_reconcile.Finish(requests[i].comment, result);
          Print("manualFibo ", Level(i), ": OrderSend=", ok, ", ticket=", result.order,
                ", retcode=", result.retcode, " ", result.comment);
       }
@@ -150,6 +171,7 @@ public:
       m_scope = "MF." + Hash(AccountInfoString(ACCOUNT_SERVER) + "|" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN))
                   + "|" + IntegerToString((long)magic) + "|" + _Symbol) + ".";
       m_mutex = m_scope + "Lock";
+      m_reconcile.Configure(m_scope, magic);
       return true;
    }
    string Comment(const CFiboModel &model, const int index) const
@@ -163,6 +185,14 @@ public:
    {
       if(!Acquire()) return "Operasi manualFibo lain masih berjalan.";
       string message = SendLocked(model, use_tp); Release(); return message;
+   }
+   void Transaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
+   { m_reconcile.Transaction(trans, request, result); }
+   string Reconcile(void)
+   {
+      if(!m_reconcile.Pending()) return "";
+      if(!Acquire()) return "";
+      string message = m_reconcile.Poll(); Release(); return message;
    }
    string Delete(void)
    {

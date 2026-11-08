@@ -1,5 +1,12 @@
 # AutoFibo changelog (formerly myFibo)
 
+## 3.03
+
+- Update shared risk/model/state dependencies for manualFibo's All / Per level
+  allocation and schema 5 persistence. AutoFibo retains its existing Per level
+  defaults, GUI and preview-only behavior; it does not import trading/reconciliation.
+- Preserve loading of earlier state schemas and verify the automatic-analysis suite.
+
 ## 3.02
 
 - Move shared libraries to Include/_common/Fibo, Swing and Structure; update

@@ -1,5 +1,19 @@
 # manualFibo changelog
 
+## 1.17
+
+- Add All / Per level risk selection (Per level remains the default). All divides
+  the equity budget equally across selected levels, rounding lots down; retained
+  submission risk caps retries and prevents spending the same setup budget twice.
+- Compact the risk percentage field and show the numeric money amount beside it
+  without a Budget label. Preserve risk mode through chart-timeframe changes.
+- Reconcile uncertain submissions via lightweight OnTradeTransaction notifications
+  and bounded timer probes, with backoff, startup recovery and reconnect checks.
+- Match request IDs or owned active/history evidence before resolving an intent;
+  absence never proves rejection and no event/timer automatically sends an order.
+- Keep the existing single status line, without per-level order status controls.
+- Add shared risk-mode/state schema 5 with backward-compatible schema 1–4 loading.
+
 ## 1.16
 
 - Add manualFibo-only Send Orders and Delete Orders controls and an optional

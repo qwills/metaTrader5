@@ -1,5 +1,5 @@
 #property strict
-#property version "1.16"
+#property version "1.17"
 #property description "Manual Fibonacci with equity-risk limit orders and scoped deletion."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboOrders.mqh"
@@ -36,7 +36,7 @@ bool CommitOrderInputs(void)
    double value = 0;
    if(!FiboParseNumber(g_dialog.RiskText(), value) || !candidate.SetRiskPercent(value))
    { Status("Risk tidak valid; order tidak dikirim."); return false; }
-   candidate.SetMask(g_dialog.RatioMask());
+   candidate.SetMask(g_dialog.RatioMask()); candidate.SetRiskAll(g_dialog.RiskAll());
    for(int i = 0; i < FIBO_RATIOS; i++)
    {
       if(!candidate.Enabled(i)) continue;
@@ -113,7 +113,7 @@ int OnInit(void)
    g_dialog.Configure("manualFibo", 0, "Pilih Swing");
    g_dialog.Minimized(false);
    if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 580)) return INIT_FAILED;
-   g_created = true; g_dialog.Refresh(g_model);
+   g_created = true; g_dialog.SyncRiskMode(g_model); g_dialog.Refresh(g_model);
    if(!g_dialog.Run()) return INIT_FAILED;
    if(restoring) g_dialog.IniFileLoad();
    if(restoring && ObjectFind(0, "manualFibo.TradeOptions") >= 0)
@@ -157,8 +157,18 @@ void OnDeinit(const int reason)
    ChartRedraw();
 }
 
+void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
+{
+   g_orders.Transaction(trans, request, result);
+}
+
 void OnTimer(void)
 {
+   if(g_created && !IsStopped())
+   {
+      string message = g_orders.Reconcile();
+      if(message != "" && g_selection == MANUAL_IDLE) Status(message);
+   }
    if(g_created && !IsStopped() && !g_dialog.IsMinimized())
    {
       bool changed = g_dialog.RefreshLots(g_model);
@@ -203,6 +213,16 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    { SyncObject(); return; }
    if(id == CHARTEVENT_MOUSE_MOVE || id == CHARTEVENT_CHART_CHANGE) return;
    int trade_action = g_dialog.TakeTradeAction();
+   if(trade_action == 3)
+   {
+      bool all = g_dialog.RiskAll();
+      if(g_model.RiskAll() != all)
+      {
+         g_model.SetRiskAll(all); g_dialog.RefreshLots(g_model); ChartRedraw();
+         Status(all ? "Risk dibagi untuk semua level." : "Risk berlaku per level.");
+      }
+      return;
+   }
    if(trade_action == 2) { Status(g_orders.Delete()); return; }
    if(trade_action == 1)
    {
@@ -219,7 +239,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       { if(g_dialog.RefreshRiskInput(g_model)) ChartRedraw(); Status("Risk 0-100 persen, maksimal 8 desimal."); return; }
       bool changed = g_dialog.RefreshRiskInput(g_model);
       if(previous == g_model.RiskPercent()) { if(changed) ChartRedraw(); return; }
-      g_dialog.RefreshLots(g_model); ChartRedraw(); Status("Risk diperbarui untuk setiap level."); return;
+      g_dialog.RefreshLots(g_model); ChartRedraw(); Status(g_model.RiskAll() ? "Risk total diperbarui." : "Risk per level diperbarui."); return;
    }
    if(action == FIBO_PANEL_SL)
    {

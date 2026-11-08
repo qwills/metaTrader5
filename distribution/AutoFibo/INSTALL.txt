@@ -1,4 +1,4 @@
-AutoFibo 3.02 - Windows (source)
+AutoFibo 3.03 - Windows (source)
 
 AutoFibo replaces myFibo and always selects swings automatically.
 
@@ -6,7 +6,7 @@ SOURCE INSTALLATION (no ZIP required)
 Copy Experts/AutoFibo, Include/_common/Fibo, Include/_common/Swing and Include/_common/Structure from the
 workspace into their matching locations under your terminal's MQL5 folder.
 Remove myFibo from the chart, open Experts\AutoFibo\AutoFibo.mq5 in MetaEditor,
-press F7, then attach AutoFibo 3.02. Standard Library Controls headers must be
+press F7, then attach AutoFibo 3.03. Standard Library Controls headers must be
 provided by the terminal. The old myFibo state is not imported.
 
 Keep the _common parent: the new library locations are MQL5/Include/_common/Fibo,

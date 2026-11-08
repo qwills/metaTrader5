@@ -221,3 +221,32 @@ Authoritative references consulted for this feature:
 TRADE_ACTION_REMOVE targets pending tickets only. Current symbol, configured magic,
 MF: comment and LIMIT type scope deletion. Never send/modify/delete stop orders
 or close positions. Native broker behavior needs MetaEditor F7 and demo testing.
+
+## manualFibo 1.17: reconciliation and risk modes
+
+Shared model/risk/state support All allocation: one total equity budget is divided
+by selected levels, with downward volume rounding. Send preflight further caps
+new risk by stored reservations for the same anchors, including past/uncertain
+orders. Preview never scans broker history. Schema 5 adds a risk-mode boolean at
+the end; schemas 1–4 remain readable and default to Per level. ManualFibo enables
+compact shared Risk-row geometry and an EA-local CComboBox (All / Per level).
+
+New API references (retain locally for future work):
+
+- [OnTradeTransaction](https://www.mql5.com/en/docs/event_handlers/ontradetransaction):
+  event ordering is not guaranteed and the transaction queue is finite. Keep the
+  handler short; mark work and reconcile through the timer.
+- [MqlTradeTransaction](https://www.mql5.com/en/docs/constants/structures/mqltradetransaction):
+  request/result parameters are used only for TRADE_TRANSACTION_REQUEST.
+- [MqlTradeResult](https://www.mql5.com/en/docs/constants/structures/mqltraderesult):
+  request_id associates a sent request with its later response; order is a ulong.
+- [HistoryOrderSelect](https://www.mql5.com/en/docs/trading/historyorderselect):
+  ticket lookup clears the selected history list. Do targeted probes first, then
+  HistorySelect for bounded fallback pages; do not mix list iteration with selects.
+
+Unknown markers retain request ID, split 32-bit ticket halves (terminal globals
+store doubles), submission time and reserved loss. Accepted markers keep risk
+reservations; definite rejection alone clears them. Startup inventories terminal
+records once; timer probes and fallback pages are bounded and back off. Broker
+absence alone never authorizes resending. Cross-terminal coordination and exact
+live server behavior still require separate validation in Windows/demo.

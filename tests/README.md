@@ -26,3 +26,8 @@ limit-only types, optional TP, duplicate/history/timeout protection, partial ret
 scoped deletion, current GUI inputs and the shared single-snapshot risk path.
 Trading headers are not imported by AutoFibo. Live server permissions, filling,
 expiration, freeze rules and asynchronous server outcomes need Windows/demo tests.
+
+manualFibo 1.17 checks also cover All/Per level aggregate caps, partial-retry risk
+reservations, compact risk controls, risk-mode persistence, matched/mismatched
+transaction IDs, no scans inside the event handler, idle backoff, startup/history
+recovery and exact 64-bit ticket reconstruction. All broker APIs are simulated.

@@ -1,4 +1,4 @@
-manualFibo 1.16 - Windows (source)
+manualFibo 1.17 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.16 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.16 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.17 to a chart. Use a separate chart if running AutoFibo too.
 
 Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -25,7 +25,8 @@ Build checks on macOS use C++ adapters, not MetaEditor. F7, native GUI rendering
 panel drag/minimize, object edits, persistence and this CMD need Windows testing.
 
 RISK / LOT PREVIEW
-Default risk is 5 percent of current account equity, applied PER checked level.
+Default risk is 5 percent of current account equity. Per level applies that risk
+to each checked level; All shares one budget across the selected levels.
 Enter another percentage in the Risk box. Each level has an editable SL price,
 initially following the swing start. Finish editing to apply. Clear an SL field
 to resume following the swing start. Edited SLs remain fixed when anchors move.
@@ -81,3 +82,17 @@ Moving Fibonacci or removing the EA does not change submitted orders. TP choice
 survives timeframe changes. Details and duplicate-protection limits are in README.
 Verify sending/deleting, broker rejection/partial failure and timeframe behavior
 on a demo account in Windows; adapter tests do not contact any broker.
+
+SOURCE 1.17: RISK MODES AND RECONCILIATION
+Copy the new ManualFiboReconcile.mqh with the other EA headers. Per level remains
+the default. All divides one equity-risk budget equally across selected levels;
+lot rounding can leave unused budget. The compact Risk field has the numeric
+money amount beside it, plus an All / Per level selector. Risk mode survives TF
+changes. Prior successful/uncertain submissions reserve risk for the same setup;
+retrying or unchecking them never allocates the full budget again. Legacy setup
+records without saved risk block All continuation rather than guess.
+OnTradeTransaction and a bounded timer resolve unknown results using request IDs,
+tickets and owned active/history evidence. Proven rejection permits user retry;
+absence alone does not. No automatic sends or extra per-level status display.
+Polling stops when there are no unknowns and backs off while awaiting evidence.
+F7 and demo checks for risk totals, partial retries and reconnects remain required.

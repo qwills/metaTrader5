@@ -24,15 +24,17 @@ private:
    CLabel m_lots[FIBO_RATIOS], m_losses[FIBO_RATIOS];
    string m_app_name, m_draw_caption;
    int m_content_offset;
+   bool m_compact_risk;
    string m_control_prefix, m_tooltips[FIBO_RATIOS];
    int m_edit_index;
    FiboAction m_action;
 public:
    CFiboDialog(void)
    {
-      m_action = FIBO_PANEL_NONE; m_total_loss = 0; m_all_lots_valid = false;
+      m_action = FIBO_PANEL_NONE; m_compact_risk = false; m_total_loss = 0; m_all_lots_valid = false;
       Configure("Fibonacci", 0, "Pilih Swing");
    }
+   void CompactRisk(const bool compact) { m_compact_risk = compact; }
    void Configure(const string app_name, const int offset, const string draw_caption)
    { m_app_name = app_name; m_content_offset = offset; m_draw_caption = draw_caption; }
    virtual bool Create(const long chart, const string name, const int subwin,
@@ -54,9 +56,9 @@ public:
          || !m_reset.Text("Reset") || !Add(m_reset)
          || !Label(m_start, chart, name + ".Start", "Awal: -", 14, 74, 288, 94)
          || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 288, 120)
-         || !Label(m_risk_label, chart, name + ".RiskLabel", "% Equity", 324, 36, 432, 56)
-         || !Edit(m_risk_edit, chart, name + ".Risk", subwin, "5", 442, 32 + m_content_offset, 584, 58 + m_content_offset)
-         || !Label(m_budget, chart, name + ".Budget", "Budget: -", 324, 68, 584, 88)
+         || !Label(m_risk_label, chart, name + ".RiskLabel", "% Equity", 324, 36, m_compact_risk ? 394 : 432, 56)
+         || !Edit(m_risk_edit, chart, name + ".Risk", subwin, "5", m_compact_risk ? 398 : 442, 32 + m_content_offset, m_compact_risk ? 454 : 584, 58 + m_content_offset)
+         || !Label(m_budget, chart, name + ".Budget", m_compact_risk ? "-" : "Budget: -", m_compact_risk ? 464 : 324, m_compact_risk ? 36 : 68, 584, m_compact_risk ? 56 : 88)
          || !Label(m_risk_note, chart, name + ".RiskNote", "Risk per level, bukan total.", 324, 98, 584, 118)
          || !Label(m_entry_header, chart, name + ".EntryHeader", "Level / Entry", 14, 160, 210, 180)
          || !Label(m_sl_header, chart, name + ".SLHeader", "SL price", 224, 160, 350, 180)
@@ -149,7 +151,8 @@ public:
       string currency = context.currency;
       m_total_loss = 0; m_all_lots_valid = model.Ready() && model.Mask() != 0;
       m_loss_currency = currency;
-      bool changed = SetText(m_budget, "Budget: " + DoubleToString(context.budget, 2) + " " + currency);
+      bool changed = SetText(m_budget, (m_compact_risk ? "" : "Budget: ") + DoubleToString(context.total_budget, 2) + (m_compact_risk ? "" : " " + currency));
+      if(SetText(m_risk_note, model.RiskAll() ? "Risk total semua level." : "Risk per level, bukan total.")) changed = true;
       for(int i = 0; i < FIBO_RATIOS; i++)
       {
          FiboLot result;

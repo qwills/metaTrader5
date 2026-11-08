@@ -1,6 +1,7 @@
 #ifndef MANUAL_FIBO_DIALOG_MQH
 #define MANUAL_FIBO_DIALOG_MQH
 #include <_common\Fibo\FiboDialog.mqh>
+#include <Controls\ComboBox.mqh>
 
 // Trading controls belong only to manualFibo, never to the shared AutoFibo GUI.
 class CManualFiboDialog : public CFiboDialog
@@ -8,15 +9,20 @@ class CManualFiboDialog : public CFiboDialog
 private:
    CButton m_send, m_delete;
    CCheckBox m_take_profit;
+   CComboBox m_risk_mode;
    CLabel m_total;
    int m_trade_action;
 public:
-   CManualFiboDialog(void) { m_trade_action = 0; }
+   CManualFiboDialog(void) { m_trade_action = 0; CompactRisk(true); }
    virtual bool Create(const long chart, const string name, const int subwin,
                        const int x1, const int y1, const int x2, const int y2)
    {
       m_trade_action = 0;
       if(!CFiboDialog::Create(chart, name, subwin, x1, y1, x2, y2)) return false;
+      if(!m_risk_mode.Create(chart, name + ".RiskMode", subwin, 324, 66, 584, 92)
+         || !m_risk_mode.AddItem("All", 1) || !m_risk_mode.AddItem("Per level", 0)
+         || !m_risk_mode.SelectByValue(0) || !Add(m_risk_mode)) return false;
+      m_risk_mode.ListViewItems(2);
       return m_take_profit.Create(chart, name + ".TP", subwin, 374, 386, 584, 410)
              && m_take_profit.Text("TP: swing end") && m_take_profit.Checked(true) && Add(m_take_profit)
              && Label(m_total, chart, name + ".Total", "Total est. loss: -", 14, 450, 584, 472)
@@ -32,6 +38,8 @@ public:
          if(lparam == m_send.Id()) { m_trade_action = 1; return true; }
          if(lparam == m_delete.Id()) { m_trade_action = 2; return true; }
       }
+      if(id == CHARTEVENT_CUSTOM + ON_CHANGE && lparam == m_risk_mode.Id())
+      { m_trade_action = 3; return true; }
       return CFiboDialog::OnEvent(id, lparam, dparam, sparam);
    }
    int TakeTradeAction(void) { int action = m_trade_action; m_trade_action = 0; return action; }
@@ -48,13 +56,15 @@ public:
       }
       ChartEvent(id, lparam, dparam, sparam);
    }
+   bool RiskAll(void) { return m_risk_mode.Value() == 1; }
+   void SyncRiskMode(const CFiboModel &model) { m_risk_mode.SelectByValue(model.RiskAll() ? 1 : 0); }
    bool UseTP(void) { return m_take_profit.Checked(); }
    void UseTP(const bool value) { m_take_profit.Checked(value); }
    virtual bool RefreshLots(const CFiboModel &model)
    {
       bool changed = CFiboDialog::RefreshLots(model);
       string text = m_all_lots_valid ? DoubleToString(m_total_loss, 2) + " " + m_loss_currency : "- (level invalid)";
-      if(SetText(m_total, "Total est. loss: " + text + " | Risk per level")) changed = true;
+      if(SetText(m_total, "Total est. loss: " + text + (model.RiskAll() ? " | All" : " | Per level"))) changed = true;
       return changed;
    }
    // Separate geometry version: old saved panel heights must not clip the buttons.

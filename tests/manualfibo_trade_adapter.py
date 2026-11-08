@@ -13,7 +13,13 @@ struct MqlTradeRequest{
  int action=0;ulong magic=0,order=0;string symbol,comment;ENUM_ORDER_TYPE type=ORDER_TYPE_BUY;
  int type_filling=0,type_time=0;double price=0,sl=0,tp=0,volume=0;
 };
-struct MqlTradeResult{uint retcode=0;ulong order=0;string comment;};
+struct MqlTradeResult{uint request_id=0,retcode=0;ulong order=0;string comment;};
+const uint TRADE_RETCODE_REQUOTE=10004,TRADE_RETCODE_CANCEL=10007,TRADE_RETCODE_INVALID=10013,
+ TRADE_RETCODE_INVALID_EXPIRATION=10022,TRADE_RETCODE_TOO_MANY_REQUESTS=10024,
+ TRADE_RETCODE_SERVER_DISABLES_AT=10026,TRADE_RETCODE_CLIENT_DISABLES_AT=10027,
+ TRADE_RETCODE_FROZEN=10029,TRADE_RETCODE_INVALID_FILL=10030,TRADE_RETCODE_ONLY_REAL=10032,TRADE_RETCODE_LIMIT_POSITIONS=10040;
+const int TRADE_TRANSACTION_REQUEST=70,TRADE_TRANSACTION_ORDER_ADD=71,TRADE_TRANSACTION_HISTORY_ADD=72;
+struct MqlTradeTransaction{int type=0;ulong order=0;string symbol;};
 struct MqlTradeCheckResult{uint retcode=0;string comment;};
 template<class T>void ZeroMemory(T&v){v=T{};}
 struct FakeOrder{ulong ticket;MqlTradeRequest request;int state=0;};
@@ -25,10 +31,14 @@ int order_selected=-1,send_index=0,check_calls=0,check_fail_at=0;
 bool trading_allowed=true,history_allowed=true,margin_failure=false,marker_failure=false,send_return=true;
 double free_margin=100000,margin_per_order=100;
 ulong next_ticket=100;
+int history_scans=0,active_reads=0,ticket_probes=0;
 long AccountInfoInteger(int prop){return prop==ACCOUNT_LOGIN?12345:trading_allowed;}
 long TerminalInfoInteger(int){return trading_allowed;}
 long MQLInfoInteger(int){return trading_allowed;}
 datetime TimeCurrent(){return 1800000000;}
+int GlobalVariablesTotal(){return terminal_globals.size();}
+string GlobalVariableName(int index){auto it=terminal_globals.begin();std::advance(it,index);return it->first;}
+double GlobalVariableGet(const string&key){return terminal_globals.count(key)?terminal_globals[key]:0;}
 bool GlobalVariableTemp(const string&key){terminal_globals.emplace(key,0);return true;}
 bool GlobalVariableSetOnCondition(const string&key,double v,double previous){if(!terminal_globals.count(key)||terminal_globals[key]!=previous)return false;terminal_globals[key]=v;return true;}
 datetime GlobalVariableSet(const string&key,double v){if(marker_failure&&key.find("MF:")!=string::npos)return 0;terminal_globals[key]=v;return 1800000000;}
@@ -36,14 +46,16 @@ bool GlobalVariableCheck(const string&key){return terminal_globals.count(key);}
 bool GlobalVariableDel(const string&key){return terminal_globals.erase(key)>0;}
 void GlobalVariablesFlush(){}
 int OrdersTotal(){return broker_orders.size();}
-ulong OrderGetTicket(int i){order_selected=i;return broker_orders.at(i).ticket;}
+bool OrderSelect(ulong ticket){++ticket_probes;for(size_t i=0;i<broker_orders.size();i++)if(broker_orders[i].ticket==ticket){order_selected=i;return true;}return false;}
+ulong OrderGetTicket(int i){++active_reads;order_selected=i;return broker_orders.at(i).ticket;}
 long OrderGetInteger(int prop){auto&o=broker_orders.at(order_selected);if(prop==ORDER_MAGIC)return o.request.magic;if(prop==ORDER_TYPE)return o.request.type;return o.state;}
 string OrderGetString(int prop){auto&o=broker_orders.at(order_selected);return prop==ORDER_SYMBOL?o.request.symbol:o.request.comment;}
-bool HistorySelect(datetime,datetime){return history_allowed;}
+bool HistorySelect(datetime,datetime){++history_scans;return history_allowed;}
+bool HistoryOrderSelect(ulong ticket){++ticket_probes;if(!history_allowed)return false;for(auto&o:broker_history)if(o.ticket==ticket)return true;return false;}
 int HistoryOrdersTotal(){return broker_history.size();}
 ulong HistoryOrderGetTicket(int i){return broker_history.at(i).ticket;}
 FakeOrder&HistoryFind(ulong ticket){for(auto&o:broker_history)if(o.ticket==ticket)return o;std::abort();}
-long HistoryOrderGetInteger(ulong ticket,int prop){auto&o=HistoryFind(ticket);return prop==ORDER_MAGIC?static_cast<long>(o.request.magic):o.state;}
+long HistoryOrderGetInteger(ulong ticket,int prop){auto&o=HistoryFind(ticket);if(prop==ORDER_MAGIC)return static_cast<long>(o.request.magic);if(prop==ORDER_TYPE)return o.request.type;return o.state;}
 string HistoryOrderGetString(ulong ticket,int prop){auto&o=HistoryFind(ticket);return prop==ORDER_SYMBOL?o.request.symbol:o.request.comment;}
 bool OrderCalcMargin(ENUM_ORDER_TYPE side,const string&,double,double,double&margin){assert(side==ORDER_TYPE_BUY||side==ORDER_TYPE_SELL);margin=margin_per_order;return !margin_failure;}
 bool OrderCheck(MqlTradeRequest&r,MqlTradeCheckResult&result){
@@ -51,7 +63,7 @@ bool OrderCheck(MqlTradeRequest&r,MqlTradeCheckResult&result){
  result.retcode=check_calls==check_fail_at?TRADE_RETCODE_REJECT:0;result.comment="fake check";return check_calls!=check_fail_at;
 }
 bool OrderSend(MqlTradeRequest&r,MqlTradeResult&result){
- sent_requests.push_back(r);result.retcode=send_index<static_cast<int>(send_codes.size())?send_codes[send_index]:TRADE_RETCODE_DONE;++send_index;
+ sent_requests.push_back(r);result.retcode=send_index<static_cast<int>(send_codes.size())?send_codes[send_index]:TRADE_RETCODE_DONE;++send_index;result.request_id=send_index;
  if(r.action==TRADE_ACTION_PENDING){
   assert(r.type==ORDER_TYPE_BUY_LIMIT||r.type==ORDER_TYPE_SELL_LIMIT);
   assert(r.type_filling==ORDER_FILLING_RETURN&&r.type_time==ORDER_TIME_GTC&&r.comment.size()<=31);
@@ -113,7 +125,62 @@ void RunOrderChecks(){
  terminal_globals[lock_key]=1;before=sent_requests.size();orders.Delete();Check(sent_requests.size()==before,"busy terminal mutex blocks a competing command");terminal_globals[lock_key]=0;
  reset();check_fail_at=5;orders.Send(model,true);Check(sent_requests.size()==2&&broker_orders.size()==2,"per-request recheck can fail safely after preflight");
  reset();orders.Send(model,true);broker_history=broker_orders;broker_orders.clear();terminal_globals.clear();before=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==before,"filled history blocks repeat even without terminal records");
+ // Risk modes use one equity snapshot and fixed equal shares before broker rounding.
+ reset();model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskPercent(5);model.SetRiskAll(true);
+ CFiboRisk calc;FiboRiskContext ctx;calc.ReadContext(model,ctx);Check(ctx.total_budget==500&&std::abs(ctx.budget-500./3)<1e-10,"All equal shares from one total budget");
+ double total_loss=0;for(int i=0;i<FIBO_RATIOS;i++){if(!model.Enabled(i))continue;FiboLot lot;Check(calc.Calculate(model,i,ctx,lot),"All preview valid");total_loss+=lot.loss;}
+ Check(total_loss>0&&total_loss<=500,"All preview aggregate never exceeds budget");
+ model.SetRiskAll(false);calc.ReadContext(model,ctx);Check(ctx.budget==500,"Per level keeps full budget per selected entry");
+ model.SetRiskAll(true);orders.Configure(11600101);orders.Send(model,true);
+ auto loss_of=[](const MqlTradeRequest&r){double loss=0;Check(OrderCalcProfit(r.type==ORDER_TYPE_BUY_LIMIT?ORDER_TYPE_BUY:ORDER_TYPE_SELL,_Symbol,r.volume,r.price,r.sl,loss),"estimate submitted loss");return -loss;};
+ total_loss=0;for(auto&r:sent_requests)total_loss+=loss_of(r);Check(sent_requests.size()==3&&total_loss<=500,"All submitted batch matches total cap");
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_DONE,TRADE_RETCODE_REJECT,TRADE_RETCODE_DONE};orders.Send(model,true);
+ model.SetMask(1<<3);orders.Send(model,true);total_loss=0;for(auto&o:broker_orders)total_loss+=loss_of(o.request);
+ Check(broker_orders.size()==3&&total_loss<=500,"All retry cannot redistribute spent budget after selection changes");
+ reset();orders.Configure(11600101);model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskAll(false);orders.Send(model,true);model.SetRiskAll(true);model.SetMask(63);size_t prior=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==prior,"switching to All cannot ignore prior per-level risk");
+ reset();orders.Configure(11600101);model.SetMask(63);model.SetRiskPercent(.01);orders.Send(model,true);Check(sent_requests.empty(),"All refuses minimum lot overshoot");
+ model.SetRiskPercent(5);model.SetMask(FIBO_DEFAULT_MASK);
+ // Event handler is cheap; only matched definitive responses may unlock a timeout.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_TIMEOUT,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE};orders.Send(model,true);
+ MqlTradeRequest unresolved=sent_requests[0];MqlTradeTransaction tx={};tx.type=TRADE_TRANSACTION_REQUEST;
+ MqlTradeResult response={};response.retcode=TRADE_RETCODE_REJECT;response.request_id=999;
+ int scans_before=history_scans,reads_before=active_reads;orders.Transaction(tx,unresolved,response);Check(history_scans==scans_before&&active_reads==reads_before,"transaction callback performs no broker scans");
+ orders.Reconcile();prior=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==prior,"mismatched request ID cannot unlock a timeout");
+ response.request_id=1;response.retcode=TRADE_RETCODE_CONNECTION;orders.Transaction(tx,unresolved,response);clock_value+=6000;orders.Reconcile();orders.Send(model,true);Check(sent_requests.size()==prior,"connection result is not proof of rejection");
+ response.retcode=TRADE_RETCODE_ERROR;orders.Transaction(tx,unresolved,response);clock_value+=6000;orders.Reconcile();orders.Send(model,true);Check(sent_requests.size()==prior,"processing error stays uncertain");
+ response.retcode=TRADE_RETCODE_LOCKED;orders.Transaction(tx,unresolved,response);clock_value+=6000;orders.Reconcile();orders.Send(model,true);Check(sent_requests.size()==prior,"locked request stays uncertain");
+ response.retcode=TRADE_RETCODE_REJECT;orders.Transaction(tx,unresolved,response);clock_value+=6000;Check(orders.Reconcile().find("1 ditolak")!=string::npos,"matched rejection reconciles without new order");orders.Send(model,true);Check(sent_requests.size()==prior+1,"only proven rejected level is eligible for user retry");
+ // Missing orders/history must never release an intent. Idle polling backs off.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_TIMEOUT,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE};orders.Send(model,true);orders.Reconcile();scans_before=history_scans;for(int i=0;i<20;i++)orders.Reconcile();Check(history_scans==scans_before,"backoff prevents scans on every timer call");
+ prior=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==prior,"absence is not failure proof");
+ // On reattach, restore an unknown record then discover a late accepted order.
+ unresolved=sent_requests[0];broker_orders.push_back({900,unresolved,0});CManualFiboOrders recovered;recovered.Configure(11600101);Check(recovered.Reconcile().find("1 diterima")!=string::npos,"startup reconciles late active order by identity");scans_before=history_scans;recovered.Reconcile();Check(history_scans==scans_before,"resolved state stops reconciliation scans");recovered.Send(model,true);Check(sent_requests.size()==prior,"recovered accepted order stays protected");
+ // Non-request transactions do not read their undefined request/result fields.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_TIMEOUT,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE};orders.Send(model,true);unresolved=sent_requests[0];tx.type=TRADE_TRANSACTION_ORDER_ADD;tx.symbol=_Symbol;response.retcode=TRADE_RETCODE_REJECT;response.request_id=1;orders.Transaction(tx,unresolved,response);orders.Reconcile();prior=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==prior,"non-request result garbage cannot release an intent");
+ broker_history.push_back({901,unresolved,0});tx.type=TRADE_TRANSACTION_HISTORY_ADD;orders.Transaction(tx,unresolved,response);clock_value+=6000;Check(orders.Reconcile().find("1 diterima")!=string::npos,"late history fill or cancellation reconciles acceptance");
+ // Known ticket probes preserve all 64 bits and avoid a history range scan.
+ reset();CManualFiboReconcile ledger;ledger.Configure("MF.test.",11600101);string note=orders.Comment(model,2);Check(ledger.Begin(note,100),"write durable intent");response={};response.retcode=TRADE_RETCODE_TIMEOUT;response.order=(1UL<<54)+37;response.request_id=123;ledger.Finish(note,response);broker_orders.push_back({response.order,unresolved,0});ledger.Configure("MF.test.",11600101);scans_before=history_scans;Check(ledger.Poll().find("1 diterima")!=string::npos&&history_scans==scans_before,"persisted 64-bit ticket resolves without history scan");
+ // Definite rejection needs the exact known ticket, not an old rejected comment.
+ reset();ledger.Configure("MF.test.",11600101);Check(ledger.Begin(note,100),"create historical rejection case");response={};response.retcode=TRADE_RETCODE_TIMEOUT;response.order=1001;response.request_id=124;ledger.Finish(note,response);
+ broker_history.push_back({1000,unresolved,ORDER_STATE_REJECTED});ledger.Poll();Check(GlobalVariableCheck("MF.test."+note),"old rejected attempt cannot release a new unknown");broker_history.push_back({1001,unresolved,ORDER_STATE_REJECTED});clock_value+=6000;Check(ledger.Poll().find("1 ditolak")!=string::npos&&!GlobalVariableCheck("MF.test."+note),"exact historical rejected ticket releases reservation");
+ // Reconnect forces a new read, never a new send, and missing history stays blocked.
+ reset();ledger.Configure("MF.test.",11600101);Check(ledger.Begin(note,100),"create reconnect case");response={};response.retcode=TRADE_RETCODE_TIMEOUT;ledger.Finish(note,response);ledger.Poll();prior=sent_requests.size();trading_allowed=false;ledger.Poll();trading_allowed=true;scans_before=history_scans;history_allowed=false;ledger.Poll();Check(history_scans>scans_before&&GlobalVariableCheck("MF.test."+note)&&sent_requests.size()==prior,"reconnect with missing history never resends or unlocks");history_allowed=true;
+ // Polling limits hold even for a large account order list.
+ for(int i=0;i<400;i++){auto other=unresolved;other.comment="unrelated";broker_orders.push_back({static_cast<ulong>(2000+i),other,0});broker_history.push_back({static_cast<ulong>(3000+i),other,0});}
+ clock_value+=6000;reads_before=active_reads;ledger.Poll();Check(active_reads-reads_before<=128,"fallback active-order scan is bounded per pass");
+ // Current schema saves All and rejects malformed modes; legacy schemas stay Per level.
+ CFiboState codec;codec.SetPrefix("ModeTest.");CFiboModel restored;model.SetRiskAll(true);Check(codec.Save(model,_Symbol)&&codec.Load(restored,_Symbol)&&restored.RiskAll(),"schema 5 risk-mode roundtrip");
+ string encoded=ObjectGetString(0,"ModeTest.State",OBJPROP_TEXT);ObjectSetString(0,"ModeTest.State",OBJPROP_TEXT,StringSubstr(encoded,0,StringLen(encoded)-1)+"2");Check(!codec.Load(restored,_Symbol)&&restored.RiskAll(),"invalid mode rejected without mutating model");
+ ObjectSetString(0,"ModeTest.State",OBJPROP_TEXT,"4"+StringSubstr(encoded,1,StringLen(encoded)-3));Check(codec.Load(restored,_Symbol)&&!restored.RiskAll(),"schema 4 migration defaults Per level");ObjectDelete(0,"ModeTest.State");
+ // GUI mode selection and compact amount layout, with timeframe persistence.
+ reset();Check(OnInit()==INIT_SUCCEEDED,"restart GUI for risk modes");g_model.CopyFrom(model);g_model.SetRiskAll(false);g_dialog.SyncRiskMode(g_model);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
+ auto*mode=static_cast<CComboBox*>(controls["manualFibo.Panel.RiskMode"]);mode->SelectByValue(1);Action("RiskMode",ON_CHANGE);Check(g_model.RiskAll(),"All selector commits to model");
+ Check(controls["manualFibo.Panel.Budget"]->text=="500.00","compact amount has no Budget label or currency text");
+ auto*risk_input=controls["manualFibo.Panel.Risk"];auto*amount=controls["manualFibo.Panel.Budget"];Check(risk_input->m_rect.right-risk_input->m_rect.left==56&&risk_input->m_rect.right<amount->m_rect.left,"smaller risk field beside amount");
+ OnDeinit(REASON_CHARTCHANGE);Check(OnInit()==INIT_SUCCEEDED&&g_model.RiskAll()&&g_dialog.RiskAll(),"risk mode survives timeframe handoff");
+ mode->SelectByValue(0);Action("RiskMode",ON_CHANGE);Check(!g_model.RiskAll(),"Per level selector retains prior behavior");
  OnDeinit(0);
+ std::cout<<"PASS: All/Per level budgets, retry risk reservations, event reconciliation and bounded polling.\n";
  std::cout<<"PASS: manualFibo batch limit execution, preflight, TP, duplicate/retry ledger, scoped deletion and GUI actions.\n";
 }
 '''
