@@ -1,5 +1,10 @@
 # manualFibo changelog
 
+## 1.11
+
+- Move Risk beside Swing; keep the Fibonacci entry/SL/lot table below both groups.
+- Shorten the panel by 90 pixels and use a new native layout settings filename.
+
 ## 1.10
 
 - Add editable risk percentage of account equity, default 5%, and per-level SL prices.

@@ -34,29 +34,29 @@ public:
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++) m_tooltips[i] = "";
       if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("manualFibo")) return false;
       // Register decorative frames first so native controls are created above them.
-      if(!Group(m_swing_frame, chart, name + ".SwingGroup", subwin, 6, 14, 596, 128, 14, 90)
-         || !Group(m_risk_frame, chart, name + ".RiskGroup", subwin, 6, 142, 596, 218, 14, 90)
-         || !Group(m_fibo_frame, chart, name + ".FiboGroup", subwin, 6, 232, 596, 464, 14, 122)) return false;
+      if(!Group(m_swing_frame, chart, name + ".SwingGroup", subwin, 6, 14, 300, 128, 14, 90)
+         || !Group(m_risk_frame, chart, name + ".RiskGroup", subwin, 312, 14, 596, 128, 320, 396)
+         || !Group(m_fibo_frame, chart, name + ".FiboGroup", subwin, 6, 142, 596, 374, 14, 122)) return false;
       if(!Label(m_swing_title, chart, name + ".SwingTitle", "Swing", 20, 4, 84, 24)
-         || !Label(m_risk_title, chart, name + ".RiskTitle", "Risk", 20, 132, 84, 152)
-         || !Label(m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 20, 222, 116, 242)
-         || !m_draw.Create(chart, name + ".Draw", subwin, 14, 34, 180, 62)
+         || !Label(m_risk_title, chart, name + ".RiskTitle", "Risk", 326, 4, 390, 24)
+         || !Label(m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 20, 132, 116, 152)
+         || !m_draw.Create(chart, name + ".Draw", subwin, 14, 34, 174, 62)
          || !m_draw.Text("Pilih Swing") || !Add(m_draw)
-         || !m_reset.Create(chart, name + ".Reset", subwin, 194, 34, 300, 62)
+         || !m_reset.Create(chart, name + ".Reset", subwin, 188, 34, 288, 62)
          || !m_reset.Text("Reset") || !Add(m_reset)
-         || !Label(m_start, chart, name + ".Start", "Awal: -", 14, 74, 360, 94)
-         || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 580, 120)
-         || !Label(m_risk_label, chart, name + ".RiskLabel", "% Equity", 14, 162, 112, 182)
-         || !Edit(m_risk_edit, chart, name + ".Risk", subwin, "5", 120, 158, 216, 184)
-         || !Label(m_budget, chart, name + ".Budget", "Budget: -", 230, 162, 580, 182)
-         || !Label(m_risk_note, chart, name + ".RiskNote", "Risk per level; bukan total semua order.", 14, 190, 580, 210)
-         || !Label(m_entry_header, chart, name + ".EntryHeader", "Level / Entry", 14, 250, 210, 270)
-         || !Label(m_sl_header, chart, name + ".SLHeader", "SL price", 224, 250, 350, 270)
-         || !Label(m_lot_header, chart, name + ".LotHeader", "Lot", 366, 250, 454, 270)
-         || !Label(m_loss_header, chart, name + ".LossHeader", "Est. loss", 470, 250, 584, 270)) return false;
+         || !Label(m_start, chart, name + ".Start", "Awal: -", 14, 74, 288, 94)
+         || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 288, 120)
+         || !Label(m_risk_label, chart, name + ".RiskLabel", "% Equity", 324, 36, 432, 56)
+         || !Edit(m_risk_edit, chart, name + ".Risk", subwin, "5", 442, 32, 584, 58)
+         || !Label(m_budget, chart, name + ".Budget", "Budget: -", 324, 68, 584, 88)
+         || !Label(m_risk_note, chart, name + ".RiskNote", "Risk per level, bukan total.", 324, 98, 584, 118)
+         || !Label(m_entry_header, chart, name + ".EntryHeader", "Level / Entry", 14, 160, 210, 180)
+         || !Label(m_sl_header, chart, name + ".SLHeader", "SL price", 224, 160, 350, 180)
+         || !Label(m_lot_header, chart, name + ".LotHeader", "Lot", 366, 160, 454, 180)
+         || !Label(m_loss_header, chart, name + ".LossHeader", "Est. loss", 470, 160, 584, 180)) return false;
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
       {
-         int top = 276 + i * 30;
+         int top = 186 + i * 30;
          if(!m_levels[i].Create(chart, name + ".Level" + IntegerToString(i), subwin, 14, top, 210, top + 24)
             || !m_levels[i].Text(DoubleToString(ManualFiboRatio(i) * 100.0, 1) + "%: -")
             || !m_levels[i].Checked((MANUAL_FIBO_DEFAULT_MASK & (1 << i)) != 0)
@@ -65,9 +65,9 @@ public:
             || !Label(m_lots[i], chart, name + ".Lot" + IntegerToString(i), "-", 366, top + 2, 458, top + 24)
             || !Label(m_losses[i], chart, name + ".Loss" + IntegerToString(i), "-", 470, top + 2, 584, top + 24)) return false;
       }
-      return m_lock.Create(chart, name + ".Lock", subwin, 14, 476, 360, 500)
+      return m_lock.Create(chart, name + ".Lock", subwin, 14, 386, 360, 410)
              && m_lock.Text("Kunci anchor") && m_lock.Checked(false) && Add(m_lock)
-             && Label(m_status, chart, name + ".Status", "Klik Pilih Swing.", 14, 512, 584, 534);
+             && Label(m_status, chart, name + ".Status", "Klik Pilih Swing.", 14, 422, 584, 444);
    }
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
    {
@@ -151,7 +151,7 @@ public:
       if(SetText(m_draw, selecting ? "Batal" : "Pilih Swing")) changed = true;
       if(changed) ChartRedraw(m_chart_id);
    }
-   virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v4"; }
+   virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v5"; }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void) { if(Dragging()) CDialog::OnDialogDragEnd(); MouseFocusKill(); }
 protected:
