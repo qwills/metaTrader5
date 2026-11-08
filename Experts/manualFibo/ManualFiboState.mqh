@@ -9,7 +9,7 @@ public:
    bool Save(const CManualFiboModel &model, const string symbol)
    {
       string name = "manualFibo.State";
-      string text = "3|" + symbol + "|" + IntegerToString(model.Mask())
+      string text = "4|" + symbol + "|" + IntegerToString(model.Mask())
                     + "|" + IntegerToString(model.Locked() ? 1 : 0)
                     + "|" + IntegerToString(model.Ready() ? 1 : 0)
                     + "|" + IntegerToString((long)model.StartTime())
@@ -30,7 +30,7 @@ public:
       string text = ObjectGetString(0, "manualFibo.State", OBJPROP_TEXT);
       int count = StringSplit(text, '|', fields);
       if(count < 9 || !(((fields[0] == "1" || fields[0] == "2") && count == 9)
-                       || (fields[0] == "3" && count == 17)) || fields[1] != symbol
+                       || ((fields[0] == "3" || fields[0] == "4") && count == 17)) || fields[1] != symbol
          || (fields[3] != "0" && fields[3] != "1") || (fields[4] != "0" && fields[4] != "1")) return false;
       int mask = (int)StringToInteger(fields[2]);
       if(fields[2] != IntegerToString(mask)) return false;
@@ -38,6 +38,8 @@ public:
          || fields[7] != IntegerToString(StringToInteger(fields[7]))
          || fields[6] != StringFormat("%.17g", StringToDouble(fields[6]))
          || fields[8] != StringFormat("%.17g", StringToDouble(fields[8]))) return false;
+      if(fields[4] == "0" && (fields[5] != "0" || fields[6] != "0" || fields[7] != "0" || fields[8] != "0"))
+         return false; // An empty drawing cannot carry stale/invalid anchors.
       // Schema 1 used bits 0/7 for the removed 0%/100% levels.
       if(fields[0] == "1")
       {
@@ -50,12 +52,15 @@ public:
       if(fields[4] == "1"
          && !candidate.SetAnchors((datetime)StringToInteger(fields[5]), StringToDouble(fields[6]),
                                   (datetime)StringToInteger(fields[7]), StringToDouble(fields[8]))) return false;
-      if(fields[0] == "3")
+      if(fields[0] == "3" || fields[0] == "4")
       {
          double risk = StringToDouble(fields[9]);
          int custom = (int)StringToInteger(fields[10]);
-         if(fields[9] != StringFormat("%.17g", risk) || !candidate.SetRiskPercent(risk)
-            || fields[10] != IntegerToString(custom) || custom < 0 || custom >= (1 << MANUAL_FIBO_RATIOS)) return false;
+         if(fields[9] != StringFormat("%.17g", risk) || !MathIsValidNumber(risk) || risk < 0 || risk > 100) return false;
+         // Earlier releases allowed more precision than the textbox displays.
+         // Migrate that setting without discarding valid anchors/SL overrides.
+         if(fields[0] == "3") risk = NormalizeDouble(risk, 8);
+         if(!candidate.SetRiskPercent(risk) || fields[10] != IntegerToString(custom) || custom < 0 || custom >= (1 << MANUAL_FIBO_RATIOS)) return false;
          for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
          {
             double stop = StringToDouble(fields[11 + i]);

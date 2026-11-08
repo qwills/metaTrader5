@@ -27,6 +27,15 @@ struct ManualFiboLot
    string error;
 };
 
+// One account/symbol snapshot shared by every level in a refresh.
+struct ManualFiboRiskContext
+{
+   double budget, step, minimum, maximum, tick;
+   int volume_digits;
+   string currency;
+   bool valid;
+};
+
 // Estimates only: no order placement and no trading state in the Fibonacci model.
 class CManualFiboRisk
 {
@@ -35,7 +44,7 @@ public:
    {
       double scaled = step;
       int digits = 0;
-      while(digits < 8 && MathAbs(scaled - MathRound(scaled)) > 0.00000001)
+      while(digits < 8 && MathAbs(scaled - MathRound(scaled)) > 0.0000000001)
       { scaled *= 10; digits++; }
       return digits;
    }
@@ -45,19 +54,38 @@ public:
       double budget = equity * (model.RiskPercent() / 100.0);
       return MathIsValidNumber(equity) && equity > 0 && MathIsValidNumber(budget) && budget > 0 ? budget : 0;
    }
+   void ReadContext(const CManualFiboModel &model, ManualFiboRiskContext &context) const
+   {
+      context.budget = Budget(model); context.currency = AccountInfoString(ACCOUNT_CURRENCY);
+      context.step = 0; context.minimum = 0; context.maximum = 0; context.tick = 0;
+      context.volume_digits = 0; context.valid = false;
+      if(!model.Ready() || model.Mask() == 0 || context.budget <= 0) return;
+      context.step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+      context.minimum = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+      context.maximum = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+      context.tick = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+      if(!MathIsValidNumber(context.step) || !MathIsValidNumber(context.minimum)
+         || !MathIsValidNumber(context.maximum) || !MathIsValidNumber(context.tick)
+         || context.step <= 0 || context.minimum <= 0 || context.maximum < context.minimum || context.tick <= 0) return;
+      context.volume_digits = VolumeDigits(context.step);
+      // Do not silently round unsupported volume precision into another step.
+      double rounded_step = NormalizeDouble(context.step, context.volume_digits);
+      context.valid = rounded_step > 0 && MathAbs(rounded_step - context.step) <= context.step * 0.00000001;
+   }
    bool Calculate(const CManualFiboModel &model, const int index, ManualFiboLot &result) const
+   {
+      ManualFiboRiskContext context; ReadContext(model, context);
+      return Calculate(model, index, context, result);
+   }
+   bool Calculate(const CManualFiboModel &model, const int index,
+                  const ManualFiboRiskContext &context, ManualFiboLot &result) const
    {
       result.volume = 0; result.loss = 0; result.entry = 0; result.stop = 0; result.error = "-";
       if(!model.Ready() || !model.Enabled(index)) return false;
-      double budget = Budget(model);
+      double budget = context.budget;
       if(budget <= 0) { result.error = "Risk?"; return false; }
-      double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-      double minimum = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-      double maximum = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
-      double tick = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-      if(!MathIsValidNumber(step) || !MathIsValidNumber(minimum) || !MathIsValidNumber(maximum)
-         || !MathIsValidNumber(tick) || step <= 0 || minimum <= 0 || maximum < minimum || tick <= 0)
-      { result.error = "Data?"; return false; }
+      if(!context.valid) { result.error = "Data?"; return false; }
+      double step = context.step, minimum = context.minimum, maximum = context.maximum, tick = context.tick;
       double entry = model.Price(index), stop = model.StopPrice(index);
       if(entry == EMPTY_VALUE || stop == EMPTY_VALUE || !MathIsValidNumber(entry) || !MathIsValidNumber(stop))
       { result.error = "SL?"; return false; }
@@ -75,7 +103,7 @@ public:
       { result.error = "Data?"; return false; }
       double raw = budget / (-profit) * minimum;
       if(!MathIsValidNumber(raw)) { result.error = "Data?"; return false; }
-      int digits = VolumeDigits(step);
+      int digits = context.volume_digits;
       double volume = NormalizeDouble(MathFloor(MathMin(raw, maximum) / step) * step, digits);
       if(!MathIsValidNumber(volume) || volume < minimum) { result.error = "Min lot"; return false; }
       // Verify final estimated loss after volume/price normalization. Never round
@@ -90,7 +118,7 @@ public:
          { result.volume = volume; result.loss = -profit; result.error = ""; return true; }
          volume = NormalizeDouble(volume - step, digits);
       }
-      result.error = "Min lot"; return false;
+      result.error = volume < minimum ? "Min lot" : "Data?"; return false;
    }
 };
 #endif

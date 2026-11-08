@@ -104,19 +104,28 @@ public:
    int EditIndex(void) const { return m_edit_index; }
    string StopText(const int index) { return m_stops[index].Text(); }
    bool AnchorLocked(void) { return m_lock.Checked(); }
-   void Refresh(const CManualFiboModel &model)
+   bool RefreshRiskInput(const CManualFiboModel &model)
    {
-      SetText(m_start, model.Ready() ? "Awal: " + DoubleToString(model.StartPrice(), _Digits) : "Awal: -");
-      SetText(m_end, model.Ready() ? "Akhir: " + DoubleToString(model.EndPrice(), _Digits) : "Akhir: -");
       string percent = DoubleToString(model.RiskPercent(), 8);
       while(StringLen(percent) > 1 && StringSubstr(percent, StringLen(percent) - 1) == "0")
          percent = StringSubstr(percent, 0, StringLen(percent) - 1);
       if(StringSubstr(percent, StringLen(percent) - 1) == ".") percent = StringSubstr(percent, 0, StringLen(percent) - 1);
-      SetText(m_risk_edit, percent);
+      return SetText(m_risk_edit, percent);
+   }
+   bool RefreshStopInput(const CManualFiboModel &model, const int index)
+   {
+      if(index < 0 || index >= MANUAL_FIBO_RATIOS) return false;
+      double stop = model.StopPrice(index);
+      return SetText(m_stops[index], stop == EMPTY_VALUE ? "" : DoubleToString(stop, _Digits));
+   }
+   void Refresh(const CManualFiboModel &model)
+   {
+      SetText(m_start, model.Ready() ? "Awal: " + DoubleToString(model.StartPrice(), _Digits) : "Awal: -");
+      SetText(m_end, model.Ready() ? "Akhir: " + DoubleToString(model.EndPrice(), _Digits) : "Akhir: -");
+      RefreshRiskInput(model);
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
       {
-         double stop = model.StopPrice(i);
-         SetText(m_stops[i], stop == EMPTY_VALUE ? "" : DoubleToString(stop, _Digits));
+         RefreshStopInput(model, i);
          if(m_levels[i].Checked() != model.Enabled(i)) m_levels[i].Checked(model.Enabled(i));
          SetText(m_levels[i], DoubleToString(ManualFiboRatio(i) * 100.0, 1) + "%: "
                  + (model.Ready() ? DoubleToString(model.Price(i), _Digits) : "-"));
@@ -128,13 +137,14 @@ public:
    bool RefreshLots(const CManualFiboModel &model)
    {
       CManualFiboRisk calculator;
-      string currency = AccountInfoString(ACCOUNT_CURRENCY);
-      bool changed = SetText(m_budget, "Budget: " + DoubleToString(calculator.Budget(model), 2) + " " + currency);
+      ManualFiboRiskContext context; calculator.ReadContext(model, context);
+      string currency = context.currency;
+      bool changed = SetText(m_budget, "Budget: " + DoubleToString(context.budget, 2) + " " + currency);
       for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
       {
          ManualFiboLot result;
-         bool valid = calculator.Calculate(model, i, result);
-         string lot = valid ? DoubleToString(result.volume, calculator.VolumeDigits(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP))) : result.error;
+         bool valid = calculator.Calculate(model, i, context, result);
+         string lot = valid ? DoubleToString(result.volume, context.volume_digits) : result.error;
          if(SetText(m_lots[i], lot)) changed = true;
          if(SetText(m_losses[i], valid ? DoubleToString(result.loss, 2) : "-")) changed = true;
          string tooltip = valid ? "Entry " + DoubleToString(result.entry, _Digits) + "; SL "
@@ -152,6 +162,7 @@ public:
       if(changed) ChartRedraw(m_chart_id);
    }
    virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v5"; }
+   bool IsMinimized(void) const { return m_minimized; }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void) { if(Dragging()) CDialog::OnDialogDragEnd(); MouseFocusKill(); }
 protected:

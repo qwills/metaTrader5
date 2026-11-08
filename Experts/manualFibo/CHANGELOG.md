@@ -1,5 +1,20 @@
 # manualFibo changelog
 
+## 1.12
+
+- Share one equity/symbol snapshot across all lot estimates in a refresh.
+- Skip broker calculations while minimized; refresh immediately on restore.
+- Remove duplicate result refresh after selecting a swing and redundant work
+  when risk input is unchanged; invalid input restores only the edited field.
+- Replace per-call ratio array creation with direct constant lookup.
+- Match risk precision to its eight-decimal display; reject values that would
+  display as zero, and validate symbol volume-step precision without exact
+  floating-point equality. Correct eight-decimal lot-step formatting.
+- Reject empty saved drawings containing stale anchors; migrate legacy risk
+  precision without losing valid drawings and retain older state readers.
+- Add regressions for metadata read counts, minimized/hidden work, independent
+  input recovery, precision and state validation. No GUI features removed.
+
 ## 1.11
 
 - Move Risk beside Swing; keep the Fibonacci entry/SL/lot table below both groups.

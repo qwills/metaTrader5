@@ -1,5 +1,5 @@
 #property strict
-#property version "1.11"
+#property version "1.12"
 #property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboChart.mqh"
@@ -33,12 +33,12 @@ void UnlockScroll(void)
 }
 bool InPanel(const int x, const int y)
 { return g_created && g_dialog.IsVisible() && g_dialog.Contains(x, y); }
-void CancelSelection(void)
+void CancelSelection(const bool refresh = true)
 {
    g_selection = MANUAL_IDLE; g_pick_time = 0; g_pick_price = 0;
    g_chart.ClearStart();
    if(!g_panel_pressed && !g_dialog.Dragging()) UnlockScroll();
-   g_dialog.Refresh(g_model);
+   if(refresh) g_dialog.Refresh(g_model);
 }
 
 // Commit only after rendering succeeds; restore the previous valid drawing on failure.
@@ -116,13 +116,14 @@ void OnDeinit(const int reason)
 
 void OnTimer(void)
 {
-   if(g_created && !IsStopped() && g_dialog.RefreshLots(g_model)) ChartRedraw();
+   if(g_created && !IsStopped() && !g_dialog.IsMinimized() && g_dialog.RefreshLots(g_model)) ChartRedraw();
 }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
    if(!g_created || IsStopped()) return;
    bool was_dragging = g_dialog.Dragging(), was_left = g_left_down;
+   bool was_minimized = g_dialog.IsMinimized();
    if(id == CHARTEVENT_MOUSE_MOVE)
    {
       bool down = (StringToInteger(sparam) & 1) != 0;
@@ -132,6 +133,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    // Let Standard Library route all events and handle drag/minimize itself.
    g_dialog.ChartEvent(id, lparam, dparam, sparam);
    if(IsStopped()) return;
+   if(was_minimized && !g_dialog.IsMinimized() && g_dialog.RefreshLots(g_model)) ChartRedraw();
    if(id == CHARTEVENT_MOUSE_MOVE)
    {
       bool down = (StringToInteger(sparam) & 1) != 0;
@@ -156,10 +158,12 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    ManualFiboAction action = g_dialog.TakeAction();
    if(action == MANUAL_RISK)
    {
-      double percent = 0;
+      double percent = 0, previous = g_model.RiskPercent();
       if(!ManualFiboParseNumber(g_dialog.RiskText(), percent) || !g_model.SetRiskPercent(percent))
-      { g_dialog.Refresh(g_model); Status("Risk harus angka 0 sampai 100 persen."); return; }
-      g_dialog.Refresh(g_model); ChartRedraw(); Status("Risk diperbarui untuk setiap level."); return;
+      { if(g_dialog.RefreshRiskInput(g_model)) ChartRedraw(); Status("Risk 0-100 persen, maksimal 8 desimal."); return; }
+      bool changed = g_dialog.RefreshRiskInput(g_model);
+      if(previous == g_model.RiskPercent()) { if(changed) ChartRedraw(); return; }
+      g_dialog.RefreshLots(g_model); ChartRedraw(); Status("Risk diperbarui untuk setiap level."); return;
    }
    if(action == MANUAL_SL)
    {
@@ -173,8 +177,8 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       double stop = 0;
       if(text == "") g_model.ResetStop(index);
       else if(!ManualFiboParseNumber(text, stop) || !g_model.SetStop(index, stop))
-      { g_dialog.Refresh(g_model); Status("SL harus harga positif; kosong = awal swing."); return; }
-      g_dialog.Refresh(g_model); ChartRedraw();
+      { if(g_dialog.RefreshStopInput(g_model, index)) ChartRedraw(); Status("SL harus harga positif; kosong = awal swing."); return; }
+      g_dialog.RefreshStopInput(g_model, index); g_dialog.RefreshLots(g_model); ChartRedraw();
       Status(text == "" ? "SL kembali mengikuti awal swing." : "SL level diperbarui."); return;
    }
    if(action == MANUAL_LEVELS)
@@ -228,5 +232,5 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    if(!candidate.SetAnchors(g_pick_time, g_pick_price, time, price))
    { Status("Harga akhir harus berbeda."); return; }
    if(!ApplyModel(candidate)) { Status("Gagal menggambar; pilih akhir lagi."); return; }
-   CancelSelection(); Status("Fibo siap. Double-click untuk edit.");
+   CancelSelection(false); Status("Fibo siap. Double-click untuk edit.");
 }

@@ -16,10 +16,11 @@ const int SYMBOL_VOLUME_STEP=1,SYMBOL_VOLUME_MIN=2,SYMBOL_VOLUME_MAX=3,SYMBOL_TR
 enum ENUM_ORDER_TYPE {ORDER_TYPE_BUY,ORDER_TYPE_SELL};
 using ushort=unsigned short;
 double equity=10000,volume_step=.01,volume_min=.01,volume_max=100,tick_size=.00001,profit_factor=100;
-bool profit_failure=false;int profit_calls=0;
-double AccountInfoDouble(int){return equity;}
+bool profit_failure=false;int profit_calls=0,account_reads=0,symbol_reads=0;
+double AccountInfoDouble(int){++account_reads;return equity;}
 string AccountInfoString(int){return "USD";}
 double SymbolInfoDouble(const string&,int prop){
+ ++symbol_reads;
  if(prop==SYMBOL_VOLUME_STEP)return volume_step;if(prop==SYMBOL_VOLUME_MIN)return volume_min;
  if(prop==SYMBOL_VOLUME_MAX)return volume_max;return tick_size;
 }
@@ -101,12 +102,28 @@ int main(){
  Click(30,60);Check(g_selection==MANUAL_START,"panel click cannot become anchor");
  Click(110,890);Check(g_selection==MANUAL_END&&g_pick_price==11,"first candle high");
  Click(110,890);Check(g_selection==MANUAL_END&&!g_model.Ready(),"equal endpoint rejected");
+ int finishing_profits=profit_calls;
  Click(190,810);Check(g_model.Ready()&&g_model.StartPrice()==11&&g_model.EndPrice()==19,"manual candle anchors");
  Check(g_selection==MANUAL_IDLE&&!g_scroll_locked,"selection restores scrolling");
+ Check(profit_calls-finishing_profits==6,"completing selection calculates each checked level only once");
+ int reads=account_reads,metadata=symbol_reads;OnTimer();
+ Check(account_reads-reads==1&&symbol_reads-metadata==4,"one account/symbol snapshot per full refresh");
+ int idle_profits=profit_calls;OnChartEvent(TEST_MINIMIZE,0,0,"");equity=20000;
+ reads=account_reads;metadata=symbol_reads;OnTimer();
+ Check(profit_calls==idle_profits&&account_reads==reads&&symbol_reads==metadata,"no broker work while minimized");
+ OnChartEvent(TEST_RESTORE,0,0,"");
+ Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","restore refreshes changed equity immediately");
+ equity=10000;OnTimer();
  for(int i=0;i<6;i++)Check(g_model.StopPrice(i)==11&&!g_model.StopCustom(i),"SL defaults to swing start");
  Check(controls["manualFibo.Panel.SL2"]->text=="11.00000","SL price displayed");
  Edit("SL2","11.00000");Check(!g_model.StopCustom(2),"focus without change does not freeze default SL");
  Check(controls["manualFibo.Panel.Lot2"]->text=="1.25"&&controls["manualFibo.Panel.Loss2"]->text=="500.00","5 percent lot preview at 50 percent entry");
+ controls["manualFibo.Panel.SL5"]->Text("draft-stop");
+ int risk_profits=profit_calls;Edit("Risk","5.0");
+ Check(profit_calls==risk_profits&&controls["manualFibo.Panel.Risk"]->text=="5","unchanged risk canonicalizes without recalculation");
+ Edit("Risk","bad");
+ Check(controls["manualFibo.Panel.SL5"]->text=="draft-stop","invalid risk restores only its own field");
+ Edit("SL5","");
  Edit("Risk","2");Check(g_model.RiskPercent()==2&&controls["manualFibo.Panel.Lot2"]->text=="0.50","risk edit recalculates lots");
  Edit("SL2","13");Check(g_model.StopCustom(2)&&g_model.StopPrice(2)==13&&controls["manualFibo.Panel.Lot2"]->text=="1.00","custom SL recalculates only that row");
  Edit("Risk","2oops");Check(g_model.RiskPercent()==2&&controls["manualFibo.Panel.Risk"]->text=="2","malformed risk restored");
@@ -128,6 +145,8 @@ int main(){
  Check(node.ints[{OBJPROP_LEVELS,0}]==6&&g_model.Mask()==63,"all six levels enabled");
  for(int i=0;i<6;i++)Tick(i,false);
  Check(g_model.Mask()==0&&node.ints[{OBJPROP_TIMEFRAMES,0}]==OBJ_NO_PERIODS&&g_model.Ready(),"all unchecked hides drawing but keeps anchors");
+ int hidden_profits=profit_calls,hidden_metadata=symbol_reads;OnTimer();
+ Check(profit_calls==hidden_profits&&symbol_reads==hidden_metadata,"no symbol/profit work with no checked levels");
  Tick(5,true);Check(node.ints[{OBJPROP_TIMEFRAMES,0}]==OBJ_ALL_PERIODS,"re-enable restores drawing");
  node.prices[0]=25;node.prices[1]=10;
  OnChartEvent(CHARTEVENT_OBJECT_DRAG,0,0,name);
@@ -165,7 +184,14 @@ int main(){
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"2|EURUSD|28|0|1|100|bad|200|10");
  Check(!g_storage.Load(loaded,_Symbol),"malformed numeric state rejected");
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"3|EURUSD|28|0|1|100|100|200|200|101|0|0|0|0|0|0|0");
- Check(!g_storage.Load(loaded,_Symbol),"invalid saved risk rejected");g_storage.Consume();
+ Check(!g_storage.Load(loaded,_Symbol),"invalid saved risk rejected");
+ ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"2|EURUSD|28|0|0|100|bad|200|10");
+ Check(!g_storage.Load(loaded,_Symbol),"empty state rejects stale anchors");
+ string tiny_risk=StringFormat("%.17g",.000000001);
+ ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"3|EURUSD|28|0|1|100|100|200|200|"+tiny_risk+"|0|0|0|0|0|0|0");
+ Check(g_storage.Load(loaded,_Symbol)&&loaded.Ready()&&loaded.StartPrice()==100&&loaded.RiskPercent()==0,"legacy subprecision risk migrates without losing drawing");
+ ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"4|EURUSD|28|0|1|100|100|200|200|"+tiny_risk+"|0|0|0|0|0|0|0");
+ Check(!g_storage.Load(loaded,_Symbol)&&loaded.StartPrice()==100,"new state rejects invalid precision atomically");g_storage.Consume();
  ObjectDelete(0,name);OnChartEvent(CHARTEVENT_OBJECT_DELETE,0,0,name);
  Check(!g_model.Ready(),"native deletion clears display/model");
  Action("Reset",ON_CLICK);Check(g_model.Mask()==mask&&!g_model.Ready(),"reset retains ratio choices");
@@ -189,6 +215,14 @@ int main(){
  profit_failure=false;volume_step=0;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0,"invalid symbol metadata rejected");
  double parsed=99;Check(!ManualFiboParseNumber("1,5",parsed)&&parsed==99&&!ManualFiboParseNumber("nan",parsed),"strict decimal parser");
  Check(!risk_model.SetRiskPercent(101)&&!risk_model.SetRiskPercent(-1),"risk percentage bounds");
+ double previous=risk_model.RiskPercent();
+ Check(!risk_model.SetRiskPercent(.000000001)&&risk_model.RiskPercent()==previous,"invisible subprecision risk rejected without changing model");
+ Check(risk_model.SetRiskPercent(.00000001),"eight-decimal risk remains supported");
+ volume_step=.00000001;volume_min=volume_step;volume_max=10;
+ ManualFiboRiskContext context;calculator.ReadContext(risk_model,context);
+ Check(context.valid&&context.volume_digits==8,"eight-decimal lot step is recognized");
+ volume_step=.000000001;calculator.ReadContext(risk_model,context);
+ Check(!context.valid,"unsupported volume precision is rejected");
  Check(!timer,"timer stopped on removal");
  std::cout<<"PASS: manual geometry/GUI, per-level SL, equity risk and lot rounding, native edits, input validation, timer and timeframe persistence.\n";
 }

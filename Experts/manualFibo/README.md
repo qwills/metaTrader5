@@ -1,4 +1,4 @@
-# manualFibo 1.11
+# manualFibo 1.12
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 indicators or order submission. This is a separate EA in the same Git repository;
@@ -48,7 +48,8 @@ Each row uses its Fibonacci price as entry. An upward swing is estimated as BUY;
 a downward swing as SELL. The SL must be below a BUY entry or above a SELL entry.
 Manual SL overrides stay fixed when anchors move, including when choosing a new
 swing. If an override becomes invalid for the new direction, that row shows
-**SL invalid** until edited or cleared. Risk/SL edits apply when editing finishes.
+**SL invalid** until edited or cleared. Risk/SL edits apply when editing finishes. Risk supports up to eight decimal
+places; values too small to display are rejected.
 
 The calculator uses OrderCalcProfit to estimate losses in account currency,
 normalizes entry/SL to the symbol tick size, and rounds volume down to its volume
@@ -58,7 +59,9 @@ is unavailable; **Risk?** means risk is zero or account equity is unavailable.
 The Lot tooltip shows the normalized entry/SL prices used in the estimate.
 
 Results refresh once per second for changes in equity/conversion rates without
-rewriting an edit in progress. Unchecked levels show no lot estimate. A 5% setting
+rewriting an edit in progress. Each refresh shares one equity/symbol snapshot
+across the checked levels. Calculations pause while minimized and refresh
+immediately on restore. Unchecked levels show no lot estimate. A 5% setting
 is **per level**, so three independent filled orders can use up to 15% before
 costs. Estimates exclude commission, swap, slippage and gaps. Margin, existing
 position exposure and aggregate volume limits are not checked. This is a lot
@@ -81,7 +84,7 @@ separate from myFibo. No SwingDetector or MarketStructure header is needed.
 
 Use distribution/manualFibo/manualFibo.zip with install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.11.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.12.
 
 ```bash
 python3 tests/check_manualfibo.py

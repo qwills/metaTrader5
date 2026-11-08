@@ -7,8 +7,16 @@
 
 double ManualFiboRatio(const int index)
 {
-   double ratios[] = {0.236, 0.382, 0.5, 0.618, 0.786, 0.886};
-   return index >= 0 && index < MANUAL_FIBO_RATIOS ? ratios[index] : EMPTY_VALUE;
+   switch(index)
+   {
+      case 0: return 0.236;
+      case 1: return 0.382;
+      case 2: return 0.5;
+      case 3: return 0.618;
+      case 4: return 0.786;
+      case 5: return 0.886;
+   }
+   return EMPTY_VALUE;
 }
 
 // Pure model: the shared Fibonacci class owns calculation; no chart/GUI APIs.
@@ -58,7 +66,9 @@ public:
    bool SetRiskPercent(const double percent)
    {
       if(!MathIsValidNumber(percent) || percent < 0 || percent > 100) return false;
-      m_risk_percent = percent; return true;
+      double rounded = NormalizeDouble(percent, 8);
+      if((percent > 0 && rounded == 0) || MathAbs(percent - rounded) > 0.000000000001) return false;
+      m_risk_percent = rounded; return true;
    }
    double RiskPercent(void) const { return m_risk_percent; }
    int CustomStops(void) const { return m_custom_stops; }
