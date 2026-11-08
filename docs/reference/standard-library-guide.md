@@ -192,3 +192,32 @@ dipakai. Jangan memaksa Maximize dari timer atau mengubah tombol minmax private.
 Acuan kelas/metode: [CAppDialog](https://www.mql5.com/en/docs/standardlibrary/controls/cappdialog).
 Adapter menguji routing dan persistence, bukan rendering atau signature header
 terminal pengguna; verifikasi F7 dan chart pendek di Windows tetap diperlukan.
+
+## manualFibo 1.16: pending limit execution
+
+Execution lives in Experts/manualFibo/ManualFiboOrders.mqh, outside the shared
+model/risk classes. Raw MqlTradeRequest/OrderCheck/OrderSend APIs are used; no
+CTrade/Trade header is bundled. The dialog subclass adds buttons/TP while the
+shared RefreshLots exposes its existing total result without a second snapshot.
+
+Authoritative references consulted for this feature:
+
+- [OrderCheck](https://www.mql5.com/en/docs/trading/ordercheck): bool plus
+  MqlTradeCheckResult; it does not guarantee later execution.
+- [OrderSend](https://www.mql5.com/en/docs/trading/ordersend): inspect result.retcode,
+  not bool alone; requests and server completion are separate.
+- [Order properties](https://www.mql5.com/en/docs/constants/tradingconstants/orderproperties):
+  pending orders use ORDER_FILLING_RETURN; request type_time is GTC here.
+- [OrderCalcMargin](https://www.mql5.com/en/docs/trading/ordercalcmargin): estimates
+  ignore current pending orders/positions. Batch sum is conservative, not a
+  guarantee of broker acceptance or portfolio margin.
+- [Return codes](https://www.mql5.com/en/docs/constants/errorswarnings/enum_trade_return_codes):
+  placed/done/partial are accepted; ambiguous errors retain duplicate markers.
+- [Terminal globals](https://www.mql5.com/en/docs/globals): terminal-local records
+  expire after four weeks without access. GlobalVariableTemp plus
+  GlobalVariableSetOnCondition serializes instances; persistent markers are saved
+  before OrderSend and flushed. History is the secondary duplicate check.
+
+TRADE_ACTION_REMOVE targets pending tickets only. Current symbol, configured magic,
+MF: comment and LIMIT type scope deletion. Never send/modify/delete stop orders
+or close positions. Native broker behavior needs MetaEditor F7 and demo testing.

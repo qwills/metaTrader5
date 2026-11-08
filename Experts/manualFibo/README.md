@@ -1,7 +1,7 @@
-# manualFibo 1.15
+# manualFibo 1.16
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
-indicators or order submission. This is a separate EA in the same Git repository;
+or indicators. It submits pending LIMIT orders on demand. This is a separate EA in the same Git repository;
 AutoFibo uses automatic swing selection. MT5 allows one EA per chart, so use a separate chart if you
 want both EAs running.
 
@@ -21,6 +21,10 @@ want both EAs running.
 6. Edit the **SL price** beside each level if needed. An untouched SL follows the
    swing-start price. Clear the field and finish editing to restore that default.
    Each checked row displays its lot size and estimated loss in account currency.
+7. Leave **TP: swing end** checked to use the swing-end price as TP, or uncheck
+   it to send without TP. Click **Send Orders** to submit all new checked levels.
+8. **Delete Orders** cancels manualFibo pending limits for this chart symbol and
+   configured OrderMagic, including earlier setups. Filled positions remain open.
 
 The Swing and Risk groups sit side by side above the Fibonacci level table.
 The plain Standard Library panel has groups outlined by
@@ -49,7 +53,7 @@ Bid/Ask snapshot, independently of swing direction: below the spread is
 **BUY LIMIT**, above the spread is **SELL LIMIT**. Entries inside the spread or
 exactly at Bid/Ask are unavailable. No BUY STOP or SELL STOP type is selected.
 The lot tooltip includes the selected limit type; no order column or per-level
-send controls are added. A future single button can use the same limit-only rule.
+send controls are added. The single Send Orders button uses the same limit-only rule.
 
 Broker minimum stop distances are checked using Ask for BUY LIMIT and Bid for
 SELL LIMIT. The SL must be below a BUY entry or above a SELL entry and at least
@@ -76,13 +80,58 @@ rewriting an edit in progress. Each refresh shares one equity/symbol snapshot
 across the checked levels. Calculations pause while minimized and refresh
 immediately on restore. Unchecked levels show no lot estimate. A 5% setting
 is **per level**, so three independent filled orders can use up to 15% before
-costs. Estimates exclude commission, swap, slippage and gaps. Margin, trading permissions, existing
-position exposure and aggregate volume limits are not checked. This is a lot
-calculator for manual orders; there are no order-submission controls.
+costs. Estimates exclude commission, swap, slippage and gaps. Total est. loss
+sums all checked rows, not outstanding orders or existing positions. Invalid
+rows make the combined estimate unavailable. Trading preflight is described below.
+
+## Sending and deleting orders
+
+Button clicks execute immediately; there is no confirmation step or automatic
+sending from the timer. Enable Algo Trading and EA trading permission. Input
+`OrderMagic` defaults to **11600101** and must be nonzero. Reserve it for manualFibo;
+use a different magic for independent instances on the same symbol. Instances
+sharing symbol/magic intentionally share duplicate protection and delete scope.
+
+Send Orders captures the current risk/selected SL text, refreshes equity/quotes,
+and prepares each new checked level. Every new level must pass price/SL/TP and
+broker OrderCheck validation before any request is sent. The batch also sums
+OrderCalcMargin estimates against free margin. Requests use GTC and
+ORDER_FILLING_RETURN; brokers that do not support these settings reject preflight.
+Margin estimates exclude existing positions/pending orders; OrderCheck and the
+server remain authoritative, and prices/account state can change mid-batch.
+Each request is checked again just before submission. Orders are independent;
+there is no atomic basket operation or automatic rollback of successful orders.
+
+TP is the normalized swing end, common to the batch, when checked. It must be on
+the profit side of each entry and meet broker distance rules; otherwise nothing
+is sent. Uncheck TP to send zero TP. This checkbox survives timeframe changes.
+Dragging/resetting/removing the drawing or EA does not modify or cancel submitted
+orders. Use Delete Orders explicitly. Deletion does not close filled positions,
+modify BUY STOP/SELL STOP, or touch other symbols/magic numbers/EA comments.
+
+A compact MF: setup/ratio comment and account/server/symbol/magic-scoped terminal
+records prevent repeated sends. Identity includes both anchors and the ratio;
+changing risk, SL or TP does not rearm an already submitted level. Active orders
+and full account order history are checked too, so filled/cancelled levels are
+not sent again for the same setup. Only definitely failed levels are retried.
+A timeout/connection/unknown result keeps a blocking submission record; inspect
+the Trade/History tabs and Experts log rather than blindly retrying. Terminal
+records expire after four weeks without access; history provides the second
+check. Protection is local to this terminal, not coordinated across separate
+terminal installations. Keep broker order comments/history and terminal records
+intact. A terminal mutex serializes commands sharing this account/symbol/magic.
+
+The panel shows sent/failed/uncertain/skipped counts. The Experts log identifies
+each submitted ratio, broker ticket and return code, and individual delete failures.
+Delete Orders covers earlier setups with the same symbol/magic and MF: comment,
+including after reattachment; it retains submission records to prevent accidental
+recreation on another click. Select a genuinely new anchor setup for a new batch.
 
 ## Files and dependencies
 
 - Experts/manualFibo/manualFibo.mq5: lifecycle, manual selection and event coordination.
+- Experts/manualFibo/ManualFiboDialog.mqh: TP checkbox, total loss, send/delete controls.
+- Experts/manualFibo/ManualFiboOrders.mqh: batch preflight, limit execution, deduplication and deletion.
 - Include/_common/Fibo/FiboModel.mqh: shared anchors, ratio choices and calculation wrapper.
 - Include/_common/Fibo/FiboRisk.mqh: shared input parser and limit-only equity-risk calculator.
 - Include/_common/Fibo/FiboDialog.mqh: shared native grouped GUI and risk/SL fields.
@@ -90,7 +139,7 @@ calculator for manual orders; there are no order-submission controls.
 - Include/_common/Fibo/FiboState.mqh: shared chart-local model/risk handoff, isolated by EA prefix.
 - Include/_common/Fibo/Fibonacci.mqh: calculation class; its defaults are unchanged.
 
-All chart objects use the manualFibo. prefix. GUI settings use manualFibo_<chart>_GUI_v5,
+All chart objects use the manualFibo. prefix. GUI settings use manualFibo_<chart>_GUI_v6,
 separate from AutoFibo. No SwingDetector or MarketStructure header is needed.
 
 ## Install and validate
@@ -100,12 +149,15 @@ MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
 When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
 install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.15.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.16.
 
 ```bash
 python3 tests/check_manualfibo.py
-python3 tools/package_manualfibo.py
-python3 tools/package_manualfibo.py --check
+# Validate source package inputs without generating a ZIP:
+python3 -c "import sys; sys.path.insert(0, 'tools'); import package_manualfibo as p; print(p.check_inputs())"
+# Only when a ZIP is requested:
+# python3 tools/package_manualfibo.py
+# python3 tools/package_manualfibo.py --check
 ```
 
 The runner uses actual project source with C++ adapters and fake chart/GUI APIs.

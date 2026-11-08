@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from check_swing_detector import SHIM, adapt
 from mt5_adapter import PLATFORM, UI_STUB
+from manualfibo_trade_adapter import TRADE_API, TRADE_TESTS
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTRA = r'''
@@ -74,7 +75,7 @@ void Edit(const string&control,const string&text){
 void Click(int x,int y){OnChartEvent(CHARTEVENT_CLICK,x,y,"");}
 int main(){
  Check(OnInit()==INIT_SUCCEEDED,"initialize");
- Check(g_dialog.children.size()==56&&controls.size()==57,"unique control registration");
+ Check(g_dialog.children.size()==60&&controls.size()==61,"unique control registration");
  for(size_t i=0;i<g_dialog.children.size();i++){
   auto*a=g_dialog.children[i];
   Check(a->name.find(".Background")==string::npos,"no title background objects");
@@ -278,17 +279,22 @@ def main():
         raise SystemExit('C++17 compiler required.')
     names = ['Include/_common/Fibo/Fibonacci.mqh', 'Include/_common/Fibo/FiboModel.mqh',
              'Include/_common/Fibo/FiboRisk.mqh', 'Include/_common/Fibo/FiboDialog.mqh', 'Include/_common/Fibo/FiboChart.mqh',
-             'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
+             'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh',
+             'Experts/manualFibo/ManualFiboOrders.mqh', 'Experts/manualFibo/manualFibo.mq5']
     for source in names:
         text = (ROOT/source).read_text()
-        for forbidden in ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync('):
+        for forbidden in (('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSendAsync(') if source.endswith('ManualFiboOrders.mqh') else ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync(')):
             assert forbidden not in text, (source, forbidden)
     platform = PLATFORM.replace('void ChartRedraw(int=0){}', 'int redraw_count=0;void ChartRedraw(int=0){++redraw_count;}')
     # MQL accepts fixed arrays through array references; use an equivalent fixed
     # C++ array reference for the five native CPanel edge controls.
-    code = SHIM + platform + EXTRA + UI + '\n'.join(
-        adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]'))
-        for name in names) + TESTS
+    extra = EXTRA.replace('ORDER_TYPE_BUY,ORDER_TYPE_SELL}', 'ORDER_TYPE_BUY,ORDER_TYPE_SELL,ORDER_TYPE_BUY_LIMIT,ORDER_TYPE_SELL_LIMIT,ORDER_TYPE_BUY_STOP}')
+    extra = extra.replace('double AccountInfoDouble(int){++account_reads;return equity;}', 'double FakeFreeMargin();double AccountInfoDouble(int prop){++account_reads;return prop==20?FakeFreeMargin():equity;}')
+    ui = UI.replace('struct CDialog:CWnd{', 'struct CDialog:CWnd{virtual bool OnEvent(int,const long&,const double&,const string&){return false;}')
+    ui = ui.replace(' bool Caption(', ' void SubwinOff(){}\n bool Caption(')
+    code = SHIM + platform + extra + TRADE_API + 'double FakeFreeMargin(){return free_margin;}\n' + ui + '\n'.join(
+        adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]').replace('input ulong', 'ulong'))
+        for name in names) + '\nvoid RunOrderChecks();\n' + TESTS.replace(' std::cout<<"PASS: limit-only', ' RunOrderChecks();\n std::cout<<"PASS: limit-only') + TRADE_TESTS
     with tempfile.TemporaryDirectory(prefix='manualfibo-checks-') as folder:
         cpp = Path(folder)/'checks.cpp'
         binary = Path(folder)/'checks'

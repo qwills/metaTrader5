@@ -1,4 +1,4 @@
-manualFibo 1.15 - Windows (source)
+manualFibo 1.16 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.15 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.15 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.16 to a chart. Use a separate chart if running AutoFibo too.
 
 Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -37,7 +37,7 @@ Reset clears SL overrides while retaining risk/ratio choices.
 Calculations normalize prices to symbol tick size and round lots down. They do
 not include commissions, swap, slippage/gaps, margin checks or existing exposure.
 Risk is independent per row, so multiple orders can exceed the displayed budget.
-This release calculates lots for manual use and does not submit orders.
+This release sends checked levels with the Send Orders button; see below.
 In Windows verify SL/risk editing, BUY LIMIT/SELL LIMIT estimates, broker data and account-
 currency conversion, timeframe persistence, timer refresh and input focus.
 
@@ -53,7 +53,7 @@ not select the order side. BUY STOP and SELL STOP are never selected.
 Minimum pending-entry and SL distances are checked against the broker stop level.
 Invalid levels clear their lot/loss estimate and show a reason. The lot tooltip
 includes the limit type. No additional Order column or per-level send controls;
-actual order submission remains outside this release.
+actual limit submission now uses one shared Send Orders button.
 
 Source 1.15: reusable model/risk/GUI/chart/state headers are now under Include/_common/Fibo,
 shared with AutoFibo. Copy the ENTIRE Include/_common/Fibo folder with Experts/manualFibo.
@@ -62,3 +62,22 @@ risk settings and its separate chart namespace remain unchanged.
 When copying source manually, create MQL5/Include/_common and place Fibo inside it.
 Old MQL5/Include/Fibo files are no longer used by this release; the installer
 only copies/overwrites files and does not remove previous folders.
+
+SOURCE 1.16: LIMIT ORDER EXECUTION
+Copy ALL Experts/manualFibo headers, including ManualFiboDialog.mqh and
+ManualFiboOrders.mqh, plus the complete Include/_common/Fibo folder. Press F7.
+OrderMagic defaults to 11600101 (nonzero); reserve it for manualFibo.
+Send Orders immediately sends every NEW checked level as BUY LIMIT or SELL LIMIT.
+TP: swing end is checked by default; uncheck it to send without TP. Invalid TP,
+SL, risk, margin or broker checks block the batch before sending. Prices and
+account state may still change mid-batch. Risk remains PER LEVEL (5% default).
+Total estimated loss sums all checked rows, not existing exposure.
+Repeated clicks skip accepted setups/levels. Definite failures alone can retry.
+Timeouts/unknown results are blocked; inspect Experts/Trade/History first.
+Delete Orders cancels all manualFibo pending limits for the current symbol and
+OrderMagic, including previous setups. It does not close positions or touch stop
+orders/other EAs. Already sent/deleted levels remain blocked for that anchor setup.
+Moving Fibonacci or removing the EA does not change submitted orders. TP choice
+survives timeframe changes. Details and duplicate-protection limits are in README.
+Verify sending/deleting, broker rejection/partial failure and timeframe behavior
+on a demo account in Windows; adapter tests do not contact any broker.

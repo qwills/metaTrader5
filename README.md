@@ -13,7 +13,7 @@ Experts/
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
   AutoFibo/       Swing otomatis Pivot/Market Structure, risiko/SL/lot per level
-  manualFibo/     Manual, enam rasio, SL per level dan lot berdasarkan % equity
+  manualFibo/     Manual, enam rasio, equity-risk lot, kirim/hapus pending limit
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/

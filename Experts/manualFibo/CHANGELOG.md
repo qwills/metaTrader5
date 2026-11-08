@@ -1,5 +1,20 @@
 # manualFibo changelog
 
+## 1.16
+
+- Add manualFibo-only Send Orders and Delete Orders controls and an optional
+  swing-end TP, enabled by default. Risk remains independently applied per level.
+- Show combined checked-level loss using the existing risk snapshot; shared
+  calculators remain execution-free and AutoFibo has no trading controls.
+- Preflight all new levels and aggregate margin before submitting limit-only GTC
+  orders; check again per request and report partial success without rollback.
+- Add magic/setup/ratio duplicate tracking, history checks and a terminal mutex;
+  preserve ambiguous submission records and retry only definite failures.
+- Delete owned pending limits on the current symbol/magic, leaving positions,
+  other EAs and stop orders untouched. Drawing changes do not alter live orders.
+- Preserve TP across timeframe changes; guard short-chart automatic minimization
+  and use GUI geometry v6 for the taller panel. Extend fake-broker regression tests.
+
 ## 1.15
 
 - Move shared libraries to Include/_common/Fibo, Swing and Structure; update

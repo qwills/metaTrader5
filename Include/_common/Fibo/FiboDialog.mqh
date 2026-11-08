@@ -28,7 +28,11 @@ private:
    int m_edit_index;
    FiboAction m_action;
 public:
-   CFiboDialog(void) { m_action = FIBO_PANEL_NONE; Configure("Fibonacci", 0, "Pilih Swing"); }
+   CFiboDialog(void)
+   {
+      m_action = FIBO_PANEL_NONE; m_total_loss = 0; m_all_lots_valid = false;
+      Configure("Fibonacci", 0, "Pilih Swing");
+   }
    void Configure(const string app_name, const int offset, const string draw_caption)
    { m_app_name = app_name; m_content_offset = offset; m_draw_caption = draw_caption; }
    virtual bool Create(const long chart, const string name, const int subwin,
@@ -138,16 +142,23 @@ public:
       if(refresh_lots && !IsMinimized()) RefreshLots(model);
    }
    // Timer updates results only; never overwrite an SL or risk edit in progress.
-   bool RefreshLots(const CFiboModel &model)
+   virtual bool RefreshLots(const CFiboModel &model)
    {
       CFiboRisk calculator;
       FiboRiskContext context; calculator.ReadContext(model, context);
       string currency = context.currency;
+      m_total_loss = 0; m_all_lots_valid = model.Ready() && model.Mask() != 0;
+      m_loss_currency = currency;
       bool changed = SetText(m_budget, "Budget: " + DoubleToString(context.budget, 2) + " " + currency);
       for(int i = 0; i < FIBO_RATIOS; i++)
       {
          FiboLot result;
          bool valid = calculator.Calculate(model, i, context, result);
+         if(model.Enabled(i))
+         {
+            if(valid) m_total_loss += result.loss;
+            else m_all_lots_valid = false;
+         }
          string lot = valid ? DoubleToString(result.volume, context.volume_digits) : result.error;
          if(SetText(m_lots[i], lot)) changed = true;
          if(SetText(m_losses[i], valid ? DoubleToString(result.loss, 2) : "-")) changed = true;
@@ -170,6 +181,10 @@ public:
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void) { if(Dragging()) CDialog::OnDialogDragEnd(); MouseFocusKill(); }
 protected:
+   // Derived dialogs can show a basket estimate without a second broker snapshot.
+   double m_total_loss;
+   bool m_all_lots_valid;
+   string m_loss_currency;
    // Five one-pixel edges leave a real gap for a transparent title label.
    // All pieces belong to the native dialog: no extra mouse or drag driver.
    bool Group(CPanel &edges[], const long chart, const string name, const int subwin,

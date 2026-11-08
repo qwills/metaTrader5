@@ -1,13 +1,16 @@
 #property strict
-#property version "1.15"
-#property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
-#include <_common\Fibo\FiboDialog.mqh>
+#property version "1.16"
+#property description "Manual Fibonacci with equity-risk limit orders and scoped deletion."
+#include "ManualFiboDialog.mqh"
+#include "ManualFiboOrders.mqh"
 #include <_common\Fibo\FiboChart.mqh>
 #include <_common\Fibo\FiboState.mqh>
 
 enum ManualSelection { MANUAL_IDLE, MANUAL_START, MANUAL_END };
 CFiboModel g_model;
-CFiboDialog g_dialog;
+CManualFiboDialog g_dialog;
+CManualFiboOrders g_orders;
+input ulong OrderMagic = 11600101;
 CFiboChart g_chart;
 CFiboState g_storage;
 ManualSelection g_selection = MANUAL_IDLE;
@@ -19,7 +22,34 @@ bool g_saved_scroll = true, g_init_scroll = true, g_saved_move = false, g_saved_
 ulong g_ignore_click_until = 0;
 string g_symbol = "";
 
-void Status(const string text) { g_dialog.SetStatus(text, g_selection != MANUAL_IDLE); }
+void Status(const string text)
+{
+   g_dialog.SetStatus(text, g_selection != MANUAL_IDLE);
+}
+
+// Capture the current text even when a button click beats the native end-edit event.
+bool CommitOrderInputs(void)
+{
+   CFiboModel candidate; candidate.CopyFrom(g_model);
+   if(!g_model.Locked() && !g_chart.Read(candidate))
+   { Status("Anchor tidak valid; order tidak dikirim."); return false; }
+   double value = 0;
+   if(!FiboParseNumber(g_dialog.RiskText(), value) || !candidate.SetRiskPercent(value))
+   { Status("Risk tidak valid; order tidak dikirim."); return false; }
+   candidate.SetMask(g_dialog.RatioMask());
+   for(int i = 0; i < FIBO_RATIOS; i++)
+   {
+      if(!candidate.Enabled(i)) continue;
+      string text = g_dialog.StopText(i); StringTrimLeft(text); StringTrimRight(text);
+      double current = g_model.StopPrice(i);
+      if(current != EMPTY_VALUE && text == DoubleToString(current, _Digits)) continue;
+      if(text == "") candidate.ResetStop(i);
+      else if(!FiboParseNumber(text, value) || !candidate.SetStop(i, value))
+      { Status("SL " + DoubleToString(FiboRatio(i) * 100, 1) + "% tidak valid."); return false; }
+   }
+   if(!g_chart.Configure(candidate)) { Status("Gagal memperbarui Fibo; order tidak dikirim."); return false; }
+   g_model.CopyFrom(candidate); g_dialog.Refresh(g_model); return true;
+}
 void LockScroll(void)
 {
    if(g_scroll_locked) return;
@@ -69,6 +99,7 @@ void SyncObject(void)
 
 int OnInit(void)
 {
+   if(!g_orders.Configure(OrderMagic)) return INIT_FAILED;
    g_storage.SetPrefix("manualFibo."); g_chart.SetPrefix("manualFibo.");
    CFiboModel initial; g_model.CopyFrom(initial);
    bool restoring = g_storage.Load(g_model, _Symbol);
@@ -81,10 +112,13 @@ int OnInit(void)
    g_init_scroll = (bool)ChartGetInteger(0, CHART_MOUSE_SCROLL); g_events_saved = true;
    g_dialog.Configure("manualFibo", 0, "Pilih Swing");
    g_dialog.Minimized(false);
-   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 508)) return INIT_FAILED;
+   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 580)) return INIT_FAILED;
    g_created = true; g_dialog.Refresh(g_model);
    if(!g_dialog.Run()) return INIT_FAILED;
    if(restoring) g_dialog.IniFileLoad();
+   if(restoring && ObjectFind(0, "manualFibo.TradeOptions") >= 0)
+      g_dialog.UseTP(ObjectGetString(0, "manualFibo.TradeOptions", OBJPROP_TEXT) != "0");
+   ObjectDelete(0, "manualFibo.TradeOptions");
    if(g_model.Ready() && !g_chart.Draw(g_model)) return INIT_FAILED;
    g_storage.Consume();
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
@@ -104,6 +138,13 @@ void OnDeinit(const int reason)
    }
    if(g_model.Ready() && !g_chart.HasFibo()) g_model.Clear();
    bool preserving = reason == REASON_CHARTCHANGE && g_created && g_storage.Save(g_model, g_symbol);
+   if(preserving && ObjectCreate(0, "manualFibo.TradeOptions", OBJ_LABEL, 0, 0, 0))
+   {
+      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_SELECTABLE, false);
+      ObjectSetString(0, "manualFibo.TradeOptions", OBJPROP_TEXT, g_dialog.UseTP() ? "1" : "0");
+   }
    g_dialog.Destroy(reason); g_created = false; g_panel_pressed = false; UnlockScroll();
    if(g_events_saved)
    {
@@ -118,7 +159,11 @@ void OnDeinit(const int reason)
 
 void OnTimer(void)
 {
-   if(g_created && !IsStopped() && !g_dialog.IsMinimized() && g_dialog.RefreshLots(g_model)) ChartRedraw();
+   if(g_created && !IsStopped() && !g_dialog.IsMinimized())
+   {
+      bool changed = g_dialog.RefreshLots(g_model);
+      if(changed) ChartRedraw();
+   }
 }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
@@ -133,7 +178,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       { g_panel_pressed = true; LockScroll(); }
    }
    // Let Standard Library route all events and handle drag/minimize itself.
-   g_dialog.ChartEvent(id, lparam, dparam, sparam);
+   g_dialog.DispatchEvent(id, lparam, dparam, sparam);
    if(IsStopped()) return;
    if(was_minimized && !g_dialog.IsMinimized() && g_dialog.RefreshLots(g_model)) ChartRedraw();
    if(id == CHARTEVENT_MOUSE_MOVE)
@@ -157,6 +202,15 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    if((id == CHARTEVENT_OBJECT_CHANGE || id == CHARTEVENT_OBJECT_DRAG) && sparam == g_chart.Name())
    { SyncObject(); return; }
    if(id == CHARTEVENT_MOUSE_MOVE || id == CHARTEVENT_CHART_CHANGE) return;
+   int trade_action = g_dialog.TakeTradeAction();
+   if(trade_action == 2) { Status(g_orders.Delete()); return; }
+   if(trade_action == 1)
+   {
+      if(g_selection != MANUAL_IDLE) { Status("Selesaikan atau batalkan pemilihan swing."); return; }
+      if(!g_model.Ready() || !g_chart.HasFibo()) { Status("Pilih swing dan level terlebih dahulu."); return; }
+      if(CommitOrderInputs()) Status(g_orders.Send(g_model, g_dialog.UseTP()));
+      return;
+   }
    FiboAction action = g_dialog.TakeAction();
    if(action == FIBO_PANEL_RISK)
    {
