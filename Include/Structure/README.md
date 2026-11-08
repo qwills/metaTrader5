@@ -55,6 +55,6 @@ within cached overlap and requires explicit reseed for gaps without overlap.
 `tests/fixtures/market_structure_checks.mqh`: 153 development-only deterministic
 conditions, no orders or chart objects. `python3 tests/check_market_structure.py`
 runs these fixtures through the C++ adapter with sanitizers. Additional rolling-window
-and checkpoint-storage regressions are in `tests/check_myfibo_regressions.py`.
+and checkpoint-storage regressions are in `tests/check_autofibo_analysis.py`.
 Tests are not included in the Windows package; the example MetaTrader script has
 been removed. These checks do not replace native F7/GUI verification of the EA.

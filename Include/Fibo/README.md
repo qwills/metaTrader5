@@ -49,3 +49,17 @@ Run `python3 tests/check_fibonacci.py` from the workspace. Checks in
 endpoints, invalid updates, indices and custom projections. They use a C++
 adapter with sanitizers, not native MQL5 compilation. No example program or test
 fixture is installed in the release packages.
+
+## Shared EA components
+
+AutoFibo and manualFibo both use the following headers from MQL5/Include/Fibo:
+FiboModel.mqh (CFiboModel), FiboRisk.mqh (CFiboRisk), FiboDialog.mqh (CFiboDialog),
+FiboChart.mqh (CFiboChart) and FiboState.mqh (CFiboState). CFibonacci itself keeps
+its original seven default ratios; the EA model defines its separate six choices
+including 88.6%, with 50/61.8/78.6 selected by default.
+
+Use angle includes from an EA, e.g. `<Fibo\FiboRisk.mqh>`. Each EA sets its own
+chart object/state prefix so risk, anchors and drawings cannot cross namespaces.
+The automatic detector and structure checkpoint live in Experts/AutoFibo rather
+than in the shared UI/risk/model code. Copy the complete Include/Fibo folder when
+updating either EA. No terminal Standard Library headers are bundled here.

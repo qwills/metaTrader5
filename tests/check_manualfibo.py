@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from check_swing_detector import SHIM, adapt
-from check_myfibo_modes import PLATFORM, UI_STUB
+from mt5_adapter import PLATFORM, UI_STUB
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTRA = r'''
@@ -152,7 +152,7 @@ int main(){
  Check(std::abs(node.doubles[{OBJPROP_LEVELVALUE,3}]-.886)<1e-12,"88.6 ratio mapping");
  Check(std::abs(g_model.Price(5)-(19-8*.886))<1e-12,"88.6 calculation");
  Check(controls.count("manualFibo.Panel.Level6")==0&&controls.count("manualFibo.Panel.Level7")==0,"only six checkboxes");
- Check(ManualFiboRatio(0)==.236&&ManualFiboRatio(5)==.886,"no 0 or 100 percent ratios");
+ Check(FiboRatio(0)==.236&&FiboRatio(5)==.886,"no 0 or 100 percent ratios");
  for(int i=0;i<6;i++)Tick(i,true);
  Check(node.ints[{OBJPROP_LEVELS,0}]==6&&g_model.Mask()==63,"all six levels enabled");
  for(int i=0;i<6;i++)Tick(i,false);
@@ -186,10 +186,10 @@ int main(){
  Check(g_model.RiskPercent()==2&&g_model.StopCustom(3)&&g_model.StopPrice(3)==30,"risk and SL override survive timeframe change");
  Check(g_dialog.m_rect.left==50&&g_dialog.m_rect.top==70,"native GUI position loaded");
  Check(g_storage.Save(g_model,_Symbol),"create legacy handoff fixture");
- CManualFiboModel legacy;
+ CFiboModel legacy;
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"1|EURUSD|255|0|1|100|25|200|10");
  Check(g_storage.Load(legacy,_Symbol)&&legacy.Mask()==63&&legacy.StartPrice()==25&&legacy.RiskPercent()==5&&legacy.CustomStops()==0,"legacy mask migration drops endpoint bits");
- CManualFiboModel loaded;Check(g_storage.Save(g_model,_Symbol),"save state");
+ CFiboModel loaded;Check(g_storage.Save(g_model,_Symbol),"save state");
  Check(!g_storage.Load(loaded,"GBPUSD"),"symbol mismatch rejected");
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"2|EURUSD|64|0|0|0|0|0|0");
  Check(!g_storage.Load(loaded,_Symbol),"invalid mask rejected");
@@ -215,8 +215,8 @@ int main(){
  OnDeinit(REASON_REMOVE);Check(Objects().empty(),"removal clears owned objects");
  Check(CFibonacci().LevelCount()==7,"shared Fibonacci defaults unchanged");
  bid=209.9;ask=210;
- CManualFiboModel risk_model;risk_model.SetAnchors(100,100,200,200);risk_model.SetMask(63);
- CManualFiboRisk calculator;ManualFiboLot result;
+ CFiboModel risk_model;risk_model.SetAnchors(100,100,200,200);risk_model.SetMask(63);
+ CFiboRisk calculator;FiboLot result;
  Check(calculator.Calculate(risk_model,2,result)&&result.volume==.1&&result.loss<=500,"risk estimate respects budget");
  equity=1;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0&&result.error=="Min lot","minimum lot is never rounded up");
  equity=10000;profit_factor=1;volume_step=.25;volume_min=.25;volume_max=10;risk_model.SetRiskPercent(.3);
@@ -226,44 +226,44 @@ int main(){
  Check(calculator.Calculate(risk_model,2,result)&&result.stop==100.25,"prices normalized to symbol tick");
  profit_failure=true;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0&&result.error=="Data?","calculation failure clears preview");
  profit_failure=false;volume_step=0;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0,"invalid symbol metadata rejected");
- double parsed=99;Check(!ManualFiboParseNumber("1,5",parsed)&&parsed==99&&!ManualFiboParseNumber("nan",parsed),"strict decimal parser");
+ double parsed=99;Check(!FiboParseNumber("1,5",parsed)&&parsed==99&&!FiboParseNumber("nan",parsed),"strict decimal parser");
  Check(!risk_model.SetRiskPercent(101)&&!risk_model.SetRiskPercent(-1),"risk percentage bounds");
  double previous=risk_model.RiskPercent();
  Check(!risk_model.SetRiskPercent(.000000001)&&risk_model.RiskPercent()==previous,"invisible subprecision risk rejected without changing model");
  Check(risk_model.SetRiskPercent(.00000001),"eight-decimal risk remains supported");
  volume_step=.00000001;volume_min=volume_step;volume_max=10;
- ManualFiboRiskContext context;calculator.ReadContext(risk_model,context);
+ FiboRiskContext context;calculator.ReadContext(risk_model,context);
  Check(context.valid&&context.volume_digits==8,"eight-decimal lot step is recognized");
  volume_step=.000000001;calculator.ReadContext(risk_model,context);
  Check(!context.valid,"unsupported volume precision is rejected");
  equity=10000;profit_factor=100;volume_step=.01;volume_min=.01;volume_max=100;tick_size=.01;
- CManualFiboModel limits;limits.SetAnchors(100,100,200,200);limits.SetMask(63);
+ CFiboModel limits;limits.SetAnchors(100,100,200,200);limits.SetMask(63);
  bid=160;ask=161;stops_level=0;
- Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"entry below quote is BUY LIMIT");
+ Check(calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_BUY,"entry below quote is BUY LIMIT");
  bid=140;ask=141;
- Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL&&result.error=="SL invalid"&&result.volume==0,"direction follows quote even for bullish anchors");
+ Check(!calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_SELL&&result.error=="SL invalid"&&result.volume==0,"direction follows quote even for bullish anchors");
  limits.SetStop(2,180);
- Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL,"custom SL allows SELL LIMIT on bullish swing");
+ Check(calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_SELL,"custom SL allows SELL LIMIT on bullish swing");
  bid=149;ask=151;int spread_profits=profit_calls;
- Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_NONE&&result.error=="Spread"&&result.volume==0&&profit_calls==spread_profits,"spread rejected without any fallback order");
+ Check(!calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_NONE&&result.error=="Spread"&&result.volume==0&&profit_calls==spread_profits,"spread rejected without any fallback order");
  bid=150;ask=151;Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","entry at Bid is unavailable");
  bid=149;ask=150;Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","entry at Ask is unavailable");
  stops_level=100;bid=149;ask=149.5;
- Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_SELL,"SELL market distance boundary accepted");
+ Check(calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_SELL,"SELL market distance boundary accepted");
  stops_level=101;Check(!calculator.Calculate(limits,2,result)&&result.error=="Near market"&&result.volume==0,"SELL too near market blocked");
  limits.ResetStop(2);stops_level=100;bid=150.5;ask=151;
- Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"BUY market distance boundary accepted");
+ Check(calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_BUY,"BUY market distance boundary accepted");
  stops_level=101;Check(!calculator.Calculate(limits,2,result)&&result.error=="Near market","BUY too near market blocked");
  stops_level=100;limits.SetStop(2,149.5);
  Check(!calculator.Calculate(limits,2,result)&&result.error=="SL too close","minimum SL distance enforced");
  limits.SetStop(2,149);Check(calculator.Calculate(limits,2,result),"SL distance boundary accepted");
- quote_failure=true;Check(!calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_NONE&&result.error=="Quotes?"&&result.volume==0,"missing quote clears preview");
+ quote_failure=true;Check(!calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_NONE&&result.error=="Quotes?"&&result.volume==0,"missing quote clears preview");
  quote_failure=false;bid=152;ask=151;
  Check(!calculator.Calculate(limits,2,result)&&result.error=="Quotes?","crossed quote rejected");
  bid=150.5;ask=151;stops_failure=true;
  Check(!calculator.Calculate(limits,2,result)&&result.error=="Data?","missing broker stops data rejected");
  stops_failure=false;stops_level=0;limits.SetAnchors(100,200,200,100);limits.SetStop(2,100);bid=160;ask=161;
- Check(calculator.Calculate(limits,2,result)&&result.kind==MANUAL_LIMIT_BUY,"BUY LIMIT also independent of bearish swing direction");
+ Check(calculator.Calculate(limits,2,result)&&result.kind==FIBO_LIMIT_BUY,"BUY LIMIT also independent of bearish swing direction");
  tick_size=1;limits.SetAnchors(100,100,200,200.98);bid=149.9;ask=150.3;
  Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","classify normalized entry rather than raw Fibonacci price");
  Check(!timer,"timer stopped on removal");
@@ -276,9 +276,9 @@ def main():
     compiler = shutil.which('clang++') or shutil.which('g++')
     if not compiler:
         raise SystemExit('C++17 compiler required.')
-    names = ['Include/Fibo/Fibonacci.mqh', 'Experts/manualFibo/ManualFiboModel.mqh',
-             'Experts/manualFibo/ManualFiboRisk.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh', 'Experts/manualFibo/ManualFiboChart.mqh',
-             'Experts/manualFibo/ManualFiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
+    names = ['Include/Fibo/Fibonacci.mqh', 'Include/Fibo/FiboModel.mqh',
+             'Include/Fibo/FiboRisk.mqh', 'Include/Fibo/FiboDialog.mqh', 'Include/Fibo/FiboChart.mqh',
+             'Include/Fibo/FiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
     for source in names:
         text = (ROOT/source).read_text()
         for forbidden in ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync('):

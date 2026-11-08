@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build or validate the Windows myFibo source package; no terminal installation."""
+"""Build or validate the Windows AutoFibo source package; no terminal installation."""
 import argparse
 from pathlib import Path, PurePosixPath
 import re
@@ -9,25 +9,30 @@ import zipfile
 from check_release_packages import forbidden
 
 ROOT = Path(__file__).resolve().parents[1]
-DIST = ROOT/'distribution/myFibo'
-PACKAGE = DIST/'myFibo.zip'
+DIST = ROOT/'distribution/AutoFibo'
+PACKAGE = DIST/'AutoFibo.zip'
 PAYLOAD = {
-    'MQL5/Experts/myFibo/myFibo.mq5': ROOT/'Experts/myFibo/myFibo.mq5',
-    'MQL5/Experts/myFibo/MyFiboDialog.mqh': ROOT/'Experts/myFibo/MyFiboDialog.mqh',
-    'MQL5/Experts/myFibo/MyFiboAuto.mqh': ROOT/'Experts/myFibo/MyFiboAuto.mqh',
-    'MQL5/Experts/myFibo/MyFiboTypes.mqh': ROOT/'Experts/myFibo/MyFiboTypes.mqh',
-    'MQL5/Experts/myFibo/MyFiboChart.mqh': ROOT/'Experts/myFibo/MyFiboChart.mqh',
-    'MQL5/Experts/myFibo/MyFiboState.mqh': ROOT/'Experts/myFibo/MyFiboState.mqh',
-    'MQL5/Experts/myFibo/CHANGELOG.md': ROOT/'Experts/myFibo/CHANGELOG.md',
-    'MQL5/Experts/myFibo/README.md': ROOT/'Experts/myFibo/README.md',
+    'MQL5/Experts/AutoFibo/AutoFibo.mq5': ROOT/'Experts/AutoFibo/AutoFibo.mq5',
+    'MQL5/Experts/AutoFibo/AutoFiboDialog.mqh': ROOT/'Experts/AutoFibo/AutoFiboDialog.mqh',
+    'MQL5/Experts/AutoFibo/AutoFiboAnalysis.mqh': ROOT/'Experts/AutoFibo/AutoFiboAnalysis.mqh',
+    'MQL5/Experts/AutoFibo/AutoFiboTypes.mqh': ROOT/'Experts/AutoFibo/AutoFiboTypes.mqh',
+    'MQL5/Experts/AutoFibo/AutoFiboChart.mqh': ROOT/'Experts/AutoFibo/AutoFiboChart.mqh',
+    'MQL5/Experts/AutoFibo/AutoFiboState.mqh': ROOT/'Experts/AutoFibo/AutoFiboState.mqh',
+    'MQL5/Experts/AutoFibo/CHANGELOG.md': ROOT/'Experts/AutoFibo/CHANGELOG.md',
+    'MQL5/Experts/AutoFibo/README.md': ROOT/'Experts/AutoFibo/README.md',
     'MQL5/Include/Fibo/Fibonacci.mqh': ROOT/'Include/Fibo/Fibonacci.mqh',
+    'MQL5/Include/Fibo/FiboModel.mqh': ROOT/'Include/Fibo/FiboModel.mqh',
+    'MQL5/Include/Fibo/FiboRisk.mqh': ROOT/'Include/Fibo/FiboRisk.mqh',
+    'MQL5/Include/Fibo/FiboDialog.mqh': ROOT/'Include/Fibo/FiboDialog.mqh',
+    'MQL5/Include/Fibo/FiboChart.mqh': ROOT/'Include/Fibo/FiboChart.mqh',
+    'MQL5/Include/Fibo/FiboState.mqh': ROOT/'Include/Fibo/FiboState.mqh',
     'MQL5/Include/Swing/SwingDetector.mqh': ROOT/'Include/Swing/SwingDetector.mqh',
     'MQL5/Include/Swing/SwingTypes.mqh': ROOT/'Include/Swing/SwingTypes.mqh',
     'MQL5/Include/Structure/MarketStructure.mqh': ROOT/'Include/Structure/MarketStructure.mqh',
     'MQL5/Include/Structure/README.md': ROOT/'Include/Structure/README.md',
     'reference/standard-library-guide.md': ROOT/'docs/reference/standard-library-guide.md',
     'reference/download-reference.cmd': ROOT/'docs/reference/download-reference.cmd',
-    'install-myFibo.cmd': DIST/'install-myFibo.cmd',
+    'install-AutoFibo.cmd': DIST/'install-AutoFibo.cmd',
     'INSTALL.txt': DIST/'INSTALL.txt',
 }
 
@@ -45,12 +50,12 @@ def check_inputs():
     for path in PAYLOAD.values():
         if not path.is_file():
             raise ValueError(f'Missing package input: {path}')
-    release = version((ROOT/'Experts/myFibo/myFibo.mq5').read_text())
-    if (ROOT/'Experts/myFibo/README.md').read_text().splitlines()[0] != f'# myFibo {release}':
+    release = version((ROOT/'Experts/AutoFibo/AutoFibo.mq5').read_text())
+    if (ROOT/'Experts/AutoFibo/README.md').read_text().splitlines()[0] != f'# AutoFibo {release}':
         raise ValueError('EA/README version mismatch.')
-    if not (DIST/'INSTALL.txt').read_text().startswith(f'myFibo {release} -'):
+    if not (DIST/'INSTALL.txt').read_text().startswith(f'AutoFibo {release} -'):
         raise ValueError('EA/INSTALL version mismatch.')
-    cmd = (DIST/'install-myFibo.cmd').read_bytes()
+    cmd = (DIST/'install-AutoFibo.cmd').read_bytes()
     if b'\n' in cmd.replace(b'\r\n', b''):
         raise ValueError('Windows CMD must use CRLF newlines.')
     text = cmd.decode('ascii')
@@ -103,9 +108,9 @@ def main():
             check_zip(temporary)
             if PACKAGE.exists():
                 with zipfile.ZipFile(PACKAGE) as previous:
-                    old = version(previous.read('MQL5/Experts/myFibo/myFibo.mq5').decode())
+                    old = version(previous.read('MQL5/Experts/AutoFibo/AutoFibo.mq5').decode())
                 if old != release:
-                    backup = ROOT/f'archive/packages/myFibo/myFibo-{old}.zip'
+                    backup = ROOT/f'archive/packages/AutoFibo/AutoFibo-{old}.zip'
                     backup.parent.mkdir(parents=True, exist_ok=True)
                     if not backup.exists():
                         shutil.copy2(PACKAGE, backup)
@@ -113,7 +118,7 @@ def main():
         finally:
             temporary.unlink(missing_ok=True)
     check_zip(PACKAGE)
-    print(f'myFibo {release}: {len(PAYLOAD)} ZIP entries verified against source and installer.')
+    print(f'AutoFibo {release}: {len(PAYLOAD)} ZIP entries verified against source and installer.')
 
 
 if __name__ == '__main__':

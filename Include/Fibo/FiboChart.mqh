@@ -1,14 +1,18 @@
-#ifndef MANUAL_FIBO_CHART_MQH
-#define MANUAL_FIBO_CHART_MQH
-#include "ManualFiboModel.mqh"
+#ifndef FIBO_CHART_MQH
+#define FIBO_CHART_MQH
+#include "FiboModel.mqh"
 
 // Object presentation and candle geometry only. No swing detection or trading.
-class CManualFiboChart
+class CFiboChart
 {
+protected:
+   string m_prefix;
 public:
-   string Name(void) const { return "manualFibo.Swing.Fibo"; }
+   CFiboChart(void) { m_prefix = "Fibo."; }
+   void SetPrefix(const string prefix) { m_prefix = prefix; }
+   string Name(void) const { return m_prefix + "Swing.Fibo"; }
    bool HasFibo(void) const { return ObjectFind(0, Name()) >= 0; }
-   bool Draw(const CManualFiboModel &model)
+   bool Draw(const CFiboModel &model)
    {
       if(!model.Ready()) return false;
       bool existed = HasFibo();
@@ -23,11 +27,11 @@ public:
       if(!ok && !existed) ClearFibo();
       return ok;
    }
-   bool Configure(const CManualFiboModel &model)
+   bool Configure(const CFiboModel &model)
    {
       if(!HasFibo()) return false;
       int count = 0;
-      for(int i = 0; i < MANUAL_FIBO_RATIOS; i++) if(model.Enabled(i)) count++;
+      for(int i = 0; i < FIBO_RATIOS; i++) if(model.Enabled(i)) count++;
       // With no checked ratio hide the drawing, retaining editable model anchors.
       bool ok = ObjectSetInteger(0, Name(), OBJPROP_TIMEFRAMES, count == 0 ? OBJ_NO_PERIODS : OBJ_ALL_PERIODS)
                 && ObjectSetInteger(0, Name(), OBJPROP_LEVELS, count)
@@ -41,10 +45,10 @@ public:
                 && ObjectSetInteger(0, Name(), OBJPROP_HIDDEN, false)
                 && Lock(model.Locked());
       int slot = 0;
-      for(int i = 0; i < MANUAL_FIBO_RATIOS && ok; i++)
+      for(int i = 0; i < FIBO_RATIOS && ok; i++)
       {
          if(!model.Enabled(i)) continue;
-         double ratio = ManualFiboRatio(i), price = model.Price(i);
+         double ratio = FiboRatio(i), price = model.Price(i);
          if(price == EMPTY_VALUE) return false;
          ok = ObjectSetDouble(0, Name(), OBJPROP_LEVELVALUE, slot, ratio)
               && ObjectSetInteger(0, Name(), OBJPROP_LEVELCOLOR, slot, clrBlack)
@@ -62,7 +66,7 @@ public:
       return ObjectSetInteger(0, Name(), OBJPROP_SELECTABLE, !locked)
              && (!locked || ObjectSetInteger(0, Name(), OBJPROP_SELECTED, false));
    }
-   bool Read(CManualFiboModel &model)
+   bool Read(CFiboModel &model)
    {
       long first = 0, last = 0;
       double start = 0, end = 0;
@@ -73,12 +77,12 @@ public:
              && model.SetAnchors((datetime)first, start, (datetime)last, end);
    }
    void ClearFibo(void) { ObjectDelete(0, Name()); }
-   void ClearStart(void) { ObjectDelete(0, "manualFibo.Start"); }
-   void ClearAll(void) { ObjectsDeleteAll(0, "manualFibo."); }
+   void ClearStart(void) { ObjectDelete(0, m_prefix + "Start"); }
+   void ClearAll(void) { ObjectsDeleteAll(0, m_prefix); }
    bool MarkStart(const datetime time, const double price)
    {
       ClearStart();
-      string name = "manualFibo.Start";
+      string name = m_prefix + "Start";
       if(!ObjectCreate(0, name, OBJ_ARROW, 0, time, price)) return false;
       bool ok = ObjectSetInteger(0, name, OBJPROP_ARROWCODE, 159)
                 && ObjectSetInteger(0, name, OBJPROP_COLOR, clrBlack)

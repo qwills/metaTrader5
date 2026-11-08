@@ -1,0 +1,33 @@
+AutoFibo 3.00 - Windows (source)
+
+AutoFibo replaces myFibo and always selects swings automatically.
+
+SOURCE INSTALLATION (no ZIP required)
+Copy Experts/AutoFibo, Include/Fibo, Include/Swing and Include/Structure from the
+workspace into their matching locations under your terminal's MQL5 folder.
+Remove myFibo from the chart, open Experts\AutoFibo\AutoFibo.mq5 in MetaEditor,
+press F7, then attach AutoFibo 3.00. Standard Library Controls headers must be
+provided by the terminal. The old myFibo state is not imported.
+
+ZIP INSTALLATION (when generated)
+Place AutoFibo.zip beside install-AutoFibo.cmd or extract the entire ZIP.
+Run the CMD; it extracts and copies/overwrites MQL5 contents without backups,
+manifest checks or deleting old files. No EX5, examples or tests are bundled.
+Default Data Folder:
+C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
+Other terminal: install-AutoFibo.cmd "C:\path\data-folder"
+The CMD does not remove myFibo or obsolete headers already in the terminal.
+
+Choose Pivot or Market Structure and left/right sensitivity (default 2/2).
+Analysis follows the chart timeframe. No Manual/Auto selector or click selection.
+Cari Swing queues a search; Kunci anchor pauses automatic changes until unlocked.
+The GUI uses grouped grey frames with a Swing/Risk row and Fibonacci level table.
+
+Default risk is 5% of account equity PER checked level. SL defaults to swing start;
+edit each level independently or clear its SL field to restore following the start.
+Lots/estimated loss are shared with manualFibo's calculator. Limit direction follows
+Bid/Ask, never swing direction; only BUY LIMIT / SELL LIMIT previews are allowed.
+No order submission, stop-order types, margin or aggregate-exposure checks.
+Actual losses can differ due to costs/slippage. Risk/SL/ratio/lock and panel state
+survive timeframe changes; unlocked analysis is rebuilt for the new timeframe.
+Native F7, GUI rendering and broker checks need testing in Windows.

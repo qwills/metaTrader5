@@ -3,7 +3,7 @@
 Kumpulan EA, indikator, library MQL5, dan Pine Script. Panduan compiler dan
 alternatif build tanpa instalasi MT5 di Mac ada di [docs/BUILD.md](docs/BUILD.md).
 Hasil pemeriksaan awal ada di [docs/history/REVIEW.md](docs/history/REVIEW.md);
-review source dan paket terbaru di [docs/package-review.md](docs/package-review.md).
+catatan perapihan paket di [docs/package-review.md](docs/package-review.md).
 
 ```text
 Experts/
@@ -12,12 +12,12 @@ Experts/
   myCalc/          Pending limit order, SL sebagai input, lot dihitung dari risiko
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
-  myFibo/         Manual/Auto Pivot atau Market Structure, TF chart otomatis, tiga level fibo
+  AutoFibo/       Swing otomatis Pivot/Market Structure, risiko/SL/lot per level
   manualFibo/     Manual, enam rasio, SL per level dan lot berdasarkan % equity
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/
-  Fibo/           Library Fibonacci.mqh
+  Fibo/           Model, risiko, GUI, chart/state bersama + Fibonacci.mqh
   Swing/          CSwingDetector dan tipe swing terkonfirmasi
   Structure/      CMarketStructure: pivot, arah, BOS/CHoCH
 PineScript/
@@ -28,7 +28,7 @@ archive/
   logs/           Log kompilasi historis, bukan hasil validasi saat ini
   metadata/       Metadata dan catatan perapihan lama
 distribution/
-  myFibo/         ZIP struktur MQL5, installer Windows .cmd, petunjuk
+  AutoFibo/       Source otomatis, CMD Windows dan petunjuk (ZIP sesuai permintaan)
   manualFibo/     ZIP/CMD terpisah untuk EA manual saja
 docs/            Panduan aktif, reference API, dan history/ untuk dokumen lama
 tests/           Fibonacci, detector, structure, controller dan GUI melalui adapter
@@ -50,8 +50,7 @@ tidak diperlukan untuk commit harian.
 
 File `.ex5` yang ada adalah hasil build lama dan dipertahankan. File itu belum
 dikompilasi ulang atau diuji di MT5 pada sesi perapihan ini. Pada sesi perapihan, source lama hanya berubah pada path include Fibonacci
-di EA1; logika trading tetap sama. EA baru `myFibo` belum
-memiliki binary hasil kompilasi.
+di EA1; logika trading tetap sama. EA `AutoFibo` dan `manualFibo` perlu dikompilasi dengan MetaEditor Windows.
 
 Untuk instalasi, gunakan **File > Open Data Folder** pada terminal tujuan.
 Salin `.ex5` dari `Experts` ke `MQL5/Experts`, dari `Indicators` ke
@@ -76,5 +75,11 @@ Mulai dari indeks [docs](docs/README.md), [tools](tools/README.md),
 mempertahankan layout MetaEditor; binary EX5 lama tetap di samping source.
 
 EA manual baru: [manualFibo](Experts/manualFibo/README.md), dengan enam checkbox
-rasio termasuk 88.6%. Source, ZIP dan state chart terpisah dari myFibo, tetap
+rasio termasuk 88.6%. Source, ZIP dan state chart terpisah dari AutoFibo, tetap
 menggunakan satu repositori Git dan class kalkulasi Fibonacci bersama.
+
+`myFibo` telah diganti menjadi [AutoFibo](Experts/AutoFibo/README.md), khusus swing
+otomatis tanpa pilihan Manual/Auto. Group box mengikuti manualFibo. Keduanya
+berbagi kelas Include/Fibo untuk rasio, SL per level dan lot berdasarkan % equity.
+Untuk Windows, salin folder EA beserta Include/Fibo lengkap; AutoFibo juga
+memerlukan Include/Swing dan Include/Structure. ZIP tidak dibuat kecuali diminta.

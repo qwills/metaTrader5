@@ -1,7 +1,7 @@
 # Current Windows packages
 
-- myFibo/: myFibo.zip, install-myFibo.cmd and INSTALL.txt. Manual/Auto EA with
-  Fibonacci, SwingDetector and MarketStructure libraries.
+- AutoFibo/: install-AutoFibo.cmd and INSTALL.txt for the automatic-only EA.
+  AutoFibo.zip can be generated on request with the shared Fibo/Swing/Structure libraries.
 - manualFibo/: manualFibo.zip, install-manualFibo.cmd and INSTALL.txt. Manual-only
   EA with ratio checkboxes including 88.6%, per-level SL and equity-risk lot
   estimates; only the Fibonacci library is required.
@@ -15,3 +15,6 @@ use separate charts if running both EAs.
 Only current releases belong here. Historical ZIPs live under
 archive/packages/<project>/. ZIPs are generated locally and ignored by Git.
 Build and validate them using the commands in [tools](../tools/README.md).
+
+The former myFibo ZIP was retained under archive/packages/myFibo/. Existing ZIPs
+may predate source changes; use source copying until a fresh ZIP is requested.

@@ -1,5 +1,11 @@
 # manualFibo changelog
 
+## 1.14
+
+- Share model/risk/GUI/chart/state classes with AutoFibo under Include/Fibo.
+- Keep manual swing selection, defaults, chart-object prefix and GUI position format.
+- Update includes, development adapters and source-package payload for the shared headers.
+
 ## 1.13
 
 - Infer BUY LIMIT / SELL LIMIT from a shared latest Bid/Ask quote, replacing

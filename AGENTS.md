@@ -9,8 +9,9 @@ memastikan perubahan/perilaku versi terbaru.
 Source custom ada di Experts, Indicators, Include; pemeriksaan di tests. Standard Library terminal tidak
 dibundel. Include bersama memakai `<...>`; header saudara memakai `"..."`.
 
-Validasi perubahan myFibo dengan runner yang relevan di tests dan
-`python3 tools/package_myfibo.py`, kemudian `--check`. Sesuaikan versi EA, README,
+Validasi AutoFibo/manualFibo dengan runner relevan di tests serta check_inputs()
+pada tools/package_autofibo.py dan tools/package_manualfibo.py. ZIP hanya dibuat
+jika diminta; sesudah membangun ZIP, jalankan builder dengan --check. Sesuaikan versi EA, README,
 dan INSTALL. Perbarui daftar payload builder bila menambah file; CMD menyalin
 seluruh isi folder MQL5 dari ZIP.
 Runner adapter C++ bukan compiler MQL5: laporkan bahwa F7 dan rendering GUI perlu
@@ -29,3 +30,8 @@ Panduan folder ada di README.md dan docs/README.md. Review lama/inventaris awal
 ada di docs/history; helper compiler ada di tools/compile_mql5.sh. Arsip rilis
 berada di archive/packages/<project>, paket aktif tetap distribution/<project>.
 Pertahankan layout native Experts/Indicators/Include dan relative include.
+
+AutoFibo menggantikan myFibo dan khusus otomatis; tidak ada pilihan Manual/Auto.
+Kelas model/risiko/GUI/chart/state bersama ada di Include/Fibo. Pastikan perubahan
+kelas bersama lolos tests/check_manualfibo.py dan tests/check_autofibo.py, serta
+regresi analisis otomatis tests/check_autofibo_analysis.py.

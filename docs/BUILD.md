@@ -54,7 +54,7 @@ struktur foldernya tetap utuh. Pilihan ini memindahkan proses build dari Mac;
 compiler MetaEditor tetap diperlukan pada mesin tujuan.
 
 Cara GUI: buka `.mq5` di MetaEditor, tekan F7, periksa Errors, lalu ambil `.ex5`
-di sebelah source. Untuk EA1 dan myFibo, pertahankan folder relatif
+di sebelah source. Untuk EA1, AutoFibo dan manualFibo, pertahankan folder relatif
 `Experts` dan `Include`. Program contoh tidak disertakan dalam paket.
 
 Cara command line di PowerShell (sesuaikan ketiga path):

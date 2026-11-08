@@ -1,14 +1,18 @@
-#ifndef MANUAL_FIBO_STATE_MQH
-#define MANUAL_FIBO_STATE_MQH
-#include "ManualFiboModel.mqh"
+#ifndef FIBO_STATE_MQH
+#define FIBO_STATE_MQH
+#include "FiboModel.mqh"
 
-// A hidden chart-local handoff for timeframe changes, isolated from myFibo.
-class CManualFiboState
+// Chart-local model/risk handoff; each EA supplies its own object prefix.
+class CFiboState
 {
+private:
+   string m_prefix;
 public:
-   bool Save(const CManualFiboModel &model, const string symbol)
+   CFiboState(void) { m_prefix = "Fibo."; }
+   void SetPrefix(const string prefix) { m_prefix = prefix; }
+   bool Save(const CFiboModel &model, const string symbol)
    {
-      string name = "manualFibo.State";
+      string name = m_prefix + "State";
       string text = "4|" + symbol + "|" + IntegerToString(model.Mask())
                     + "|" + IntegerToString(model.Locked() ? 1 : 0)
                     + "|" + IntegerToString(model.Ready() ? 1 : 0)
@@ -17,17 +21,17 @@ public:
                     + "|" + IntegerToString((long)model.EndTime())
                     + "|" + StringFormat("%.17g", model.EndPrice());
       text += "|" + StringFormat("%.17g", model.RiskPercent()) + "|" + IntegerToString(model.CustomStops());
-      for(int i = 0; i < MANUAL_FIBO_RATIOS; i++) text += "|" + StringFormat("%.17g", model.RawStop(i));
+      for(int i = 0; i < FIBO_RATIOS; i++) text += "|" + StringFormat("%.17g", model.RawStop(i));
       if(ObjectFind(0, name) < 0 && !ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0)) return false;
       return ObjectSetInteger(0, name, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS)
              && ObjectSetInteger(0, name, OBJPROP_HIDDEN, true)
              && ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false)
              && ObjectSetString(0, name, OBJPROP_TEXT, text);
    }
-   bool Load(CManualFiboModel &model, const string symbol)
+   bool Load(CFiboModel &model, const string symbol)
    {
       string fields[];
-      string text = ObjectGetString(0, "manualFibo.State", OBJPROP_TEXT);
+      string text = ObjectGetString(0, m_prefix + "State", OBJPROP_TEXT);
       int count = StringSplit(text, '|', fields);
       if(count < 9 || !(((fields[0] == "1" || fields[0] == "2") && count == 9)
                        || ((fields[0] == "3" || fields[0] == "4") && count == 17)) || fields[1] != symbol
@@ -46,7 +50,7 @@ public:
          if(mask < 0 || mask > 255) return false;
          mask = (mask >> 1) & 63;
       }
-      CManualFiboModel candidate;
+      CFiboModel candidate;
       if(!candidate.SetMask(mask)) return false;
       candidate.SetLocked(fields[3] == "1");
       if(fields[4] == "1"
@@ -60,8 +64,8 @@ public:
          // Earlier releases allowed more precision than the textbox displays.
          // Migrate that setting without discarding valid anchors/SL overrides.
          if(fields[0] == "3") risk = NormalizeDouble(risk, 8);
-         if(!candidate.SetRiskPercent(risk) || fields[10] != IntegerToString(custom) || custom < 0 || custom >= (1 << MANUAL_FIBO_RATIOS)) return false;
-         for(int i = 0; i < MANUAL_FIBO_RATIOS; i++)
+         if(!candidate.SetRiskPercent(risk) || fields[10] != IntegerToString(custom) || custom < 0 || custom >= (1 << FIBO_RATIOS)) return false;
+         for(int i = 0; i < FIBO_RATIOS; i++)
          {
             double stop = StringToDouble(fields[11 + i]);
             if(fields[11 + i] != StringFormat("%.17g", stop)) return false;
@@ -71,6 +75,6 @@ public:
       }
       model.CopyFrom(candidate); return true;
    }
-   void Consume(void) { ObjectDelete(0, "manualFibo.State"); }
+   void Consume(void) { ObjectDelete(0, m_prefix + "State"); }
 };
 #endif

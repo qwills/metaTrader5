@@ -1,4 +1,4 @@
-# ExeMyCalc
+# ExeMyCalc 1.01
 
 ExeMyCalc is a MetaTrader 5 expert advisor based on `myCalc`. It keeps the same chart-based risk calculator workflow, but submits explicit BUY or SELL market orders immediately instead of placing pending limit orders.
 
@@ -6,7 +6,10 @@ ExeMyCalc is a MetaTrader 5 expert advisor based on `myCalc`. It keeps the same 
 
 - Enter risk percent, plus separate SL and TP values for BUY and SELL.
 - Drag the `BuySL`, `BuyTP`, `SellSL`, and `SellTP` horizontal chart lines to update the panel.
-- The panel is split into BUY and SELL sides.
+- Risk percent and its amount are aligned in a shared top row.
+- BUY and SELL have separate group boxes with thin grey borders and transparent titles.
+- Each group aligns SL, TP, RR and LOT vertically, with its execution button at the bottom.
+- RESET remains centered below both groups. The panel is more compact (620 x 380).
 - The panel shows separate buy and sell lot sizes from account balance, risk percent, current market price, and the matching SL line.
 - Each side has an editable RR value above LOT. It defaults to `0.0`.
 - Editing RR recalculates that side's TP and moves the matching TP line.
@@ -66,3 +69,10 @@ cp ExeMyCalc.mq5 ExeMyCalc.ex5 MMCalculator.mqh MMConfig.mqh MMDialog.mqh MMName
 ```
 
 Then refresh Navigator or restart MetaTrader 5 and attach `ExeMyCalc` from Navigator > Experts to a chart.
+
+GUI changes in 1.01 retain existing control/line names, calculation methods and
+immediate market execution. The five frame edges per group are ordinary native
+dialog children, so dragging/minimizing uses Standard Library behavior without
+extra mouse handlers. No title background panels or custom colors were added.
+F7 and visual drag/minimize checks still need MetaEditor/MT5 on Windows; existing
+EX5 binaries are historical builds and do not include this source change.

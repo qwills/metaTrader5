@@ -72,8 +72,8 @@ memanggil Update jika EA ingin mempertahankan hasil sebelumnya.
 ## Instalasi dan pemeriksaan
 
 Header `.mqh` dipakai oleh EA dan tidak menghasilkan EX5 sendiri. Library ini
-sudah disertakan di `distribution/myFibo/myFibo.zip`, di bawah MQL5/Include/Swing.
-Gunakan installer myFibo untuk menyalinnya bersama EA. Tidak ada paket atau
+sudah disertakan di `distribution/AutoFibo/AutoFibo.zip`, di bawah MQL5/Include/Swing.
+Gunakan installer AutoFibo untuk menyalinnya bersama EA. Tidak ada paket atau
 installer SwingDetector terpisah. Untuk penggunaan pada EA lain, salin folder
 Include/Swing ke MQL5/Include/Swing lalu gunakan `<Swing\SwingDetector.mqh>`.
 
@@ -82,8 +82,8 @@ di `tests/fixtures/swing_detector_checks.mqh`. Runner C++17 menggunakan adapter
 array MQL serta AddressSanitizer/UndefinedBehaviorSanitizer. Ini bukan compiler
 MQL5; F7 pada EA pengguna tetap perlu dilakukan di MetaEditor Windows.
 
-Detector digunakan mode Auto myFibo. Pemilihan pasangan anchor berada di
-MyFiboAuto, sedangkan BOS/CHoCH dihitung oleh CMarketStructure.
+Detector digunakan AutoFibo. Pemilihan pasangan anchor berada di
+AutoFiboAnalysis, sedangkan BOS/CHoCH dihitung oleh CMarketStructure.
 
 Referensi API: [CopyRates](https://www.mql5.com/en/docs/series/copyrates),
 [ArrayGetAsSeries](https://www.mql5.com/en/docs/array/arraygetasseries),

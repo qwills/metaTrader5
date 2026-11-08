@@ -165,3 +165,14 @@ penempatan awal karena belum ada order yang dimodifikasi.
 Acuan jarak: [panduan resmi MetaQuotes](https://www.mql5.com/en/book/automation/symbols/symbols_spreads_levels).
 OrderCalcProfit tetap menerima ORDER_TYPE_BUY/SELL untuk estimasi, bukan tipe
 pending. EA hanya menampilkan preview limit; tidak ada OrderSend atau tipe stop.
+
+## Struktur terbaru AutoFibo 3.00 / manualFibo 1.14
+
+myFibo diganti menjadi Experts/AutoFibo/AutoFibo.mq5, selalu otomatis. Kelas
+CFiboModel, CFiboRisk, CFiboDialog, CFiboChart dan CFiboState dipakai bersama
+melalui Include/Fibo; include saudara di folder itu memakai tanda kutip. Sensitivitas
+pivot, metode, checkpoint dan label struktur tetap khusus AutoFibo. GUI dasar
+menerima offset isi agar AutoFibo dapat menambahkan group Swing Otomatis di atas
+Swing/Risk/Fibonacci tanpa menduplikasi kalkulator. Tidak ada event-driver drag
+baru atau pembacaan histori di mouse move/GUI callback. Data candle diambil timer;
+preview risiko memakai satu snapshot akun/simbol/quote untuk setiap refresh.

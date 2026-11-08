@@ -1,5 +1,9 @@
 # Project and package review — 2026-11-07
 
+Historical cleanup snapshot. The myFibo release described below has since been
+replaced by AutoFibo. Current source/build guidance is in Experts/AutoFibo/README.md
+and tools/README.md; no new ZIP was generated for this rename.
+
 The workspace inventory was checked across Experts, Indicators, Include,
 PineScript, development runners, installers, release ZIPs and local archives.
 

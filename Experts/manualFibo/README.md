@@ -1,8 +1,8 @@
-# manualFibo 1.13
+# manualFibo 1.14
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 indicators or order submission. This is a separate EA in the same Git repository;
-myFibo is unchanged. MT5 allows one EA per chart, so use a separate chart if you
+AutoFibo uses automatic swing selection. MT5 allows one EA per chart, so use a separate chart if you
 want both EAs running.
 
 ## Usage
@@ -82,22 +82,25 @@ calculator for manual orders; there are no order-submission controls.
 
 ## Files and dependencies
 
-- manualFibo.mq5: lifecycle, manual selection and GUI event coordination.
-- ManualFiboModel.mqh: anchors, ratio choices and CFibonacci calculation wrapper.
-- ManualFiboDialog.mqh: native CAppDialog, buttons and checkboxes.
-- ManualFiboRisk.mqh: strict input parsing and broker-aware lot/risk estimates.
-- ManualFiboChart.mqh: editable OBJ_FIBO, preview marker and candle geometry.
-- ManualFiboState.mqh: chart-local timeframe handoff.
-- Include/Fibo/Fibonacci.mqh: shared calculation class; its defaults are unchanged.
+- Experts/manualFibo/manualFibo.mq5: lifecycle, manual selection and event coordination.
+- Include/Fibo/FiboModel.mqh: shared anchors, ratio choices and calculation wrapper.
+- Include/Fibo/FiboRisk.mqh: shared input parser and limit-only equity-risk calculator.
+- Include/Fibo/FiboDialog.mqh: shared native grouped GUI and risk/SL fields.
+- Include/Fibo/FiboChart.mqh: shared OBJ_FIBO, preview marker and candle geometry.
+- Include/Fibo/FiboState.mqh: shared chart-local model/risk handoff, isolated by EA prefix.
+- Include/Fibo/Fibonacci.mqh: calculation class; its defaults are unchanged.
 
 All chart objects use the manualFibo. prefix. GUI settings use manualFibo_<chart>_GUI_v5,
-separate from myFibo. No SwingDetector or MarketStructure header is needed.
+separate from AutoFibo. No SwingDetector or MarketStructure header is needed.
 
 ## Install and validate
 
-Use distribution/manualFibo/manualFibo.zip with install-manualFibo.cmd on Windows.
+Copy Experts/manualFibo and the entire Include/Fibo folder to their corresponding
+MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
+When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
+install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.13.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.14.
 
 ```bash
 python3 tests/check_manualfibo.py

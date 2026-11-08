@@ -1,9 +1,9 @@
-#ifndef MANUAL_FIBO_RISK_MQH
-#define MANUAL_FIBO_RISK_MQH
-#include "ManualFiboModel.mqh"
+#ifndef FIBO_RISK_MQH
+#define FIBO_RISK_MQH
+#include "FiboModel.mqh"
 
 // Strict decimal input: never accept a numeric prefix of malformed text.
-bool ManualFiboParseNumber(string text, double &value)
+bool FiboParseNumber(string text, double &value)
 {
    StringTrimLeft(text); StringTrimRight(text);
    bool decimal = false, digit = false;
@@ -21,24 +21,24 @@ bool ManualFiboParseNumber(string text, double &value)
    value = parsed; return true;
 }
 
-enum ManualFiboLimit { MANUAL_LIMIT_NONE, MANUAL_LIMIT_BUY, MANUAL_LIMIT_SELL };
+enum FiboLimit { FIBO_LIMIT_NONE, FIBO_LIMIT_BUY, FIBO_LIMIT_SELL };
 
-string ManualFiboLimitName(const ManualFiboLimit kind)
+string FiboLimitName(const FiboLimit kind)
 {
-   if(kind == MANUAL_LIMIT_BUY) return "BUY LIMIT";
-   if(kind == MANUAL_LIMIT_SELL) return "SELL LIMIT";
+   if(kind == FIBO_LIMIT_BUY) return "BUY LIMIT";
+   if(kind == FIBO_LIMIT_SELL) return "SELL LIMIT";
    return "-";
 }
 
-struct ManualFiboLot
+struct FiboLot
 {
    double volume, loss, entry, stop;
-   ManualFiboLimit kind;
+   FiboLimit kind;
    string error;
 };
 
 // One account/symbol snapshot shared by every level in a refresh.
-struct ManualFiboRiskContext
+struct FiboRiskContext
 {
    double budget, step, minimum, maximum, tick, bid, ask, stop_distance;
    int volume_digits;
@@ -47,7 +47,7 @@ struct ManualFiboRiskContext
 };
 
 // Estimates only: no order placement and no trading state in the Fibonacci model.
-class CManualFiboRisk
+class CFiboRisk
 {
 public:
    int VolumeDigits(const double step) const
@@ -58,13 +58,13 @@ public:
       { scaled *= 10; digits++; }
       return digits;
    }
-   double Budget(const CManualFiboModel &model) const
+   double Budget(const CFiboModel &model) const
    {
       double equity = AccountInfoDouble(ACCOUNT_EQUITY);
       double budget = equity * (model.RiskPercent() / 100.0);
       return MathIsValidNumber(equity) && equity > 0 && MathIsValidNumber(budget) && budget > 0 ? budget : 0;
    }
-   void ReadContext(const CManualFiboModel &model, ManualFiboRiskContext &context) const
+   void ReadContext(const CFiboModel &model, FiboRiskContext &context) const
    {
       context.budget = Budget(model); context.currency = AccountInfoString(ACCOUNT_CURRENCY);
       context.step = 0; context.minimum = 0; context.maximum = 0; context.tick = 0;
@@ -94,16 +94,16 @@ public:
       double rounded_step = NormalizeDouble(context.step, context.volume_digits);
       context.valid = rounded_step > 0 && MathAbs(rounded_step - context.step) <= context.step * 0.00000001;
    }
-   bool Calculate(const CManualFiboModel &model, const int index, ManualFiboLot &result) const
+   bool Calculate(const CFiboModel &model, const int index, FiboLot &result) const
    {
-      ManualFiboRiskContext context; ReadContext(model, context);
+      FiboRiskContext context; ReadContext(model, context);
       return Calculate(model, index, context, result);
    }
-   bool Calculate(const CManualFiboModel &model, const int index,
-                  const ManualFiboRiskContext &context, ManualFiboLot &result) const
+   bool Calculate(const CFiboModel &model, const int index,
+                  const FiboRiskContext &context, FiboLot &result) const
    {
       result.volume = 0; result.loss = 0; result.entry = 0; result.stop = 0; result.error = "-";
-      result.kind = MANUAL_LIMIT_NONE;
+      result.kind = FIBO_LIMIT_NONE;
       if(!model.Ready() || !model.Enabled(index)) return false;
       double budget = context.budget;
       if(budget <= 0) { result.error = "Risk?"; return false; }
@@ -119,10 +119,10 @@ public:
       result.entry = entry; result.stop = stop;
       // Reject the spread first: entry must have one unambiguous limit direction.
       // No swing-direction assumption and no stop-order alternative.
-      if(entry < context.bid) result.kind = MANUAL_LIMIT_BUY;
-      else if(entry > context.ask) result.kind = MANUAL_LIMIT_SELL;
+      if(entry < context.bid) result.kind = FIBO_LIMIT_BUY;
+      else if(entry > context.ask) result.kind = FIBO_LIMIT_SELL;
       else { result.error = "Spread"; return false; }
-      bool buy = result.kind == MANUAL_LIMIT_BUY;
+      bool buy = result.kind == FIBO_LIMIT_BUY;
       double tolerance = tick * 0.0000001;
       double distance = buy ? context.ask - entry : entry - context.bid;
       if(distance + tolerance < context.stop_distance) { result.error = "Near market"; return false; }

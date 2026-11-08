@@ -11,9 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT/'distribution/manualFibo'
 PACKAGE = DIST/'manualFibo.zip'
 PAYLOAD = {f'MQL5/Experts/manualFibo/{name}': ROOT/'Experts/manualFibo'/name
-           for name in ('manualFibo.mq5', 'ManualFiboModel.mqh', 'ManualFiboDialog.mqh',
-                        'ManualFiboChart.mqh', 'ManualFiboState.mqh', 'ManualFiboRisk.mqh', 'README.md', 'CHANGELOG.md')}
-PAYLOAD['MQL5/Include/Fibo/Fibonacci.mqh'] = ROOT/'Include/Fibo/Fibonacci.mqh'
+           for name in ('manualFibo.mq5', 'README.md', 'CHANGELOG.md')}
+PAYLOAD.update({f'MQL5/Include/Fibo/{name}': ROOT/'Include/Fibo'/name
+                for name in ('Fibonacci.mqh', 'FiboModel.mqh', 'FiboRisk.mqh',
+                             'FiboDialog.mqh', 'FiboChart.mqh', 'FiboState.mqh')})
 PAYLOAD.update({name: DIST/name for name in ('install-manualFibo.cmd', 'INSTALL.txt')})
 
 

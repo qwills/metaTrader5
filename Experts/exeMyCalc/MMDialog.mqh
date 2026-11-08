@@ -5,12 +5,13 @@
 //+------------------------------------------------------------------+
 #property copyright "will_santoso"
 #property link      "https://www.mql5.com"
-#property version   "1.00"
+#property version   "1.01"
 
 #include <Controls\Dialog.mqh>
 #include <Controls\Button.mqh>
 #include <Controls\Edit.mqh>
 #include <Controls\Label.mqh>
+#include <Controls\Panel.mqh>
 #include <Trade/Trade.mqh>
 #include "MMConfig.mqh"
 #include "MMNames.mqh"
@@ -25,6 +26,10 @@ private:
    double m_inpRiskPct;
    double m_riskUSD;
    double m_defRiskPct;
+
+   // Decorative frames are registered before the interactive controls.
+   CPanel m_BuyFrame[5], m_SellFrame[5];
+   CLabel m_BuyGroupTitle, m_SellGroupTitle;
 
    //Button
    CButton m_buyButton;
@@ -69,6 +74,13 @@ public:
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam);
 
 protected:
+   bool CreateGroup(CPanel &frame[], const long chart, const string name, const int subwin,
+                    const int left, const int top, const int width, const int bottom);
+   bool CreateGroupEdge(CPanel &edge, const long chart, const string name, const int subwin,
+                        const int x1, const int y1, const int x2, const int y2);
+   bool CreateInputRow(CLabel &label, CEdit &edit, const long chart, const string name,
+                       const int subwin, const string caption, const string value,
+                       const int left, const int top, const int width);
    bool              CreateButton(CButton &cbutt,
                                   const long chart,
                                   const string name,
@@ -158,18 +170,18 @@ CMMDialog::~CMMDialog()
 //+------------------------------------------------------------------+
 bool CMMDialog::Create(const long chart, const string name, const int subwin, const int x1, const int y1, const int x2, const int y2)
 {
-   int panW = x2 - x1;
-   int colGap = CONTROLS_GAP_X * 2;
-   int colW = (panW - INDENT_LEFT - INDENT_RIGHT - colGap) / 2;
-   int buyX = INDENT_LEFT;
-   int sellX = INDENT_LEFT + colW + colGap;
-   int labelW = 70;
-   int rowTop = INDENT_TOP + BUTTON_HEIGHT + CONTROLS_GAP_Y;
+   // Leave room for the native dialog border/client insets.
+   int clientRight = x2 - x1 - INDENT_LEFT - INDENT_RIGHT;
+   int groupLeft = 6, groupGap = 16;
+   int groupWidth = (clientRight - groupLeft - groupGap) / 2;
+   int buyX = groupLeft, sellX = buyX + groupWidth + groupGap;
+   int groupTop = 62, groupBottom = 278;
+   int resetX = (clientRight + groupLeft - BUTTON_WIDTH) / 2;
 
-   if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2))
+   if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("ExeMyCalc"))
       return false;
 
-//--- create lines
+   // Lines and their existing names/defaults stay connected to the same inputs.
    double ask = MMNormalizePrice(SymbolInfoDouble(_Symbol, SYMBOL_ASK));
    double bid = MMNormalizePrice(SymbolInfoDouble(_Symbol, SYMBOL_BID));
    HLineCreate(0, "BuySL", DefaultBuySL(bid), clrOrangeRed);
@@ -177,281 +189,62 @@ bool CMMDialog::Create(const long chart, const string name, const int subwin, co
    HLineCreate(0, "SellSL", DefaultSellSL(ask), clrTomato);
    HLineCreate(0, "SellTP", 0.0, clrSeaGreen);
 
-//--- buy button
-   if(!CreateButton(m_buyButton,
-                    chart,
-                    "buy",
-                    subwin,
-                    "BUY",
-                    buyX,
-                    INDENT_TOP,
-                    buyX + colW,
-                    INDENT_TOP + BUTTON_HEIGHT))
+   if(!CreateGroup(m_BuyFrame, chart, "BuyGroup", subwin, buyX, groupTop, groupWidth, groupBottom)
+      || !CreateGroup(m_SellFrame, chart, "SellGroup", subwin, sellX, groupTop, groupWidth, groupBottom)
+      || !CreateLabel(m_BuyGroupTitle, chart, "BuyGroupTitle", subwin, "BUY", buyX + 14, 52, buyX + 76, 72)
+      || !CreateLabel(m_SellGroupTitle, chart, "SellGroupTitle", subwin, "SELL", sellX + 14, 52, sellX + 76, 72))
       return false;
 
-//--- sell button
-   if(!CreateButton(m_sellButton,
-                    chart,
-                    "sell",
-                    subwin,
-                    "SELL",
-                    sellX,
-                    INDENT_TOP,
-                    sellX + colW,
-                    INDENT_TOP + BUTTON_HEIGHT))
+   // Shared risk row above both execution groups.
+   if(!CreateLabel(m_RiskLabel, chart, "Risk", subwin, "Risk %", 14, 16, 84, 40)
+      || !CreateEdit(m_RiskEdit, chart, "Risk", subwin, DoubleToString(m_inpRiskPct, 2), 92, 12, 208, 40, false)
+      || !CreateLabel(m_RiskUSDLabel, chart, "RiskUSD", subwin, StringFormat("$ %.2f", m_riskUSD), 232, 16, clientRight - 12, 40))
       return false;
 
-//--- risk label
-   if(!CreateLabel(m_RiskLabel,
-                   chart,
-                   "Risk",
-                   subwin,
-                   "Risk %",
-                   buyX,
-                   rowTop,
-                   buyX + labelW,
-                   rowTop + BUTTON_HEIGHT))
+   if(!CreateInputRow(m_BuySLLabel, m_BuySLEdit, chart, "BuySL", subwin, "SL", DoubleToString(DefaultBuySL(bid), Digits()), buyX, 84, groupWidth)
+      || !CreateInputRow(m_BuyTPLabel, m_BuyTPEdit, chart, "BuyTP", subwin, "TP", "0.0", buyX, 120, groupWidth)
+      || !CreateInputRow(m_BuyRRLabel, m_BuyRREdit, chart, "BuyRR", subwin, "RR", "0.0", buyX, 156, groupWidth)
+      || !CreateLabel(m_BuyLotLabel, chart, "BuyLot", subwin, "LOT", buyX + 14, 196, buyX + 64, 220)
+      || !CreateLabel(m_BuyLotValueLabel, chart, "BuyLotValue", subwin, "-", buyX + 70, 196, buyX + groupWidth - 14, 220)
+      || !CreateButton(m_buyButton, chart, "buy", subwin, "BUY", buyX + 14, 232, buyX + groupWidth - 14, 264))
       return false;
 
-//--- risk edit
-   if(!CreateEdit(m_RiskEdit,
-                  chart,
-                  "Risk",
-                  subwin,
-                  DoubleToString(m_inpRiskPct, 2),
-                  buyX + labelW + CONTROLS_GAP_X,
-                  rowTop,
-                  buyX + colW,
-                  rowTop + BUTTON_HEIGHT,
-                  false))
+   if(!CreateInputRow(m_SellSLLabel, m_SellSLEdit, chart, "SellSL", subwin, "SL", DoubleToString(DefaultSellSL(ask), Digits()), sellX, 84, groupWidth)
+      || !CreateInputRow(m_SellTPLabel, m_SellTPEdit, chart, "SellTP", subwin, "TP", "0.0", sellX, 120, groupWidth)
+      || !CreateInputRow(m_SellRRLabel, m_SellRREdit, chart, "SellRR", subwin, "RR", "0.0", sellX, 156, groupWidth)
+      || !CreateLabel(m_SellLotLabel, chart, "SellLot", subwin, "LOT", sellX + 14, 196, sellX + 64, 220)
+      || !CreateLabel(m_SellLotValueLabel, chart, "SellLotValue", subwin, "-", sellX + 70, 196, sellX + groupWidth - 14, 220)
+      || !CreateButton(m_sellButton, chart, "sell", subwin, "SELL", sellX + 14, 232, sellX + groupWidth - 14, 264)
+      || !CreateButton(m_resetButton, chart, "reset", subwin, "RESET", resetX, 296, resetX + BUTTON_WIDTH, 328))
       return false;
 
-//--- riskUSD label
-   if(!CreateLabel(m_RiskUSDLabel,
-                   chart,
-                   "RiskUSD",
-                   subwin,
-                   StringFormat("$ %.2f", m_riskUSD),
-                   sellX,
-                   rowTop,
-                   sellX + colW,
-                   rowTop + BUTTON_HEIGHT))
-      return false;
+   return UpdateInfoLabels();
+}
 
-   int slTop = rowTop + BUTTON_HEIGHT + CONTROLS_GAP_Y;
-   int tpTop = slTop + BUTTON_HEIGHT + CONTROLS_GAP_Y;
-   int rrTop = tpTop + BUTTON_HEIGHT + CONTROLS_GAP_Y;
-   int lotTop = rrTop + BUTTON_HEIGHT + CONTROLS_GAP_Y;
-   int resetTop = lotTop + BUTTON_HEIGHT + CONTROLS_GAP_Y * 3;
-   int resetW = BUTTON_WIDTH;
-   int resetX = (panW - resetW) / 2;
-
-//--- BUY SL
-   if(!CreateLabel(m_BuySLLabel,
-                   chart,
-                   "BuySL",
-                   subwin,
-                   "SL",
-                   buyX,
-                   slTop,
-                   buyX + labelW,
-                   slTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_BuySLEdit,
-                  chart,
-                  "BuySL",
-                  subwin,
-                  DoubleToString(DefaultBuySL(bid), Digits()),
-                  buyX + labelW + CONTROLS_GAP_X,
-                  slTop,
-                  buyX + colW,
-                  slTop + BUTTON_HEIGHT,
-                  false))
-      return false;
-
-//--- BUY TP
-   if(!CreateLabel(m_BuyTPLabel,
-                   chart,
-                   "BuyTP",
-                   subwin,
-                   "TP",
-                   buyX,
-                   tpTop,
-                   buyX + labelW,
-                   tpTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_BuyTPEdit,
-                  chart,
-                  "BuyTP",
-                  subwin,
-                  "0.0",
-                  buyX + labelW + CONTROLS_GAP_X,
-                  tpTop,
-                  buyX + colW,
-                  tpTop + BUTTON_HEIGHT,
-                  false))
-      return false;
-
-//--- BUY RR
-   if(!CreateLabel(m_BuyRRLabel,
-                   chart,
-                   "BuyRR",
-                   subwin,
-                   "RR",
-                   buyX,
-                   rrTop,
-                   buyX + labelW,
-                   rrTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_BuyRREdit,
-                   chart,
-                   "BuyRR",
-                   subwin,
-                   "0.0",
-                   buyX + labelW + CONTROLS_GAP_X,
-                   rrTop,
-                   buyX + colW,
-                   rrTop + BUTTON_HEIGHT,
-                   false))
-      return false;
-
-//--- BUY LOT
-   if(!CreateLabel(m_BuyLotLabel,
-                   chart,
-                   "BuyLot",
-                   subwin,
-                   "LOT",
-                   buyX,
-                   lotTop,
-                   buyX + labelW,
-                   lotTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateLabel(m_BuyLotValueLabel,
-                   chart,
-                   "BuyLotValue",
-                   subwin,
-                   "-",
-                   buyX + labelW + CONTROLS_GAP_X,
-                   lotTop,
-                   buyX + colW,
-                   lotTop + BUTTON_HEIGHT))
-      return false;
-
-//--- SELL SL
-   if(!CreateLabel(m_SellSLLabel,
-                   chart,
-                   "SellSL",
-                   subwin,
-                   "SL",
-                   sellX,
-                   slTop,
-                   sellX + labelW,
-                   slTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_SellSLEdit,
-                  chart,
-                  "SellSL",
-                  subwin,
-                  DoubleToString(DefaultSellSL(ask), Digits()),
-                  sellX + labelW + CONTROLS_GAP_X,
-                  slTop,
-                  sellX + colW,
-                  slTop + BUTTON_HEIGHT,
-                  false))
-      return false;
-
-//--- SELL TP
-   if(!CreateLabel(m_SellTPLabel,
-                   chart,
-                   "SellTP",
-                   subwin,
-                   "TP",
-                   sellX,
-                   tpTop,
-                   sellX + labelW,
-                   tpTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_SellTPEdit,
-                  chart,
-                  "SellTP",
-                  subwin,
-                  "0.0",
-                  sellX + labelW + CONTROLS_GAP_X,
-                  tpTop,
-                  sellX + colW,
-                  tpTop + BUTTON_HEIGHT,
-                  false))
-      return false;
-
-//--- SELL RR
-   if(!CreateLabel(m_SellRRLabel,
-                   chart,
-                   "SellRR",
-                   subwin,
-                   "RR",
-                   sellX,
-                   rrTop,
-                   sellX + labelW,
-                   rrTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateEdit(m_SellRREdit,
-                   chart,
-                   "SellRR",
-                   subwin,
-                   "0.0",
-                   sellX + labelW + CONTROLS_GAP_X,
-                   rrTop,
-                   sellX + colW,
-                   rrTop + BUTTON_HEIGHT,
-                   false))
-      return false;
-
-//--- SELL LOT
-   if(!CreateLabel(m_SellLotLabel,
-                   chart,
-                   "SellLot",
-                   subwin,
-                   "LOT",
-                   sellX,
-                   lotTop,
-                   sellX + labelW,
-                   lotTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!CreateLabel(m_SellLotValueLabel,
-                   chart,
-                   "SellLotValue",
-                   subwin,
-                   "-",
-                   sellX + labelW + CONTROLS_GAP_X,
-                   lotTop,
-                   sellX + colW,
-                   lotTop + BUTTON_HEIGHT))
-      return false;
-
-//--- reset button
-   if(!CreateButton(m_resetButton,
-                    chart,
-                    "reset",
-                    subwin,
-                    "RESET",
-                    resetX,
-                    resetTop,
-                    resetX + resetW,
-                    resetTop + BUTTON_HEIGHT))
-      return false;
-
-   if(!UpdateInfoLabels())
-      return false;
-
-   return true;
+// Thin edges leave an actual gap for the transparent title: no filled backdrop.
+bool CMMDialog::CreateGroup(CPanel &frame[], const long chart, const string name, const int subwin,
+                            const int left, const int top, const int width, const int bottom)
+{
+   int right = left + width;
+   return CreateGroupEdge(frame[0], chart, name + ".TopLeft", subwin, left, top, left + 8, top + 1)
+          && CreateGroupEdge(frame[1], chart, name + ".TopRight", subwin, left + 82, top, right, top + 1)
+          && CreateGroupEdge(frame[2], chart, name + ".Left", subwin, left, top, left + 1, bottom)
+          && CreateGroupEdge(frame[3], chart, name + ".Right", subwin, right - 1, top, right, bottom)
+          && CreateGroupEdge(frame[4], chart, name + ".Bottom", subwin, left, bottom - 1, right, bottom);
+}
+bool CMMDialog::CreateGroupEdge(CPanel &edge, const long chart, const string name, const int subwin,
+                                const int x1, const int y1, const int x2, const int y2)
+{
+   return edge.Create(chart, MMObjectName(name, "Panel"), subwin, x1, y1, x2, y2)
+          && edge.BorderType(BORDER_FLAT) && edge.ColorBackground(clrSilver)
+          && edge.ColorBorder(clrSilver) && Add(edge);
+}
+bool CMMDialog::CreateInputRow(CLabel &label, CEdit &edit, const long chart, const string name,
+                               const int subwin, const string caption, const string value,
+                               const int left, const int top, const int width)
+{
+   return CreateLabel(label, chart, name, subwin, caption, left + 14, top + 4, left + 64, top + 28)
+          && CreateEdit(edit, chart, name, subwin, value, left + 70, top, left + width - 14, top + 28, false);
 }
 //+------------------------------------------------------------------+
 //|                                                                  |

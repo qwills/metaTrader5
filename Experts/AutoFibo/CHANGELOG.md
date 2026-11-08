@@ -1,4 +1,17 @@
-# myFibo changelog
+# AutoFibo changelog (formerly myFibo)
+
+## 3.00
+
+- Rename EA/folder/installer to AutoFibo and remove the Manual/Auto selector and
+  manual candle-selection workflow. Search automatically from confirmed closed bars.
+- Preserve Pivot/Market Structure methods, sensitivity, rolling BOS checkpoints,
+  independent annotation retries and chart-timeframe following.
+- Add native group frames and the same six-ratio, per-level SL and 5%-equity lot
+  calculator as manualFibo; share the implementations under Include/Fibo.
+- Preserve risk/SL/ratio/lock across timeframe changes; isolate AutoFibo state/object
+  names from manualFibo and the former myFibo namespace.
+- Repair stale annotation cache keys after object recreation/property failures.
+- Migrate automatic-only regression coverage and update both source-package builders.
 
 ## 2.18
 

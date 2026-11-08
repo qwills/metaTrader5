@@ -1,15 +1,15 @@
 #property strict
-#property version "1.13"
+#property version "1.14"
 #property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
-#include "ManualFiboDialog.mqh"
-#include "ManualFiboChart.mqh"
-#include "ManualFiboState.mqh"
+#include <Fibo\FiboDialog.mqh>
+#include <Fibo\FiboChart.mqh>
+#include <Fibo\FiboState.mqh>
 
 enum ManualSelection { MANUAL_IDLE, MANUAL_START, MANUAL_END };
-CManualFiboModel g_model;
-CManualFiboDialog g_dialog;
-CManualFiboChart g_chart;
-CManualFiboState g_storage;
+CFiboModel g_model;
+CFiboDialog g_dialog;
+CFiboChart g_chart;
+CFiboState g_storage;
 ManualSelection g_selection = MANUAL_IDLE;
 datetime g_pick_time = 0;
 double g_pick_price = 0;
@@ -42,7 +42,7 @@ void CancelSelection(const bool refresh = true)
 }
 
 // Commit only after rendering succeeds; restore the previous valid drawing on failure.
-bool ApplyModel(const CManualFiboModel &candidate)
+bool ApplyModel(const CFiboModel &candidate)
 {
    if(candidate.Ready() && !g_chart.Draw(candidate))
    {
@@ -57,7 +57,7 @@ bool ApplyModel(const CManualFiboModel &candidate)
 void SyncObject(void)
 {
    if(!g_model.Ready()) return;
-   CManualFiboModel candidate; candidate.CopyFrom(g_model);
+   CFiboModel candidate; candidate.CopyFrom(g_model);
    if(g_model.Locked() || !g_chart.Read(candidate) || !g_chart.Configure(candidate))
    {
       g_chart.Draw(g_model); ChartRedraw();
@@ -69,7 +69,8 @@ void SyncObject(void)
 
 int OnInit(void)
 {
-   CManualFiboModel initial; g_model.CopyFrom(initial);
+   g_storage.SetPrefix("manualFibo."); g_chart.SetPrefix("manualFibo.");
+   CFiboModel initial; g_model.CopyFrom(initial);
    bool restoring = g_storage.Load(g_model, _Symbol);
    g_symbol = _Symbol; g_created = false; g_events_saved = false;
    g_selection = MANUAL_IDLE; g_pick_time = 0; g_pick_price = 0;
@@ -78,6 +79,7 @@ int OnInit(void)
    g_saved_move = (bool)ChartGetInteger(0, CHART_EVENT_MOUSE_MOVE);
    g_saved_delete = (bool)ChartGetInteger(0, CHART_EVENT_OBJECT_DELETE);
    g_init_scroll = (bool)ChartGetInteger(0, CHART_MOUSE_SCROLL); g_events_saved = true;
+   g_dialog.Configure("manualFibo", 0, "Pilih Swing");
    g_dialog.Minimized(false);
    if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 508)) return INIT_FAILED;
    g_created = true; g_dialog.Refresh(g_model);
@@ -97,7 +99,7 @@ void OnDeinit(const int reason)
    // Capture the final native edit even if a pending drag event was not delivered.
    if(g_created && g_model.Ready() && !g_model.Locked() && g_chart.HasFibo())
    {
-      CManualFiboModel candidate; candidate.CopyFrom(g_model);
+      CFiboModel candidate; candidate.CopyFrom(g_model);
       if(g_chart.Read(candidate)) g_model.CopyFrom(candidate);
    }
    if(g_model.Ready() && !g_chart.HasFibo()) g_model.Clear();
@@ -155,20 +157,20 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    if((id == CHARTEVENT_OBJECT_CHANGE || id == CHARTEVENT_OBJECT_DRAG) && sparam == g_chart.Name())
    { SyncObject(); return; }
    if(id == CHARTEVENT_MOUSE_MOVE || id == CHARTEVENT_CHART_CHANGE) return;
-   ManualFiboAction action = g_dialog.TakeAction();
-   if(action == MANUAL_RISK)
+   FiboAction action = g_dialog.TakeAction();
+   if(action == FIBO_PANEL_RISK)
    {
       double percent = 0, previous = g_model.RiskPercent();
-      if(!ManualFiboParseNumber(g_dialog.RiskText(), percent) || !g_model.SetRiskPercent(percent))
+      if(!FiboParseNumber(g_dialog.RiskText(), percent) || !g_model.SetRiskPercent(percent))
       { if(g_dialog.RefreshRiskInput(g_model)) ChartRedraw(); Status("Risk 0-100 persen, maksimal 8 desimal."); return; }
       bool changed = g_dialog.RefreshRiskInput(g_model);
       if(previous == g_model.RiskPercent()) { if(changed) ChartRedraw(); return; }
       g_dialog.RefreshLots(g_model); ChartRedraw(); Status("Risk diperbarui untuk setiap level."); return;
    }
-   if(action == MANUAL_SL)
+   if(action == FIBO_PANEL_SL)
    {
       int index = g_dialog.EditIndex();
-      if(index < 0 || index >= MANUAL_FIBO_RATIOS) return;
+      if(index < 0 || index >= FIBO_RATIOS) return;
       string text = g_dialog.StopText(index); StringTrimLeft(text); StringTrimRight(text);
       double existing = g_model.StopPrice(index);
       string displayed = existing == EMPTY_VALUE ? "" : DoubleToString(existing, _Digits);
@@ -176,21 +178,21 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(text == displayed) return;
       double stop = 0;
       if(text == "") g_model.ResetStop(index);
-      else if(!ManualFiboParseNumber(text, stop) || !g_model.SetStop(index, stop))
+      else if(!FiboParseNumber(text, stop) || !g_model.SetStop(index, stop))
       { if(g_dialog.RefreshStopInput(g_model, index)) ChartRedraw(); Status("SL harus harga positif; kosong = awal swing."); return; }
       g_dialog.RefreshStopInput(g_model, index); g_dialog.RefreshLots(g_model); ChartRedraw();
       Status(text == "" ? "SL kembali mengikuti awal swing." : "SL level diperbarui."); return;
    }
-   if(action == MANUAL_LEVELS)
+   if(action == FIBO_PANEL_LEVELS)
    {
       int mask = g_dialog.RatioMask();
       if(mask == g_model.Mask()) return;
-      CManualFiboModel candidate; candidate.CopyFrom(g_model); candidate.SetMask(mask);
+      CFiboModel candidate; candidate.CopyFrom(g_model); candidate.SetMask(mask);
       if(!ApplyModel(candidate)) { g_dialog.Refresh(g_model); Status("Gagal mengubah level; coba lagi."); }
       else Status(g_model.Mask() == 0 ? "Semua level disembunyikan." : "Level diperbarui.");
       return;
    }
-   if(action == MANUAL_LOCK)
+   if(action == FIBO_PANEL_LOCK)
    {
       bool locked = g_dialog.AnchorLocked();
       if(locked == g_model.Locked()) return;
@@ -200,12 +202,12 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       if(locked) CancelSelection();
       Status(locked ? "Anchor terkunci." : "Anchor bebas diedit."); ChartRedraw(); return;
    }
-   if(action == MANUAL_RESET)
+   if(action == FIBO_PANEL_RESET)
    {
       g_model.Clear(); CancelSelection(); g_chart.ClearFibo(); ChartRedraw();
       Status("Fibo dihapus. Klik Pilih Swing."); return;
    }
-   if(action == MANUAL_DRAW)
+   if(action == FIBO_PANEL_DRAW)
    {
       if(g_model.Locked()) { Status("Lepas centang Kunci anchor."); return; }
       if(g_selection != MANUAL_IDLE) { CancelSelection(); Status("Pemilihan dibatalkan."); }
@@ -228,7 +230,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       g_pick_time = time; g_pick_price = price; g_selection = MANUAL_END;
       Status("Pilih high/low candle akhir."); return;
    }
-   CManualFiboModel candidate; candidate.CopyFrom(g_model);
+   CFiboModel candidate; candidate.CopyFrom(g_model);
    if(!candidate.SetAnchors(g_pick_time, g_pick_price, time, price))
    { Status("Harga akhir harus berbeda."); return; }
    if(!ApplyModel(candidate)) { Status("Gagal menggambar; pilih akhir lagi."); return; }

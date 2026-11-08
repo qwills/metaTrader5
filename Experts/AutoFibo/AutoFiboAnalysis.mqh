@@ -1,12 +1,12 @@
-#ifndef MY_FIBO_AUTO_MQH
-#define MY_FIBO_AUTO_MQH
+#ifndef AUTO_FIBO_AUTO_MQH
+#define AUTO_FIBO_AUTO_MQH
 
 #include <Structure\MarketStructure.mqh>
-#include "MyFiboTypes.mqh"
+#include "AutoFiboTypes.mqh"
 
 // Auto selection: latest confirmed Pivot pair or the latest causal BOS impulse.
 // Pure data logic: the EA owns market data access and chart drawing.
-class CMyFiboAuto
+class CAutoFiboAnalysis
 {
 private:
    CSwingDetector m_detector;
@@ -47,7 +47,7 @@ private:
    }
 
 public:
-   CMyFiboAuto(void) { m_error = ""; m_reseeded = false; }
+   CAutoFiboAnalysis(void) { m_error = ""; m_reseeded = false; }
    bool Configure(const int left, const int right)
    {
       if(left != m_detector.LeftBars() || right != m_detector.RightBars())
@@ -83,8 +83,8 @@ public:
       ArrayResize(m_previous, 0);
       return m_structure.RestoreCheckpoint(state, events);
    }
-   MyFiboAnalysisResult Analyze(const MqlRates &closed_bars[], SwingPoint &start, SwingPoint &end,
-                               const MyFiboAutoMethod method, const bool allow_gap_reset = false)
+   AutoFiboAnalysisResult Analyze(const MqlRates &closed_bars[], SwingPoint &start, SwingPoint &end,
+                               const AutoFiboMethod method, const bool allow_gap_reset = false)
    {
       m_error = ""; m_reseeded = false;
       if(method != FIBO_PIVOT && method != FIBO_MARKET_STRUCTURE)
@@ -139,7 +139,7 @@ public:
       return FindPivotPair(start, end) ? FIBO_PAIR_READY : FIBO_WAITING_PAIR;
    }
    bool FindPair(const MqlRates &closed_bars[], SwingPoint &start, SwingPoint &end,
-                 const MyFiboAutoMethod method = FIBO_PIVOT)
+                 const AutoFiboMethod method = FIBO_PIVOT)
    {
       return Analyze(closed_bars, start, end, method, true) == FIBO_PAIR_READY;
    }
@@ -177,4 +177,4 @@ private:
    }
 };
 
-#endif // MY_FIBO_AUTO_MQH
+#endif // AUTO_FIBO_AUTO_MQH
