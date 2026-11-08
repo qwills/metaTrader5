@@ -112,7 +112,7 @@ struct CWnd {
 struct CLabel:CWnd{};struct CButton:CWnd{};
 struct CComboBox:CWnd {
  std::vector<long>items;long selected=-1;
- bool AddItem(const string&,long value){items.push_back(value);if(selected==-1)selected=value;return true;}
+ bool AddItem(const string&,long value){value=value?value:static_cast<long>(items.size());items.push_back(value);if(selected==-1)selected=value;return true;}
  bool SelectByValue(long value){for(auto v:items)if(v==value){selected=v;return true;}return false;}
  long Value(){return selected;}void ListViewItems(int){}
 };

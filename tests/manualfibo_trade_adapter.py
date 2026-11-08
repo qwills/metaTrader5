@@ -172,13 +172,16 @@ void RunOrderChecks(){
  CFiboState codec;codec.SetPrefix("ModeTest.");CFiboModel restored;model.SetRiskAll(true);Check(codec.Save(model,_Symbol)&&codec.Load(restored,_Symbol)&&restored.RiskAll(),"schema 5 risk-mode roundtrip");
  string encoded=ObjectGetString(0,"ModeTest.State",OBJPROP_TEXT);ObjectSetString(0,"ModeTest.State",OBJPROP_TEXT,StringSubstr(encoded,0,StringLen(encoded)-1)+"2");Check(!codec.Load(restored,_Symbol)&&restored.RiskAll(),"invalid mode rejected without mutating model");
  ObjectSetString(0,"ModeTest.State",OBJPROP_TEXT,"4"+StringSubstr(encoded,1,StringLen(encoded)-3));Check(codec.Load(restored,_Symbol)&&!restored.RiskAll(),"schema 4 migration defaults Per level");ObjectDelete(0,"ModeTest.State");
+ // Reproduce native zero-value substitution that the old fake missed.
+ CComboBox native_values;native_values.AddItem("All",1);native_values.AddItem("Per level",0);
+ Check(!native_values.SelectByValue(0),"zero-valued second item becomes its index, reproducing old startup failure");
  // GUI mode selection and compact amount layout, with timeframe persistence.
- reset();Check(OnInit()==INIT_SUCCEEDED,"restart GUI for risk modes");g_model.CopyFrom(model);g_model.SetRiskAll(false);g_dialog.SyncRiskMode(g_model);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
- auto*mode=static_cast<CComboBox*>(controls["manualFibo.Panel.RiskMode"]);mode->SelectByValue(1);Action("RiskMode",ON_CHANGE);Check(g_model.RiskAll(),"All selector commits to model");
+ reset();Check(OnInit()==INIT_SUCCEEDED,"restart GUI for risk modes");Check(!g_dialog.RiskAll(),"positive unique IDs retain Per level startup default");g_model.CopyFrom(model);g_model.SetRiskAll(false);g_dialog.SyncRiskMode(g_model);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
+ auto*mode=static_cast<CComboBox*>(controls["manualFibo.Panel.RiskMode"]);mode->SelectByValue(MANUAL_RISK_ALL);Action("RiskMode",ON_CHANGE);Check(g_model.RiskAll(),"All selector commits to model");
  Check(controls["manualFibo.Panel.Budget"]->text=="500.00","compact amount has no Budget label or currency text");
  auto*risk_input=controls["manualFibo.Panel.Risk"];auto*amount=controls["manualFibo.Panel.Budget"];Check(risk_input->m_rect.right-risk_input->m_rect.left==56&&risk_input->m_rect.right<amount->m_rect.left,"smaller risk field beside amount");
  OnDeinit(REASON_CHARTCHANGE);Check(OnInit()==INIT_SUCCEEDED&&g_model.RiskAll()&&g_dialog.RiskAll(),"risk mode survives timeframe handoff");
- mode->SelectByValue(0);Action("RiskMode",ON_CHANGE);Check(!g_model.RiskAll(),"Per level selector retains prior behavior");
+ mode->SelectByValue(MANUAL_RISK_PER_LEVEL);Action("RiskMode",ON_CHANGE);Check(!g_model.RiskAll(),"Per level selector retains prior behavior");
  OnDeinit(0);
  std::cout<<"PASS: All/Per level budgets, retry risk reservations, event reconciliation and bounded polling.\n";
  std::cout<<"PASS: manualFibo batch limit execution, preflight, TP, duplicate/retry ledger, scoped deletion and GUI actions.\n";

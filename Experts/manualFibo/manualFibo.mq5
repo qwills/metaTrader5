@@ -1,5 +1,5 @@
 #property strict
-#property version "1.17"
+#property version "1.18"
 #property description "Manual Fibonacci with equity-risk limit orders and scoped deletion."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboOrders.mqh"
@@ -97,9 +97,16 @@ void SyncObject(void)
    Status("Anchor diperbarui.");
 }
 
+int InitFailed(const string stage)
+{
+   Print("manualFibo OnInit failed: ", stage, "; error ", GetLastError());
+   return INIT_FAILED;
+}
+
 int OnInit(void)
 {
-   if(!g_orders.Configure(OrderMagic)) return INIT_FAILED;
+   ResetLastError();
+   if(!g_orders.Configure(OrderMagic)) return InitFailed("OrderMagic harus lebih dari 0");
    g_storage.SetPrefix("manualFibo."); g_chart.SetPrefix("manualFibo.");
    CFiboModel initial; g_model.CopyFrom(initial);
    bool restoring = g_storage.Load(g_model, _Symbol);
@@ -112,18 +119,22 @@ int OnInit(void)
    g_init_scroll = (bool)ChartGetInteger(0, CHART_MOUSE_SCROLL); g_events_saved = true;
    g_dialog.Configure("manualFibo", 0, "Pilih Swing");
    g_dialog.Minimized(false);
-   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 580)) return INIT_FAILED;
+   ResetLastError();
+   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 580)) return InitFailed("Create GUI");
    g_created = true; g_dialog.SyncRiskMode(g_model); g_dialog.Refresh(g_model);
-   if(!g_dialog.Run()) return INIT_FAILED;
+   ResetLastError();
+   if(!g_dialog.Run()) return InitFailed("Run GUI");
    if(restoring) g_dialog.IniFileLoad();
    if(restoring && ObjectFind(0, "manualFibo.TradeOptions") >= 0)
       g_dialog.UseTP(ObjectGetString(0, "manualFibo.TradeOptions", OBJPROP_TEXT) != "0");
    ObjectDelete(0, "manualFibo.TradeOptions");
-   if(g_model.Ready() && !g_chart.Draw(g_model)) return INIT_FAILED;
+   ResetLastError();
+   if(g_model.Ready() && !g_chart.Draw(g_model)) return InitFailed("restore Fibonacci drawing");
    g_storage.Consume();
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
    ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
-   if(!EventSetTimer(1)) return INIT_FAILED;
+   ResetLastError();
+   if(!EventSetTimer(1)) return InitFailed("EventSetTimer");
    Status("Klik Pilih Swing."); ChartRedraw(); return INIT_SUCCEEDED;
 }
 void OnDeinit(const int reason)

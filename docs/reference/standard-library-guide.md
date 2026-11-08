@@ -250,3 +250,17 @@ reservations; definite rejection alone clears them. Startup inventories terminal
 records once; timer probes and fallback pages are bounded and back off. Broker
 absence alone never authorizes resending. Cross-terminal coordination and exact
 live server behavior still require separate validation in Windows/demo.
+
+## CComboBox item values: manualFibo 1.18 startup regression
+
+Avoid zero as an explicit value for an item after index 0. Native CListView
+ItemAdd substitutes its current item count for value=0. Adding All=1 then
+Per level=0 therefore yields values [1,1]; SelectByValue(0) fails and a checked
+initialization chain returns INIT_FAILED. ManualFibo now uses positive IDs 1/2;
+the model/state boolean is independent of those GUI IDs. The C++ fake now models
+zero substitution and has a reproducer plus startup/default/mode-switch checks.
+
+Primary explanation of avoiding null IDs in CListView-backed controls:
+[MetaQuotes article, ActivationListMain](https://www.mql5.com/en/articles/11306).
+API signature: [CComboBox.SelectByValue](https://www.mql5.com/en/docs/standardlibrary/controls/ccombobox/ccomboboxselectbyvalue).
+The user's native headers remain the final build-specific reference.

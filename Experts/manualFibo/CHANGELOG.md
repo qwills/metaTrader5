@@ -1,5 +1,13 @@
 # manualFibo changelog
 
+## 1.18
+
+- Fix startup failure caused by registering Per level with value 0 after All.
+  Native CListView substitutes the item index for zero, so both choices became
+  value 1 and selecting default value 0 failed. Use unique positive GUI IDs.
+- Add stage-specific GUI/OnInit failure logs and model native zero-value behavior
+  in the test adapter so initialization is covered by the regression suite.
+
 ## 1.17
 
 - Add All / Per level risk selection (Per level remains the default). All divides

@@ -1,4 +1,4 @@
-# manualFibo 1.17
+# manualFibo 1.18
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 or indicators. It submits pending LIMIT orders on demand. This is a separate EA in the same Git repository;
@@ -180,7 +180,7 @@ MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
 When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
 install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.17.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.18.
 
 ```bash
 python3 tests/check_manualfibo.py
@@ -197,3 +197,8 @@ clicks, both swing directions, 88.6% prices, anchor edits, lock, cancel, reset,
 all-unchecked visibility and timeframe persistence. Also test All/Per level totals,
 partial-batch retries, reconnects, transaction ordering and unknown results on demo. Windows CMD and native chart
 rendering have not been tested on this Mac.
+
+Startup fix in 1.18 uses positive unique combo-box IDs for All / Per level.
+The model/state still stores the existing boolean, so saved risk mode is unchanged.
+If attachment fails, the Experts log now identifies OrderMagic, GUI creation/run,
+drawing restoration or timer initialization instead of only showing code 1.

@@ -3,6 +3,9 @@
 #include <_common\Fibo\FiboDialog.mqh>
 #include <Controls\ComboBox.mqh>
 
+// CListView treats zero as an automatic item value; use explicit positive IDs.
+enum ManualFiboRiskChoice { MANUAL_RISK_ALL = 1, MANUAL_RISK_PER_LEVEL = 2 };
+
 // Trading controls belong only to manualFibo, never to the shared AutoFibo GUI.
 class CManualFiboDialog : public CFiboDialog
 {
@@ -18,18 +21,24 @@ public:
                        const int x1, const int y1, const int x2, const int y2)
    {
       m_trade_action = 0;
-      if(!CFiboDialog::Create(chart, name, subwin, x1, y1, x2, y2)) return false;
+      if(!CFiboDialog::Create(chart, name, subwin, x1, y1, x2, y2))
+      { Print("manualFibo GUI: shared controls failed, error ", GetLastError()); return false; }
       if(!m_risk_mode.Create(chart, name + ".RiskMode", subwin, 324, 66, 584, 92)
-         || !m_risk_mode.AddItem("All", 1) || !m_risk_mode.AddItem("Per level", 0)
-         || !m_risk_mode.SelectByValue(0) || !Add(m_risk_mode)) return false;
+         || !m_risk_mode.AddItem("All", MANUAL_RISK_ALL)
+         || !m_risk_mode.AddItem("Per level", MANUAL_RISK_PER_LEVEL))
+      { Print("manualFibo GUI: risk mode creation/items failed, error ", GetLastError()); return false; }
       m_risk_mode.ListViewItems(2);
-      return m_take_profit.Create(chart, name + ".TP", subwin, 374, 386, 584, 410)
+      if(!m_risk_mode.SelectByValue(MANUAL_RISK_PER_LEVEL) || !Add(m_risk_mode))
+      { Print("manualFibo GUI: risk mode selection/registration failed, error ", GetLastError()); return false; }
+      bool created = m_take_profit.Create(chart, name + ".TP", subwin, 374, 386, 584, 410)
              && m_take_profit.Text("TP: swing end") && m_take_profit.Checked(true) && Add(m_take_profit)
              && Label(m_total, chart, name + ".Total", "Total est. loss: -", 14, 450, 584, 472)
              && m_send.Create(chart, name + ".Send", subwin, 14, 484, 288, 514)
              && m_send.Text("Send Orders") && Add(m_send)
              && m_delete.Create(chart, name + ".Delete", subwin, 310, 484, 584, 514)
              && m_delete.Text("Delete Orders") && Add(m_delete);
+      if(!created) Print("manualFibo GUI: trading controls failed, error ", GetLastError());
+      return created;
    }
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
    {
@@ -56,8 +65,9 @@ public:
       }
       ChartEvent(id, lparam, dparam, sparam);
    }
-   bool RiskAll(void) { return m_risk_mode.Value() == 1; }
-   void SyncRiskMode(const CFiboModel &model) { m_risk_mode.SelectByValue(model.RiskAll() ? 1 : 0); }
+   bool RiskAll(void) { return m_risk_mode.Value() == MANUAL_RISK_ALL; }
+   void SyncRiskMode(const CFiboModel &model)
+   { m_risk_mode.SelectByValue(model.RiskAll() ? MANUAL_RISK_ALL : MANUAL_RISK_PER_LEVEL); }
    bool UseTP(void) { return m_take_profit.Checked(); }
    void UseTP(const bool value) { m_take_profit.Checked(value); }
    virtual bool RefreshLots(const CFiboModel &model)
