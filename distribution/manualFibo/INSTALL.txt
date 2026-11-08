@@ -1,4 +1,4 @@
-manualFibo 1.18 - Windows (source)
+manualFibo 1.19 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.18 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.18 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.19 to a chart. Use a separate chart if running AutoFibo too.
 
 Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -101,3 +101,10 @@ SOURCE 1.18: STARTUP FIX
 Copy the updated manualFibo.mq5 AND ManualFiboDialog.mqh, then press F7 and attach
 again. Risk mode uses positive unique GUI IDs; saved model/state is unchanged.
 Experts now logs the initialization stage if attachment still fails.
+
+SOURCE 1.19: MUTEX FIX
+Copy manualFibo.mq5 and ManualFiboOrders.mqh, then F7. Existing free locks are
+reused; creation/acquisition failures are distinguished from a busy lock.
+Experts logs the lock key/value/error. Do not delete submission/risk records.
+If no operation is active but a session lock remains busy, restart the terminal;
+if still blocked, use the Experts diagnostic line to identify the problem.

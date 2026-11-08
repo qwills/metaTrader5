@@ -264,3 +264,21 @@ Primary explanation of avoiding null IDs in CListView-backed controls:
 [MetaQuotes article, ActivationListMain](https://www.mql5.com/en/articles/11306).
 API signature: [CComboBox.SelectByValue](https://www.mql5.com/en/docs/standardlibrary/controls/ccombobox/ccomboboxselectbyvalue).
 The user's native headers remain the final build-specific reference.
+
+## manualFibo 1.19: mutex diagnostics
+
+Do not report every failed acquisition as another running EA. Check for an
+existing mutex first; create with GlobalVariableTemp only when missing, then
+recheck existence if creation fails (another chart may have created it). Use
+GlobalVariableSetOnCondition for atomic 0->1 acquisition and 1->0 release.
+Distinguish nonzero lock values from create/CAS API failures and log key/value/error.
+Never forcibly clear a nonzero lock based on age or erase submission markers.
+
+This matches the initialization pattern in the official
+[GlobalVariableTemp example](https://www.mql5.com/en/docs/globals/globalvariabletemp)
+and the atomic-mutex contract in
+[GlobalVariableSetOnCondition](https://www.mql5.com/en/docs/globals/globalvariablesetoncondition).
+The old short-circuit expression combined create and acquire and returned a busy
+message for either failure. Tests now include creation failure on an existing
+variable, repeated actions, competing charts and a concurrent creation race;
+these are compatibility/failure simulations, not proof of the user's exact error.

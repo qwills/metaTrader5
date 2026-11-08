@@ -39,8 +39,10 @@ datetime TimeCurrent(){return 1800000000;}
 int GlobalVariablesTotal(){return terminal_globals.size();}
 string GlobalVariableName(int index){auto it=terminal_globals.begin();std::advance(it,index);return it->first;}
 double GlobalVariableGet(const string&key){return terminal_globals.count(key)?terminal_globals[key]:0;}
-bool GlobalVariableTemp(const string&key){terminal_globals.emplace(key,0);return true;}
-bool GlobalVariableSetOnCondition(const string&key,double v,double previous){if(!terminal_globals.count(key)||terminal_globals[key]!=previous)return false;terminal_globals[key]=v;return true;}
+int temp_create_calls=0;bool temp_create_failure=false,mutex_cas_failure=false,create_race=false;
+bool GlobalVariableTemp(const string&key){++temp_create_calls;if(create_race){terminal_globals.emplace(key,0);create_race=false;return false;}if(temp_create_failure)return false;return terminal_globals.emplace(key,0).second;}
+bool GlobalVariableGet(const string&key,double&v){if(!terminal_globals.count(key))return false;v=terminal_globals[key];return true;}
+bool GlobalVariableSetOnCondition(const string&key,double v,double previous){if(mutex_cas_failure)return false;if(!terminal_globals.count(key)||terminal_globals[key]!=previous)return false;terminal_globals[key]=v;return true;}
 datetime GlobalVariableSet(const string&key,double v){if(marker_failure&&key.find("MF:")!=string::npos)return 0;terminal_globals[key]=v;return 1800000000;}
 bool GlobalVariableCheck(const string&key){return terminal_globals.count(key);}
 bool GlobalVariableDel(const string&key){return terminal_globals.erase(key)>0;}
@@ -125,6 +127,16 @@ void RunOrderChecks(){
  terminal_globals[lock_key]=1;before=sent_requests.size();orders.Delete();Check(sent_requests.size()==before,"busy terminal mutex blocks a competing command");terminal_globals[lock_key]=0;
  reset();check_fail_at=5;orders.Send(model,true);Check(sent_requests.size()==2&&broker_orders.size()==2,"per-request recheck can fail safely after preflight");
  reset();orders.Send(model,true);broker_history=broker_orders;broker_orders.clear();terminal_globals.clear();before=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==before,"filled history blocks repeat even without terminal records");
+ // A free existing mutex must not be recreated; creation races are harmless.
+ reset();orders.Configure(11600101);int creations=temp_create_calls;orders.Send(model,true);
+ Check(temp_create_calls==creations+1,"first operation creates its temporary mutex once");
+ creations=temp_create_calls;orders.Delete();Check(temp_create_calls==creations&&broker_orders.empty(),"subsequent action reuses free existing mutex even when Temp(existing) returns false");
+ CManualFiboOrders same_scope;same_scope.Configure(11600101);creations=temp_create_calls;same_scope.Delete();Check(temp_create_calls==creations,"second chart reuses existing mutex");
+ reset();orders.Configure(11600101);temp_create_failure=true;string lock_error=orders.Send(model,true);Check(sent_requests.empty()&&lock_error.find("Gagal membuat lock")!=string::npos,"creation API failure differs from busy lock");temp_create_failure=false;
+ reset();orders.Configure(11600101);create_race=true;orders.Send(model,true);Check(sent_requests.size()==3,"a chart racing to create the lock does not block acquisition");
+ reset();orders.Configure(11600101);mutex_cas_failure=true;lock_error=orders.Send(model,true);Check(sent_requests.empty()&&lock_error.find("Gagal mengambil lock")!=string::npos,"acquisition API failure with free lock differs from busy lock");mutex_cas_failure=false;
+ for(auto &entry:terminal_globals)if(entry.first.find("Lock")!=string::npos)entry.second=1;
+ lock_error=orders.Send(model,true);Check(sent_requests.empty()&&lock_error.find("masih aktif")!=string::npos,"held mutex remains blocked without reset");
  // Risk modes use one equity snapshot and fixed equal shares before broker rounding.
  reset();model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskPercent(5);model.SetRiskAll(true);
  CFiboRisk calc;FiboRiskContext ctx;calc.ReadContext(model,ctx);Check(ctx.total_budget==500&&std::abs(ctx.budget-500./3)<1e-10,"All equal shares from one total budget");

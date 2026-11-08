@@ -9,7 +9,8 @@ class CManualFiboOrders
 private:
    CManualFiboReconcile m_reconcile;
    ulong m_magic;
-   string m_scope, m_mutex;
+   string m_scope, m_mutex, m_lock_message;
+   bool m_lock_held;
    string Hex(uint value) const
    {
       string out = "", digits = "0123456789ABCDEF";
@@ -26,9 +27,35 @@ private:
    }
    bool Acquire(void)
    {
-      return GlobalVariableTemp(m_mutex) && GlobalVariableSetOnCondition(m_mutex, 1, 0);
+      m_lock_message = "";
+      ResetLastError();
+      // Creation and acquisition are different operations. Reuse an existing
+      // temporary lock; a failed creation can also mean another chart created it.
+      if(!GlobalVariableCheck(m_mutex) && !GlobalVariableTemp(m_mutex) && !GlobalVariableCheck(m_mutex))
+      {
+         int error = GetLastError();
+         m_lock_message = "Gagal membuat lock manualFibo; error " + IntegerToString(error) + ". Lihat Experts.";
+         Print("manualFibo mutex create failed: ", m_mutex, "; error ", error); return false;
+      }
+      ResetLastError();
+      if(GlobalVariableSetOnCondition(m_mutex, 1, 0)) { m_lock_held = true; return true; }
+      int error = GetLastError(); double value = 0;
+      if(GlobalVariableGet(m_mutex, value) && value != 0)
+         m_lock_message = "Lock manualFibo masih aktif. Lihat Experts.";
+      else m_lock_message = "Gagal mengambil lock manualFibo; error " + IntegerToString(error) + ". Lihat Experts.";
+      Print("manualFibo mutex acquire failed: ", m_mutex, "; value ", value, "; error ", error,
+            ". Check other manualFibo charts. If no operation is active, restart the terminal; do not clear submission records.");
+      return false;
    }
-   void Release(void) { GlobalVariableSet(m_mutex, 0); }
+   void Release(void)
+   {
+      if(!m_lock_held) return;
+      ResetLastError();
+      // Do not recreate a missing temporary variable as a persistent one.
+      if(!GlobalVariableSetOnCondition(m_mutex, 0, 1))
+         Print("manualFibo mutex release failed: ", m_mutex, "; error ", GetLastError());
+      m_lock_held = false;
+   }
    bool Owned(void) const
    {
       return (ulong)OrderGetInteger(ORDER_MAGIC) == m_magic
@@ -163,7 +190,7 @@ private:
              + "; cek " + IntegerToString(unknown) + "; skip " + IntegerToString(skipped) + ". Lihat Experts.";
    }
 public:
-   CManualFiboOrders(void) { m_magic = 0; }
+   CManualFiboOrders(void) { m_magic = 0; m_lock_held = false; }
    bool Configure(const ulong magic)
    {
       if(magic == 0) return false;
@@ -183,7 +210,7 @@ public:
    }
    string Send(const CFiboModel &model, const bool use_tp)
    {
-      if(!Acquire()) return "Operasi manualFibo lain masih berjalan.";
+      if(!Acquire()) return m_lock_message;
       string message = SendLocked(model, use_tp); Release(); return message;
    }
    void Transaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
@@ -196,7 +223,7 @@ public:
    }
    string Delete(void)
    {
-      if(!Acquire()) return "Operasi manualFibo lain masih berjalan.";
+      if(!Acquire()) return m_lock_message;
       if(!Permissions()) { Release(); return "Aktifkan Algo Trading / koneksi akun."; }
       int deleted = 0, failed = 0;
       // Current symbol + magic + EA comment only; never close filled positions.

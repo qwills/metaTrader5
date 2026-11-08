@@ -1,5 +1,14 @@
 # manualFibo changelog
 
+## 1.19
+
+- Reuse an existing mutex before attempting temporary-variable creation, and
+  tolerate a creation race when another chart has already created the same lock.
+- Separate true busy-lock messages from creation/acquisition API errors; log the
+  lock key, value and terminal error for diagnosis. Do not force-reset active locks.
+- Release by compare-and-set rather than recreating a missing temporary lock via
+  GlobalVariableSet. Test repeated actions, shared charts, API failures and races.
+
 ## 1.18
 
 - Fix startup failure caused by registering Per level with value 0 after All.

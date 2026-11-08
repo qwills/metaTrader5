@@ -1,5 +1,5 @@
 #property strict
-#property version "1.18"
+#property version "1.19"
 #property description "Manual Fibonacci with equity-risk limit orders and scoped deletion."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboOrders.mqh"
