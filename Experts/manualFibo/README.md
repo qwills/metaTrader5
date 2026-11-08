@@ -1,4 +1,4 @@
-# manualFibo 1.19
+# manualFibo 1.20
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 or indicators. It submits pending LIMIT orders on demand. This is a separate EA in the same Git repository;
@@ -17,9 +17,11 @@ want both EAs running.
    Tick **Kunci anchor** to prevent anchor editing or selection of a new swing.
    Ratio checkboxes, risk and SL fields remain usable while locked. Lock is off by default.
 5. Enter **Risk % Equity** (default **5%**). The budget is a percentage of the
-   current account equity. Select **Per level** (default) to apply it independently
+   current account balance. Select **Per level** (default) to apply it independently
    to each checked level, or **All** to share one budget across all checked levels.
-   The smaller input and the numeric money amount sit on the same row.
+   The smaller input and numeric money amount sit on the same row. Balance is
+   the fixed basis; floating profit/loss does not alter this amount. There is no
+   Equity/Balance selector.
 6. Edit the **SL price** beside each level if needed. An untouched SL follows the
    swing-start price. Clear the field and finish editing to restore that default.
    Each checked row displays its lot size and estimated loss in account currency.
@@ -71,14 +73,14 @@ The calculator uses OrderCalcProfit to estimate losses in account currency,
 normalizes entry/SL to the symbol tick size, and rounds volume down to its volume
 step. Lots respect minimum/maximum symbol volume. **Min lot** means the requested
 budget cannot support a permitted volume; **Data?** means broker data/calculation
-is unavailable; **Risk?** means risk is zero or account equity is unavailable.
+is unavailable; **Risk?** means risk is zero or account balance is unavailable.
 **Quotes?** means no usable Bid/Ask quote is available, **Spread** marks an entry
 within the spread, **Near market** marks an entry below the required pending-order
 distance, and **SL too close** marks an SL below the required entry-to-stop distance.
 The Lot tooltip shows the normalized entry/SL prices used in the estimate.
 
-Results refresh once per second for changes in equity/conversion rates without
-rewriting an edit in progress. Each refresh shares one equity/symbol snapshot
+Results refresh once per second for changes in balance/conversion rates without
+rewriting an edit in progress. Each refresh shares one balance/symbol snapshot
 across the checked levels. Calculations pause while minimized and refresh
 immediately on restore. Unchecked levels show no lot estimate. A 5% setting
 in **Per level** mode can total approximately 15% across three levels before
@@ -98,7 +100,7 @@ sending from the timer. Enable Algo Trading and EA trading permission. Input
 use a different magic for independent instances on the same symbol. Instances
 sharing symbol/magic intentionally share duplicate protection and delete scope.
 
-Send Orders captures the current risk/selected SL text, refreshes equity/quotes,
+Send Orders captures the current risk/selected SL text, refreshes balance/quotes,
 and prepares each new checked level. Every new level must pass price/SL/TP and
 broker OrderCheck validation before any request is sent. The batch also sums
 OrderCalcMargin estimates against free margin. Requests use GTC and
@@ -107,7 +109,8 @@ Margin estimates exclude existing positions/pending orders; OrderCheck and the
 server remain authoritative, and prices/account state can change mid-batch.
 All mode also retains the estimated loss reserved for every previously sent or
 uncertain level of the same anchor setup, including deselected, filled and
-cancelled levels. These reservations are subtracted before retrying/new levels.
+partially filled levels. These reservations are subtracted before retrying/new levels.
+Only exact-ticket proof of a wholly unfilled cancellation frees its reservation.
 New levels receive no more than their displayed equal share and the remaining
 budget divided among new levels. A retry can therefore use smaller lots than the
 fresh preview. Reducing risk, changing modes or unchecking successful levels never
@@ -125,17 +128,23 @@ Dragging/resetting/removing the drawing or EA does not modify or cancel submitte
 orders. Use Delete Orders explicitly. Deletion does not close filled positions,
 modify BUY STOP/SELL STOP, or touch other symbols/magic numbers/EA comments.
 
-A compact MF: setup/ratio comment and account/server/symbol/magic-scoped terminal
-records prevent repeated sends. Identity includes both anchors and the ratio;
-changing risk, SL or TP does not rearm an already submitted level. Active orders
-and full account order history are checked too, so filled/cancelled levels are
-not sent again for the same setup. Only definitely failed levels are retried.
+A compact MF: setup/ratio/attempt comment and account/server/symbol/magic-scoped
+terminal records prevent duplicate sends. Identity includes both anchors and the
+ratio; changing risk, SL or TP does not rearm an accepted level. Active orders and
+full account order history remain checked. Filled/partially filled levels stay
+blocked. A proven wholly unfilled cancellation advances the attempt counter and
+makes that level eligible for the next explicit Send click, even with the same
+anchors. The new suffix keeps old cancelled history and late events from being
+mistaken for the result of the new attempt. Definite submission failures remain
+eligible for user retry without automatically sending anything.
 A timeout/connection/unknown result keeps a blocking submission record.
 OnTradeTransaction only captures relevant request/order notifications; it never
 scans history or submits orders. A timer reconciles unknown records using exact
 request IDs, owned tickets or matching active/history orders. A matched definite
-rejection releases the record for the next user click; acceptance/fill/cancellation
-keeps duplicate protection. Missing orders, unavailable history, mismatched IDs
+rejection releases the record for the next user click; acceptance/fill keeps
+duplicate protection. Deletion uses an exact-ticket check of cancelled state,
+initial/remaining volume equality and no assigned position ID before rearming.
+An acknowledgement, missing history or any partial fill never releases risk. Missing orders, unavailable history, mismatched IDs
 and unknown return codes do not unlock a submission. Requests and broker events
 can arrive in different orders, so the result is checked rather than assumed.
 
@@ -154,8 +163,12 @@ intact. A terminal mutex serializes commands sharing this account/symbol/magic.
 The panel shows sent/failed/uncertain/skipped counts. The Experts log identifies
 each submitted ratio, broker ticket and return code, and individual delete failures.
 Delete Orders covers earlier setups with the same symbol/magic and MF: comment,
-including after reattachment; it retains submission records to prevent accidental
-recreation on another click. Select a genuinely new anchor setup for a new batch.
+including after reattachment. Send -> Delete -> Send is supported when history
+confirms cancellation without fills. Failed or uncertain deletions stay blocked
+and reconcile via the existing timer. A cancellation that predates this update
+can also be recovered on Send when its exact ticket is saved. Old records without
+a saved ticket stay blocked rather than inferring failure from absence. Drawing
+reset is not an order reset and does not rearm filled positions.
 
 ## Files and dependencies
 
@@ -164,7 +177,7 @@ recreation on another click. Select a genuinely new anchor setup for a new batch
 - Experts/manualFibo/ManualFiboOrders.mqh: batch preflight, limit execution, risk reservations and deletion.
 - Experts/manualFibo/ManualFiboReconcile.mqh: durable intent metadata, transaction matching and bounded recovery.
 - Include/_common/Fibo/FiboModel.mqh: shared anchors, ratio choices and calculation wrapper.
-- Include/_common/Fibo/FiboRisk.mqh: shared input parser and limit-only equity-risk calculator.
+- Include/_common/Fibo/FiboRisk.mqh: shared input parser and limit-only risk calculator (fixed balance basis for manualFibo).
 - Include/_common/Fibo/FiboDialog.mqh: shared native grouped GUI and risk/SL fields.
 - Include/_common/Fibo/FiboChart.mqh: shared OBJ_FIBO, preview marker and candle geometry.
 - Include/_common/Fibo/FiboState.mqh: shared chart-local model/risk handoff, isolated by EA prefix.
@@ -180,7 +193,7 @@ MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
 When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
 install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.19.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.20.
 
 ```bash
 python3 tests/check_manualfibo.py
@@ -211,3 +224,9 @@ If a busy message persists with no operation running, close/restart the terminal
 to clear session-temporary locks. If it persists after restart, retain the
 Experts log for diagnosis; do not clear all terminal globals, because submission
 records and risk reservations provide duplicate protection.
+
+Deletion records use marker 3 while awaiting history; markers 1/2 retain their
+existing submission meanings. Attempt counters are stored separately as .Gen
+and old attempt metadata is removed only after the counter is saved. A restart
+between those writes stays protected. The existing GUI status/log reports the
+result; no per-level order status column or automatic resend is introduced.

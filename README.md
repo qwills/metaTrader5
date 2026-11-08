@@ -13,7 +13,7 @@ Experts/
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
   AutoFibo/       Swing otomatis Pivot/Market Structure, risiko/SL/lot per level
-  manualFibo/     Manual, enam rasio, equity-risk lot, kirim/hapus pending limit
+  manualFibo/     Manual, enam rasio, balance-risk lot, kirim/hapus pending limit
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/
@@ -85,6 +85,7 @@ menggunakan satu repositori Git dan class kalkulasi Fibonacci bersama.
 
 `myFibo` telah diganti menjadi [AutoFibo](Experts/AutoFibo/README.md), khusus swing
 otomatis tanpa pilihan Manual/Auto. Group box mengikuti manualFibo. Keduanya
-berbagi kelas Include/_common/Fibo untuk rasio, SL per level dan lot berdasarkan % equity.
+berbagi kelas Include/_common/Fibo untuk rasio, SL per level dan lot berdasarkan risiko.
+manualFibo memakai % balance; AutoFibo tetap memakai % equity.
 Untuk Windows, salin folder EA beserta Include/_common/Fibo lengkap; AutoFibo juga
 memerlukan Include/_common/Swing dan Include/_common/Structure. ZIP tidak dibuat kecuali diminta.

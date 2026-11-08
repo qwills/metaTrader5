@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 EXTRA = r'''
 const int OBJ_ALL_PERIODS=0x1fffff;
 const int BORDER_FLAT=0,clrSilver=0xc0c0c0;
-const int CHARTEVENT_OBJECT_ENDEDIT=6100,ACCOUNT_EQUITY=1,ACCOUNT_CURRENCY=2;
+const int CHARTEVENT_OBJECT_ENDEDIT=6100,ACCOUNT_EQUITY=1,ACCOUNT_CURRENCY=2,ACCOUNT_BALANCE=3;
 const int SYMBOL_VOLUME_STEP=1,SYMBOL_VOLUME_MIN=2,SYMBOL_VOLUME_MAX=3,SYMBOL_TRADE_TICK_SIZE=4,SYMBOL_POINT=5,SYMBOL_TRADE_STOPS_LEVEL=6;
 enum ENUM_ORDER_TYPE {ORDER_TYPE_BUY,ORDER_TYPE_SELL};
 using ushort=unsigned short;
-double equity=10000,volume_step=.01,volume_min=.01,volume_max=100,tick_size=.00001,profit_factor=100;
+double equity=10000,balance=10000,volume_step=.01,volume_min=.01,volume_max=100,tick_size=.00001,profit_factor=100;
 double bid=19.9,ask=20,point_size=.01;
 long stops_level=0;bool quote_failure=false,stops_failure=false;
 int quote_reads=0,stops_reads=0;
@@ -24,7 +24,7 @@ struct MqlTick {datetime time;double bid,ask;};
 bool SymbolInfoTick(const string&,MqlTick&quote){++quote_reads;if(quote_failure)return false;quote={1700000000,bid,ask};return true;}
 bool SymbolInfoInteger(const string&,int,long&value){++stops_reads;if(stops_failure)return false;value=stops_level;return true;}
 bool profit_failure=false;int profit_calls=0,account_reads=0,symbol_reads=0;
-double AccountInfoDouble(int){++account_reads;return equity;}
+double AccountInfoDouble(int prop){++account_reads;return prop==ACCOUNT_BALANCE?balance:equity;}
 string AccountInfoString(int){return "USD";}
 double SymbolInfoDouble(const string&,int prop){
  ++symbol_reads;
@@ -98,7 +98,8 @@ int main(){
  Check(redraw_count==redraws,"unchanged status does not redraw");
  Check(controls.count("manualFibo.Panel.Direction")==0,"direction control stays removed");
  Check(!g_model.Ready()&&!g_model.Locked()&&g_model.Mask()==28,"default mask/unlocked");
- Check(g_model.RiskPercent()==5&&controls["manualFibo.Panel.Risk"]->text=="5","default 5 percent equity risk");
+ Check(g_model.RiskPercent()==5&&controls["manualFibo.Panel.Risk"]->text=="5","default 5 percent balance risk");
+ Check(g_model.BalanceRisk()&&controls.count("manualFibo.Panel.RiskBasis")==0,"manual fixed Balance basis has no extra selector");
  Check(controls.count("manualFibo.Panel.Level5")==1&&controls["manualFibo.Panel.Level5"]->text=="88.6%: -","88.6 checkbox");
  Check(controls.count("manualFibo.Panel.Mode")==0,"manual-only dialog");
  int calls=native_calls,writes=object_writes,profits=profit_calls;
@@ -117,12 +118,12 @@ int main(){
  int reads=account_reads,metadata=symbol_reads,quotes=quote_reads,stops=stops_reads;OnTimer();
  Check(account_reads-reads==1&&symbol_reads-metadata==5&&quote_reads-quotes==1&&stops_reads-stops==1,"one account/symbol/quote snapshot per full refresh");
  Check(controls.count("manualFibo.Panel.OrderHeader")==0,"no per-level order column");
- int idle_profits=profit_calls;OnChartEvent(TEST_MINIMIZE,0,0,"");equity=20000;
+ int idle_profits=profit_calls;OnChartEvent(TEST_MINIMIZE,0,0,"");balance=20000;
  reads=account_reads;metadata=symbol_reads;OnTimer();
  Check(profit_calls==idle_profits&&account_reads==reads&&symbol_reads==metadata,"no broker work while minimized");
  OnChartEvent(TEST_RESTORE,0,0,"");
- Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","restore refreshes changed equity immediately");
- equity=10000;OnTimer();
+ Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","restore refreshes changed balance immediately");
+ balance=10000;OnTimer();
  bid=14;ask=14.1;OnTimer();
  Check(controls["manualFibo.Panel.Lot2"]->text=="SL invalid"&&controls["manualFibo.Panel.Loss2"]->text=="-","live quote crossing clears stale BUY preview");
  Edit("SL2","17");Check(controls["manualFibo.Panel.Lot2"]->text=="2.50","SELL preview uses edited SL above entry");
@@ -144,9 +145,9 @@ int main(){
  Edit("SL2","15");Check(controls["manualFibo.Panel.Lot2"]->text=="SL invalid","SL equal to entry has no lot");
  Edit("SL2","");Check(!g_model.StopCustom(2)&&g_model.StopPrice(2)==11,"cleared SL resumes default");
  Edit("SL5","12");Check(g_model.StopCustom(5)&&controls["manualFibo.Panel.Lot5"]->text=="-","disabled row can keep a custom SL");
- controls["manualFibo.Panel.SL2"]->Text("draft");equity=20000;OnTimer();
- Check(controls["manualFibo.Panel.Lot2"]->text=="1.00"&&controls["manualFibo.Panel.SL2"]->text=="draft","timer updates equity without overwriting unfinished edits");
- equity=10000;Edit("SL2","");
+ controls["manualFibo.Panel.SL2"]->Text("draft");balance=20000;OnTimer();
+ Check(controls["manualFibo.Panel.Lot2"]->text=="1.00"&&controls["manualFibo.Panel.SL2"]->text=="draft","timer updates balance without overwriting unfinished edits");
+ balance=10000;Edit("SL2","");
  string name=g_chart.Name();auto &node=Objects()[name];
  Check(node.ints[{OBJPROP_LEVELS,0}]==3&&node.ints[{OBJPROP_BACK,0}]==1,"default black background object levels");
  Tick(5,true);Check(g_model.Enabled(5)&&node.ints[{OBJPROP_LEVELS,0}]==4,"enable 88.6");
@@ -268,7 +269,7 @@ int main(){
  tick_size=1;limits.SetAnchors(100,100,200,200.98);bid=149.9;ask=150.3;
  Check(!calculator.Calculate(limits,2,result)&&result.error=="Spread","classify normalized entry rather than raw Fibonacci price");
  Check(!timer,"timer stopped on removal");
- std::cout<<"PASS: limit-only direction, quote/spread/stops validation, equity risk/SL/lots, native geometry/GUI, timer and timeframe persistence.\n";
+ std::cout<<"PASS: limit-only direction, quote/spread/stops validation, fixed-balance risk/SL/lots, native geometry/GUI, timer and timeframe persistence.\n";
 }
 '''
 
@@ -289,7 +290,7 @@ def main():
     # MQL accepts fixed arrays through array references; use an equivalent fixed
     # C++ array reference for the five native CPanel edge controls.
     extra = EXTRA.replace('ORDER_TYPE_BUY,ORDER_TYPE_SELL}', 'ORDER_TYPE_BUY,ORDER_TYPE_SELL,ORDER_TYPE_BUY_LIMIT,ORDER_TYPE_SELL_LIMIT,ORDER_TYPE_BUY_STOP}')
-    extra = extra.replace('double AccountInfoDouble(int){++account_reads;return equity;}', 'double FakeFreeMargin();double AccountInfoDouble(int prop){++account_reads;return prop==20?FakeFreeMargin():equity;}')
+    extra = extra.replace('double AccountInfoDouble(int prop){++account_reads;return prop==ACCOUNT_BALANCE?balance:equity;}', 'double FakeFreeMargin();double AccountInfoDouble(int prop){++account_reads;return prop==20?FakeFreeMargin():(prop==ACCOUNT_BALANCE?balance:equity);}')
     ui = UI.replace('struct CDialog:CWnd{', 'struct CDialog:CWnd{virtual bool OnEvent(int,const long&,const double&,const string&){return false;}')
     ui = ui.replace(' bool Caption(', ' void SubwinOff(){}\n bool Caption(')
     code = SHIM + platform + extra + TRADE_API + 'double FakeFreeMargin(){return free_margin;}\n' + ui + '\n'.join(

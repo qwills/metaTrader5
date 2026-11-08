@@ -1,5 +1,18 @@
 # manualFibo changelog
 
+## 1.20
+
+- Allow Send -> Delete -> Send on the same anchors after exact-ticket history
+  proves a wholly unfilled cancellation. Partial/filled/failed/uncertain outcomes
+  remain protected; deletion acknowledgement or broker absence alone is insufficient.
+- Persist deletion intents and per-level attempt counters. New attempt comments
+  prevent old cancellation history/events from resolving a newer unknown send.
+- Release All risk reservations only after cancellation proof; preserve the risk
+  of partial fills, surviving orders and unknown results. Recover saved-ticket
+  cancellations that predate this update when Send is clicked.
+- Fix manualFibo risk to account balance with no basis selector. Keep All / Per
+  level selection, existing 5% default and compact numeric money amount.
+
 ## 1.19
 
 - Reuse an existing mutex before attempting temporary-variable creation, and

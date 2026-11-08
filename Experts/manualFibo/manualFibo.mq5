@@ -1,6 +1,6 @@
 #property strict
-#property version "1.19"
-#property description "Manual Fibonacci with equity-risk limit orders and scoped deletion."
+#property version "1.20"
+#property description "Manual Fibonacci with balance-risk limit orders and scoped deletion."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboOrders.mqh"
 #include <_common\Fibo\FiboChart.mqh>
@@ -108,7 +108,7 @@ int OnInit(void)
    ResetLastError();
    if(!g_orders.Configure(OrderMagic)) return InitFailed("OrderMagic harus lebih dari 0");
    g_storage.SetPrefix("manualFibo."); g_chart.SetPrefix("manualFibo.");
-   CFiboModel initial; g_model.CopyFrom(initial);
+   CFiboModel initial; initial.SetBalanceRisk(true); g_model.CopyFrom(initial);
    bool restoring = g_storage.Load(g_model, _Symbol);
    g_symbol = _Symbol; g_created = false; g_events_saved = false;
    g_selection = MANUAL_IDLE; g_pick_time = 0; g_pick_price = 0;

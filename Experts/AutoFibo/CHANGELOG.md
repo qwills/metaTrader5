@@ -1,5 +1,12 @@
 # AutoFibo changelog (formerly myFibo)
 
+## 3.04
+
+- Update shared model/risk/state dependencies for manualFibo's fixed balance basis.
+  Risk basis is EA configuration, not another user choice or snapshot field.
+- AutoFibo retains its equity-based previews, GUI, automatic analysis and no-trade
+  behavior; regression coverage checks both consumers of the shared library.
+
 ## 3.03
 
 - Update shared risk/model/state dependencies for manualFibo's All / Per level

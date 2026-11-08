@@ -27,7 +27,7 @@ private:
    datetime m_start_time, m_end_time;
    double m_start, m_end;
    int m_mask;
-   bool m_ready, m_locked, m_risk_all;
+   bool m_ready, m_locked, m_risk_all, m_balance_risk;
    double m_risk_percent, m_stops[FIBO_RATIOS];
    int m_custom_stops;
 public:
@@ -35,7 +35,7 @@ public:
    {
       m_start_time = 0; m_end_time = 0; m_start = 0; m_end = 0;
       m_mask = FIBO_DEFAULT_MASK; m_ready = false; m_locked = false;
-      m_risk_percent = 5.0; m_custom_stops = 0; m_risk_all = false;
+      m_risk_percent = 5.0; m_custom_stops = 0; m_risk_all = false; m_balance_risk = false;
       for(int i = 0; i < FIBO_RATIOS; i++) m_stops[i] = 0;
    }
    bool SetAnchors(const datetime first, const double start, const datetime last, const double end)
@@ -55,7 +55,7 @@ public:
       if(other.Ready()) SetAnchors(other.StartTime(), other.StartPrice(), other.EndTime(), other.EndPrice());
       else Clear();
       m_mask = other.Mask(); m_locked = other.Locked(); m_risk_percent = other.RiskPercent();
-      m_custom_stops = other.CustomStops(); m_risk_all = other.RiskAll();
+      m_custom_stops = other.CustomStops(); m_risk_all = other.RiskAll(); m_balance_risk = other.BalanceRisk();
       for(int i = 0; i < FIBO_RATIOS; i++) m_stops[i] = other.RawStop(i);
    }
    bool SetMask(const int mask)
@@ -70,6 +70,9 @@ public:
       if((percent > 0 && rounded == 0) || MathAbs(percent - rounded) > 0.000000000001) return false;
       m_risk_percent = rounded; return true;
    }
+   // Fixed by each EA, not a selectable/persisted user setting.
+   bool BalanceRisk(void) const { return m_balance_risk; }
+   void SetBalanceRisk(const bool balance) { m_balance_risk = balance; }
    bool RiskAll(void) const { return m_risk_all; }
    void SetRiskAll(const bool all) { m_risk_all = all; }
    int SelectedCount(void) const

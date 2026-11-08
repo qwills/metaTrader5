@@ -56,7 +56,7 @@ public:
          || !m_reset.Text("Reset") || !Add(m_reset)
          || !Label(m_start, chart, name + ".Start", "Awal: -", 14, 74, 288, 94)
          || !Label(m_end, chart, name + ".End", "Akhir: -", 14, 100, 288, 120)
-         || !Label(m_risk_label, chart, name + ".RiskLabel", "% Equity", 324, 36, m_compact_risk ? 394 : 432, 56)
+         || !Label(m_risk_label, chart, name + ".RiskLabel", m_compact_risk ? "% Balance" : "% Equity", 324, 36, m_compact_risk ? 394 : 432, 56)
          || !Edit(m_risk_edit, chart, name + ".Risk", subwin, "5", m_compact_risk ? 398 : 442, 32 + m_content_offset, m_compact_risk ? 454 : 584, 58 + m_content_offset)
          || !Label(m_budget, chart, name + ".Budget", m_compact_risk ? "-" : "Budget: -", m_compact_risk ? 464 : 324, m_compact_risk ? 36 : 68, 584, m_compact_risk ? 56 : 88)
          || !Label(m_risk_note, chart, name + ".RiskNote", "Risk per level, bukan total.", 324, 98, 584, 118)

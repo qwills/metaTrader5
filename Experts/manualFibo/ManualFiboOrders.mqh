@@ -62,19 +62,20 @@ private:
              && OrderGetString(ORDER_SYMBOL) == _Symbol
              && StringSubstr(OrderGetString(ORDER_COMMENT), 0, 3) == "MF:";
    }
-   // History protects filled/cancelled orders too. A rejected order may be retried.
+   // Active/filled attempts remain protected; only proven, superseded no-fill cancellations are ignored.
    bool AlreadySent(const string comment) const
    {
       if(GlobalVariableCheck(m_scope + comment)) return true;
       for(int i = OrdersTotal() - 1; i >= 0; i--)
-         if(OrderGetTicket(i) != 0 && Owned() && OrderGetString(ORDER_COMMENT) == comment) return true;
+         if(OrderGetTicket(i) != 0 && Owned() && StringSubstr(OrderGetString(ORDER_COMMENT), 0, 21) == StringSubstr(comment, 0, 21)) return true;
       for(int i = HistoryOrdersTotal() - 1; i >= 0; i--)
       {
          ulong ticket = HistoryOrderGetTicket(i);
          if(ticket != 0 && (ulong)HistoryOrderGetInteger(ticket, ORDER_MAGIC) == m_magic
             && HistoryOrderGetString(ticket, ORDER_SYMBOL) == _Symbol
-            && HistoryOrderGetString(ticket, ORDER_COMMENT) == comment
-            && HistoryOrderGetInteger(ticket, ORDER_STATE) != ORDER_STATE_REJECTED) return true;
+            && StringSubstr(HistoryOrderGetString(ticket, ORDER_COMMENT), 0, 21) == StringSubstr(comment, 0, 21)
+            && HistoryOrderGetInteger(ticket, ORDER_STATE) != ORDER_STATE_REJECTED
+            && !m_reconcile.SupersededCancellation(ticket, comment)) return true;
       }
       return false;
    }
@@ -110,11 +111,13 @@ private:
    {
       if(!Permissions()) return "Aktifkan Algo Trading / koneksi akun.";
       if(!model.Ready() || model.Mask() == 0) return "Pilih swing dan minimal satu level.";
+      for(int i = 0; i < FIBO_RATIOS; i++) m_reconcile.RefreshCancellation(Comment(model, i));
+      // Ticket lookups above replace the selected history list; select it anew.
       if(!HistorySelect(0, TimeCurrent())) return "History belum tersedia; tidak mengirim.";
       CFiboRisk risk; FiboRiskContext context; risk.ReadContext(model, context);
       double available = context.total_budget;
       // All uses the same equal shares as the preview. Retained reservations
-      // (including deselected/filled/cancelled levels) cap later retries too.
+      // (including deselected/filled levels) cap retries until unfilled deletion is proven.
       if(model.RiskAll())
       {
          double held = 0; int new_count = 0;
@@ -206,7 +209,9 @@ public:
       // Risk/SL/TP edits do not turn a previously sent anchor/ratio into a new order.
       string setup = IntegerToString((long)model.StartTime()) + "|" + DoubleToString(model.StartPrice(), _Digits)
                      + "|" + IntegerToString((long)model.EndTime()) + "|" + DoubleToString(model.EndPrice(), _Digits);
-      return "MF:" + Hash(setup) + ":" + IntegerToString(index);
+      string base = "MF:" + Hash(setup) + ":" + IntegerToString(index);
+      uint generation = m_reconcile.Generation(base);
+      return generation == 0 ? base : base + "-" + Hex(generation);
    }
    string Send(const CFiboModel &model, const bool use_tp)
    {
@@ -233,15 +238,22 @@ public:
          if(ticket == 0 || !Owned()) continue;
          long type = OrderGetInteger(ORDER_TYPE);
          if(type != ORDER_TYPE_BUY_LIMIT && type != ORDER_TYPE_SELL_LIMIT) continue;
+         string comment = OrderGetString(ORDER_COMMENT);
+         if(!m_reconcile.BeginDelete(comment, ticket))
+         { failed++; Print("manualFibo delete #", ticket, ": cannot save deletion intent"); continue; }
          MqlTradeRequest request = {}; MqlTradeResult result = {};
          request.action = TRADE_ACTION_REMOVE; request.order = ticket;
          request.symbol = _Symbol; request.magic = m_magic;
          bool ok = OrderSend(request, result);
+         m_reconcile.FinishDelete(comment, result);
          if(ok && result.retcode == TRADE_RETCODE_DONE) deleted++; else failed++;
          Print("manualFibo delete #", ticket, ": ", result.retcode, " ", result.comment);
       }
+      string reconciliation = m_reconcile.Poll();
+      if(reconciliation != "") Print("manualFibo: ", reconciliation);
       Release();
-      return "Deleted " + IntegerToString(deleted) + "; gagal " + IntegerToString(failed) + ". Lihat Experts.";
+      return "Deleted " + IntegerToString(deleted) + "; gagal " + IntegerToString(failed)
+             + (m_reconcile.Pending() ? "; menunggu konfirmasi." : ". Lihat Experts.");
    }
 };
 #endif

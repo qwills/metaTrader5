@@ -70,3 +70,8 @@ rounding each lot down. FiboRiskContext exposes total_budget separately from the
 per-level budget. State schema 5 saves this mode; schemas 1–4 load as Per level.
 The compact risk-row layout is enabled by manualFibo only; AutoFibo retains its
 existing layout and defaults. Execution/reconciliation remain EA-local.
+
+Risk basis is fixed by each EA: manualFibo configures BalanceRisk=true and
+AutoFibo retains the default equity basis. It is not a GUI option or serialized
+user preference. CopyFrom retains this configuration; state loading preserves
+the basis configured by the caller. Both use the same All/Per level calculations.

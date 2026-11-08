@@ -1,4 +1,4 @@
-# AutoFibo 3.03
+# AutoFibo 3.04
 
 Automatic Fibonacci EA, renamed from myFibo. Swing selection is always automatic;
 there is no Manual/Auto selector and no candle-click selection. Choose **Pivot**
@@ -80,7 +80,7 @@ from the Windows MT5 installation.
 Copy **Experts/AutoFibo**, **Include/_common/Fibo**, **Include/_common/Swing**, and
 **Include/_common/Structure** to the corresponding folders under MQL5. Remove the old
 myFibo EA from the chart; open Experts/AutoFibo/AutoFibo.mq5 in MetaEditor, press
-F7 and attach AutoFibo 3.03. Old myFibo chart state is not imported into the renamed
+F7 and attach AutoFibo 3.04. Old myFibo chart state is not imported into the renamed
 EA. The copy-only CMD does not delete older myFibo source/EX5 files automatically;
 you may remove those manually once AutoFibo works.
 
@@ -100,3 +100,6 @@ source builders are tools/package_autofibo.py and tools/package_manualfibo.py.
 Shared dependencies in 3.03 support risk-mode/state schema 5 for manualFibo.
 AutoFibo retains Per level preview behavior; its GUI has no new mode selector and
 it does not import manualFibo execution or reconciliation. Older snapshots load.
+
+Shared dependencies in 3.04 let manualFibo fix its risk basis to balance. AutoFibo
+continues to use equity and does not import the manual deletion/rearm engine.

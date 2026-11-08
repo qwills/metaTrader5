@@ -1,4 +1,4 @@
-manualFibo 1.19 - Windows (source)
+manualFibo 1.20 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.19 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.19 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.20 to a chart. Use a separate chart if running AutoFibo too.
 
 Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -25,7 +25,7 @@ Build checks on macOS use C++ adapters, not MetaEditor. F7, native GUI rendering
 panel drag/minimize, object edits, persistence and this CMD need Windows testing.
 
 RISK / LOT PREVIEW
-Default risk is 5 percent of current account equity. Per level applies that risk
+Default risk is 5 percent of current account balance (fixed basis). Per level applies that risk
 to each checked level; All shares one budget across the selected levels.
 Enter another percentage in the Risk box. Each level has an editable SL price,
 initially following the swing start. Finish editing to apply. Clear an SL field
@@ -77,7 +77,8 @@ Repeated clicks skip accepted setups/levels. Definite failures alone can retry.
 Timeouts/unknown results are blocked; inspect Experts/Trade/History first.
 Delete Orders cancels all manualFibo pending limits for the current symbol and
 OrderMagic, including previous setups. It does not close positions or touch stop
-orders/other EAs. Already sent/deleted levels remain blocked for that anchor setup.
+orders/other EAs. Since 1.20, wholly unfilled, confirmed cancellations rearm
+the level; filled/partial/failed/uncertain outcomes stay protected.
 Moving Fibonacci or removing the EA does not change submitted orders. TP choice
 survives timeframe changes. Details and duplicate-protection limits are in README.
 Verify sending/deleting, broker rejection/partial failure and timeframe behavior
@@ -108,3 +109,16 @@ reused; creation/acquisition failures are distinguished from a busy lock.
 Experts logs the lock key/value/error. Do not delete submission/risk records.
 If no operation is active but a session lock remains busy, restart the terminal;
 if still blocked, use the Experts diagnostic line to identify the problem.
+
+SOURCE 1.20: RESEND AFTER CONFIRMED DELETE / BALANCE RISK
+Copy the entire Experts/manualFibo folder and Include/_common/Fibo dependencies,
+then F7. Risk always uses account BALANCE; there is no Equity/Balance choice.
+All / Per level remains available, defaulting to Per level at 5%.
+Send -> Delete -> Send works on the same anchors only when exact-ticket history
+proves cancellation with no fills. Acknowledgement alone is insufficient. Partial
+fills, filled orders, failed deletes and uncertain outcomes remain protected.
+Pending deletion state survives reattach/restart. Per-level attempt counters keep
+old cancellation history/events from resolving a newer request. All frees only
+confirmed wholly cancelled risk reservations. Do not manually erase these records.
+F7 and demo validation for partial fills, delayed history and repeated cycles are
+still required on Windows. The Mac runner uses a fake broker, not MetaTrader.

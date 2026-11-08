@@ -60,9 +60,9 @@ public:
    }
    double Budget(const CFiboModel &model) const
    {
-      double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double budget = equity * (model.RiskPercent() / 100.0);
-      return MathIsValidNumber(equity) && equity > 0 && MathIsValidNumber(budget) && budget > 0 ? budget : 0;
+      double capital = AccountInfoDouble(model.BalanceRisk() ? ACCOUNT_BALANCE : ACCOUNT_EQUITY);
+      double budget = capital * (model.RiskPercent() / 100.0);
+      return MathIsValidNumber(capital) && capital > 0 && MathIsValidNumber(budget) && budget > 0 ? budget : 0;
    }
    void ReadContext(const CFiboModel &model, FiboRiskContext &context) const
    {

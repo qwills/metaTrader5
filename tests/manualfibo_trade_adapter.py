@@ -4,7 +4,7 @@ using uint=unsigned int;
 const int CHART_HEIGHT_IN_PIXELS=6200,CONTROLS_BORDER_WIDTH=1;
 const int ACCOUNT_MARGIN_FREE=20,ACCOUNT_SERVER=21,ACCOUNT_LOGIN=22,ACCOUNT_TRADE_ALLOWED=23,ACCOUNT_TRADE_EXPERT=24;
 const int TERMINAL_CONNECTED=30,TERMINAL_TRADE_ALLOWED=31,MQL_TRADE_ALLOWED=32;
-const int ORDER_MAGIC=40,ORDER_SYMBOL=41,ORDER_COMMENT=42,ORDER_STATE=43,ORDER_TYPE=44,ORDER_STATE_REJECTED=45;
+const int ORDER_MAGIC=40,ORDER_SYMBOL=41,ORDER_COMMENT=42,ORDER_STATE=43,ORDER_TYPE=44,ORDER_STATE_REJECTED=45,ORDER_STATE_CANCELED=46,ORDER_STATE_FILLED=47,ORDER_STATE_EXPIRED=48,ORDER_VOLUME_INITIAL=49,ORDER_VOLUME_CURRENT=54,ORDER_POSITION_ID=55;
 const int TRADE_ACTION_PENDING=50,TRADE_ACTION_REMOVE=51,ORDER_FILLING_RETURN=52,ORDER_TIME_GTC=53;
 const uint TRADE_RETCODE_PLACED=10008,TRADE_RETCODE_DONE=10009,TRADE_RETCODE_DONE_PARTIAL=10010,
  TRADE_RETCODE_ERROR=10011,TRADE_RETCODE_TIMEOUT=10012,TRADE_RETCODE_CONNECTION=10031,TRADE_RETCODE_LOCKED=10028,
@@ -22,7 +22,7 @@ const int TRADE_TRANSACTION_REQUEST=70,TRADE_TRANSACTION_ORDER_ADD=71,TRADE_TRAN
 struct MqlTradeTransaction{int type=0;ulong order=0;string symbol;};
 struct MqlTradeCheckResult{uint retcode=0;string comment;};
 template<class T>void ZeroMemory(T&v){v=T{};}
-struct FakeOrder{ulong ticket;MqlTradeRequest request;int state=0;};
+struct FakeOrder{ulong ticket;MqlTradeRequest request;int state=0;double remaining=-1;long position=0;};
 std::vector<FakeOrder> broker_orders,broker_history;
 std::vector<MqlTradeRequest> sent_requests;
 std::vector<uint> send_codes;
@@ -39,25 +39,26 @@ datetime TimeCurrent(){return 1800000000;}
 int GlobalVariablesTotal(){return terminal_globals.size();}
 string GlobalVariableName(int index){auto it=terminal_globals.begin();std::advance(it,index);return it->first;}
 double GlobalVariableGet(const string&key){return terminal_globals.count(key)?terminal_globals[key]:0;}
-int temp_create_calls=0;bool temp_create_failure=false,mutex_cas_failure=false,create_race=false;
+int temp_create_calls=0;bool temp_create_failure=false,mutex_cas_failure=false,create_race=false,generation_failure=false;
 bool GlobalVariableTemp(const string&key){++temp_create_calls;if(create_race){terminal_globals.emplace(key,0);create_race=false;return false;}if(temp_create_failure)return false;return terminal_globals.emplace(key,0).second;}
 bool GlobalVariableGet(const string&key,double&v){if(!terminal_globals.count(key))return false;v=terminal_globals[key];return true;}
 bool GlobalVariableSetOnCondition(const string&key,double v,double previous){if(mutex_cas_failure)return false;if(!terminal_globals.count(key)||terminal_globals[key]!=previous)return false;terminal_globals[key]=v;return true;}
-datetime GlobalVariableSet(const string&key,double v){if(marker_failure&&key.find("MF:")!=string::npos)return 0;terminal_globals[key]=v;return 1800000000;}
+datetime GlobalVariableSet(const string&key,double v){if(generation_failure&&key.find(".Gen")!=string::npos)return 0;if(marker_failure&&key.find("MF:")!=string::npos)return 0;terminal_globals[key]=v;return 1800000000;}
 bool GlobalVariableCheck(const string&key){return terminal_globals.count(key);}
 bool GlobalVariableDel(const string&key){return terminal_globals.erase(key)>0;}
 void GlobalVariablesFlush(){}
 int OrdersTotal(){return broker_orders.size();}
 bool OrderSelect(ulong ticket){++ticket_probes;for(size_t i=0;i<broker_orders.size();i++)if(broker_orders[i].ticket==ticket){order_selected=i;return true;}return false;}
 ulong OrderGetTicket(int i){++active_reads;order_selected=i;return broker_orders.at(i).ticket;}
-long OrderGetInteger(int prop){auto&o=broker_orders.at(order_selected);if(prop==ORDER_MAGIC)return o.request.magic;if(prop==ORDER_TYPE)return o.request.type;return o.state;}
+long OrderGetInteger(int prop){auto&o=broker_orders.at(order_selected);if(prop==ORDER_MAGIC)return o.request.magic;if(prop==ORDER_TYPE)return o.request.type;if(prop==ORDER_POSITION_ID)return o.position;return o.state;}
 string OrderGetString(int prop){auto&o=broker_orders.at(order_selected);return prop==ORDER_SYMBOL?o.request.symbol:o.request.comment;}
 bool HistorySelect(datetime,datetime){++history_scans;return history_allowed;}
 bool HistoryOrderSelect(ulong ticket){++ticket_probes;if(!history_allowed)return false;for(auto&o:broker_history)if(o.ticket==ticket)return true;return false;}
 int HistoryOrdersTotal(){return broker_history.size();}
 ulong HistoryOrderGetTicket(int i){return broker_history.at(i).ticket;}
 FakeOrder&HistoryFind(ulong ticket){for(auto&o:broker_history)if(o.ticket==ticket)return o;std::abort();}
-long HistoryOrderGetInteger(ulong ticket,int prop){auto&o=HistoryFind(ticket);if(prop==ORDER_MAGIC)return static_cast<long>(o.request.magic);if(prop==ORDER_TYPE)return o.request.type;return o.state;}
+long HistoryOrderGetInteger(ulong ticket,int prop){auto&o=HistoryFind(ticket);if(prop==ORDER_MAGIC)return static_cast<long>(o.request.magic);if(prop==ORDER_TYPE)return o.request.type;if(prop==ORDER_POSITION_ID)return o.position;return o.state;}
+double HistoryOrderGetDouble(ulong ticket,int prop){auto&o=HistoryFind(ticket);return prop==ORDER_VOLUME_INITIAL?o.request.volume:(o.remaining<0?o.request.volume:o.remaining);}
 string HistoryOrderGetString(ulong ticket,int prop){auto&o=HistoryFind(ticket);return prop==ORDER_SYMBOL?o.request.symbol:o.request.comment;}
 bool OrderCalcMargin(ENUM_ORDER_TYPE side,const string&,double,double,double&margin){assert(side==ORDER_TYPE_BUY||side==ORDER_TYPE_SELL);margin=margin_per_order;return !margin_failure;}
 bool OrderCheck(MqlTradeRequest&r,MqlTradeCheckResult&result){
@@ -72,7 +73,7 @@ bool OrderSend(MqlTradeRequest&r,MqlTradeResult&result){
   if(result.retcode==TRADE_RETCODE_DONE||result.retcode==TRADE_RETCODE_PLACED||result.retcode==TRADE_RETCODE_DONE_PARTIAL){result.order=next_ticket++;broker_orders.push_back({result.order,r,0});}
  }else{
   assert(r.action==TRADE_ACTION_REMOVE);
-  if(result.retcode==TRADE_RETCODE_DONE){for(auto it=broker_orders.begin();it!=broker_orders.end();++it)if(it->ticket==r.order){broker_history.push_back(*it);broker_orders.erase(it);break;}}
+  if(result.retcode==TRADE_RETCODE_DONE){for(auto it=broker_orders.begin();it!=broker_orders.end();++it)if(it->ticket==r.order){it->state=ORDER_STATE_CANCELED;broker_history.push_back(*it);broker_orders.erase(it);break;}}
  }
  result.comment="fake result";return send_return;
 }
@@ -80,7 +81,7 @@ bool OrderSend(MqlTradeRequest&r,MqlTradeResult&result){
 
 TRADE_TESTS = r'''
 void RunOrderChecks(){
- auto reset=[](){broker_orders.clear();broker_history.clear();sent_requests.clear();send_codes.clear();terminal_globals.clear();send_index=0;check_calls=0;check_fail_at=0;trading_allowed=true;history_allowed=true;margin_failure=false;marker_failure=false;send_return=true;free_margin=100000;bid=199;ask=200;point_size=.01;tick_size=.01;stops_level=0;equity=10000;volume_step=.01;volume_min=.01;volume_max=100;profit_failure=false;quote_failure=false;stops_failure=false;};
+ auto reset=[](){broker_orders.clear();broker_history.clear();sent_requests.clear();send_codes.clear();terminal_globals.clear();send_index=0;check_calls=0;check_fail_at=0;trading_allowed=true;history_allowed=true;margin_failure=false;marker_failure=false;send_return=true;free_margin=100000;bid=199;ask=200;point_size=.01;tick_size=.01;stops_level=0;equity=10000;balance=10000;volume_step=.01;volume_min=.01;volume_max=100;profit_failure=false;quote_failure=false;stops_failure=false;};
  reset();CFiboModel model;model.SetAnchors(100,100,200,200);CManualFiboOrders orders;Check(orders.Configure(11600101),"configure order identity");
  orders.Send(model,true);Check(sent_requests.size()==3&&broker_orders.size()==3,"single batch sends selected levels");
  for(auto&r:sent_requests)Check(r.type==ORDER_TYPE_BUY_LIMIT&&r.sl==100&&r.tp==200&&r.magic==11600101,"buy limit entry SL TP magic");
@@ -88,8 +89,8 @@ void RunOrderChecks(){
  model.SetRiskPercent(2);model.SetStop(2,90);orders.Send(model,false);Check(sent_requests.size()==3,"risk SL TP edits do not reset identity");
  CManualFiboOrders reloaded;reloaded.Configure(11600101);reloaded.Send(model,true);Check(sent_requests.size()==3,"new engine retains ledger");
  orders.Delete();Check(broker_orders.empty()&&sent_requests.size()==6,"delete all owned pending limits");
- orders.Send(model,true);Check(sent_requests.size()==6,"deletion does not rearm same setup");
- terminal_globals.clear();orders.Send(model,true);Check(sent_requests.size()==6,"history prevents resending cancelled setup after ledger loss");
+ orders.Send(model,true);Check(sent_requests.size()==9&&broker_orders.size()==3,"confirmed no-fill deletion rearms same setup");
+ terminal_globals.clear();orders.Send(model,true);Check(sent_requests.size()==9,"active new attempt prevents duplicate after ledger loss");
  reset();bid=50;ask=51;model.SetAnchors(101,200,201,100);model.ResetStop(2);orders.Send(model,false);Check(sent_requests.size()==3,"sell batch");
  for(auto&r:sent_requests)Check(r.type==ORDER_TYPE_SELL_LIMIT&&r.sl==200&&r.tp==0,"sell limit no TP");
  reset();model.SetAnchors(100,100,200,200);model.SetStop(4,199);orders.Send(model,true);Check(sent_requests.empty(),"invalid later level blocks all sends");model.ResetStop(4);
@@ -107,14 +108,14 @@ void RunOrderChecks(){
  reset();orders.Send(model,true);send_codes={TRADE_RETCODE_DONE,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE,TRADE_RETCODE_REJECT};orders.Delete();Check(broker_orders.size()==1,"failed deletion leaves order available for retry");orders.Delete();Check(broker_orders.empty(),"retry failed deletion");
  reset();
  // Actual GUI path, including a text edit whose end-edit event has not fired.
- Check(OnInit()==INIT_SUCCEEDED,"restart GUI for execution");g_model.CopyFrom(model);g_dialog.Refresh(g_model);g_chart.Draw(g_model);
+ Check(OnInit()==INIT_SUCCEEDED,"restart GUI for execution");g_model.CopyFrom(model);g_model.SetBalanceRisk(true);g_dialog.Refresh(g_model);g_chart.Draw(g_model);
  controls["manualFibo.Panel.Risk"]->Text("2");Action("Send",ON_CLICK);
  Check(sent_requests.size()==3&&g_model.RiskPercent()==2,"send button commits current risk text before submitting");
  Action("Delete",ON_CLICK);Check(broker_orders.empty(),"delete button routes to scoped deletion");
  double listed=0;for(int i=2;i<=4;i++)listed+=StringToDouble(controls["manualFibo.Panel.Loss"+IntegerToString(i)]->text);
  Check(listed>0&&listed<=600&&controls["manualFibo.Panel.Total"]->text.find(DoubleToString(listed,2)+" USD")!=string::npos,"combined loss follows displayed rows and downward rounding");
  g_dialog.UseTP(false);OnDeinit(REASON_CHARTCHANGE);Check(OnInit()==INIT_SUCCEEDED&&!g_dialog.UseTP(),"TP choice survives timeframe change");
- size_t before=sent_requests.size();Action("Send",ON_CLICK);Check(sent_requests.size()==before,"timeframe reinitialization does not resend setup");
+ size_t before=sent_requests.size();Action("Send",ON_CLICK);Check(sent_requests.size()==before+3,"confirmed deletion remains rearmed across timeframe change");Action("Send",ON_CLICK);Check(sent_requests.size()==before+3,"reattached active attempt cannot duplicate");Action("Delete",ON_CLICK);before=sent_requests.size();
  // Input validation must not erase unsaved edits on a send click.
  g_model.SetAnchors(300,100,400,200);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
  controls["manualFibo.Panel.Risk"]->Text("bad");Action("Send",ON_CLICK);Check(sent_requests.size()==before,"invalid live risk input blocks sending");
@@ -137,6 +138,32 @@ void RunOrderChecks(){
  reset();orders.Configure(11600101);mutex_cas_failure=true;lock_error=orders.Send(model,true);Check(sent_requests.empty()&&lock_error.find("Gagal mengambil lock")!=string::npos,"acquisition API failure with free lock differs from busy lock");mutex_cas_failure=false;
  for(auto &entry:terminal_globals)if(entry.first.find("Lock")!=string::npos)entry.second=1;
  lock_error=orders.Send(model,true);Check(sent_requests.empty()&&lock_error.find("masih aktif")!=string::npos,"held mutex remains blocked without reset");
+ // Confirmed no-fill cancellation opens a fresh attempt and frees All reservations.
+ reset();orders.Configure(11600101);model.SetRiskAll(true);model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskPercent(5);model.SetBalanceRisk(true);
+ for(int cycle=0;cycle<3;cycle++){
+  size_t start=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==start+3&&broker_orders.size()==3,"All send/delete/send cycles can reuse the same anchors");
+  double sum=0;for(auto&o:broker_orders){double profit=0;OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,o.request.volume,o.request.price,o.request.sl,profit);sum-=profit;}
+  Check(sum>0&&sum<=500,"All cancelled reservations do not accumulate across cycles");orders.Delete();Check(broker_orders.empty(),"cycle deletes pending entries");
+ }
+ Check(broker_history.front().request.comment!=broker_history.back().request.comment,"rearmed attempts use distinct comments");
+ // A rejected deletion cannot rearm its level, but other confirmed levels may retry.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_DONE,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE,TRADE_RETCODE_REJECT,TRADE_RETCODE_DONE,TRADE_RETCODE_DONE};orders.Send(model,true);orders.Delete();Check(broker_orders.size()==1,"failed delete stays active");size_t change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change+2&&broker_orders.size()==3,"only successfully cancelled levels rearm");
+ double held_total=0;for(auto&o:broker_orders){double profit=0;OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,o.request.volume,o.request.price,o.request.sl,profit);held_total-=profit;}Check(held_total<=500,"All retains risk of failed deletion while reusing freed shares");
+ // Partial fill, even if its remaining pending volume is cancelled, stays protected.
+ reset();orders.Configure(11600101);model.SetMask(1<<2);orders.Send(model,true);broker_orders[0].remaining=broker_orders[0].request.volume/2;broker_orders[0].position=987;orders.Delete();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change,"partial fill cancellation cannot reopen level");
+ reset();orders.Configure(11600101);orders.Send(model,true);auto filled=broker_orders[0];filled.state=ORDER_STATE_FILLED;filled.remaining=0;filled.position=988;broker_history.push_back(filled);broker_orders.clear();orders.Delete();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change,"filled position cannot be resent or closed by Delete");
+ // Timeout cancellation persists through reattach and resolves only from exact history.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_DONE,TRADE_RETCODE_TIMEOUT};orders.Send(model,true);orders.Delete();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change,"uncertain active deletion blocks resend");
+ auto cancelled=broker_orders[0];cancelled.state=ORDER_STATE_CANCELED;broker_history.push_back(cancelled);broker_orders.clear();CManualFiboOrders cancellation_recovery;cancellation_recovery.Configure(11600101);Check(cancellation_recovery.Reconcile().find("1 siap dikirim ulang")!=string::npos,"restart recovers a late confirmed deletion");cancellation_recovery.Send(model,true);Check(sent_requests.size()==change+1,"recovered cancellation permits explicit new send");
+ // Successful removal acknowledgement without accessible history is insufficient.
+ reset();orders.Configure(11600101);orders.Send(model,true);history_allowed=false;orders.Delete();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change,"missing cancellation history fails closed");history_allowed=true;orders.Send(model,true);Check(sent_requests.size()==change+1,"exact cancelled history permits send when it becomes available");
+ // Old cancelled history must not resolve a newer timed-out attempt with the same anchors.
+ reset();orders.Configure(11600101);send_codes={TRADE_RETCODE_DONE,TRADE_RETCODE_DONE,TRADE_RETCODE_TIMEOUT};orders.Send(model,true);orders.Delete();orders.Send(model,true);change=sent_requests.size();orders.Reconcile();orders.Send(model,true);Check(sent_requests.size()==change,"old attempt cancellation cannot confirm a newer unknown submission");
+ // Counter persistence failure cannot free risk or allow a new attempt.
+ reset();orders.Configure(11600101);orders.Send(model,true);generation_failure=true;orders.Delete();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change,"generation write failure blocks rearming");generation_failure=false;orders.Send(model,true);Check(sent_requests.size()==change+1,"generation write recovery completes cancellation proof");
+ // Fixed Balance basis: floating equity changes never alter manual risk.
+ reset();model.SetBalanceRisk(true);model.SetRiskAll(false);balance=8000;equity=16000;CFiboRisk balance_calc;FiboRiskContext balance_ctx;balance_calc.ReadContext(model,balance_ctx);Check(balance_ctx.total_budget==400&&balance_ctx.budget==400,"manual per-level risk uses balance rather than equity");equity=1;balance_calc.ReadContext(model,balance_ctx);Check(balance_ctx.total_budget==400,"floating equity does not change balance budget");model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskAll(true);balance_calc.ReadContext(model,balance_ctx);Check(balance_ctx.total_budget==400&&std::abs(balance_ctx.budget-400./3)<1e-10,"All divides a balance-based budget");
+ model.SetBalanceRisk(false);
  // Risk modes use one equity snapshot and fixed equal shares before broker rounding.
  reset();model.SetMask(FIBO_DEFAULT_MASK);model.SetRiskPercent(5);model.SetRiskAll(true);
  CFiboRisk calc;FiboRiskContext ctx;calc.ReadContext(model,ctx);Check(ctx.total_budget==500&&std::abs(ctx.budget-500./3)<1e-10,"All equal shares from one total budget");
@@ -187,8 +214,12 @@ void RunOrderChecks(){
  // Reproduce native zero-value substitution that the old fake missed.
  CComboBox native_values;native_values.AddItem("All",1);native_values.AddItem("Per level",0);
  Check(!native_values.SelectByValue(0),"zero-valued second item becomes its index, reproducing old startup failure");
+ // Old saved-ticket cancellations (from 1.19) recover on Send without clearing globals.
+ reset();orders.Configure(11600101);model.SetRiskAll(true);model.SetBalanceRisk(true);model.SetMask(FIBO_DEFAULT_MASK);orders.Send(model,true);for(auto&o:broker_orders){o.state=ORDER_STATE_CANCELED;broker_history.push_back(o);}broker_orders.clear();change=sent_requests.size();orders.Send(model,true);Check(sent_requests.size()==change+3,"pre-update full cancellations recover from saved exact tickets");
+ // Risk basis is fixed EA configuration, preserved by loading rather than a user field.
+ CFiboModel balance_model;balance_model.SetBalanceRisk(true);balance_model.SetAnchors(100,100,200,200);CFiboState basis_state;basis_state.SetPrefix("BasisTest.");Check(basis_state.Save(balance_model,_Symbol),"save fixed basis fixture");CFiboModel basis_loaded;basis_loaded.SetBalanceRisk(true);Check(basis_state.Load(basis_loaded,_Symbol)&&basis_loaded.BalanceRisk(),"snapshot loading preserves fixed manual Balance configuration");ObjectDelete(0,"BasisTest.State");
  // GUI mode selection and compact amount layout, with timeframe persistence.
- reset();Check(OnInit()==INIT_SUCCEEDED,"restart GUI for risk modes");Check(!g_dialog.RiskAll(),"positive unique IDs retain Per level startup default");g_model.CopyFrom(model);g_model.SetRiskAll(false);g_dialog.SyncRiskMode(g_model);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
+ reset();Check(OnInit()==INIT_SUCCEEDED,"restart GUI for risk modes");Check(g_model.BalanceRisk(),"manual OnInit fixes Balance basis after prior equity models");Check(!g_dialog.RiskAll(),"positive unique IDs retain Per level startup default");g_model.CopyFrom(model);g_model.SetBalanceRisk(true);g_model.SetRiskAll(false);g_dialog.SyncRiskMode(g_model);g_chart.Draw(g_model);g_dialog.Refresh(g_model);
  auto*mode=static_cast<CComboBox*>(controls["manualFibo.Panel.RiskMode"]);mode->SelectByValue(MANUAL_RISK_ALL);Action("RiskMode",ON_CHANGE);Check(g_model.RiskAll(),"All selector commits to model");
  Check(controls["manualFibo.Panel.Budget"]->text=="500.00","compact amount has no Budget label or currency text");
  auto*risk_input=controls["manualFibo.Panel.Risk"];auto*amount=controls["manualFibo.Panel.Budget"];Check(risk_input->m_rect.right-risk_input->m_rect.left==56&&risk_input->m_rect.right<amount->m_rect.left,"smaller risk field beside amount");

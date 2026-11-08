@@ -282,3 +282,25 @@ The old short-circuit expression combined create and acquire and returned a busy
 message for either failure. Tests now include creation failure on an existing
 variable, repeated actions, competing charts and a concurrent creation race;
 these are compatibility/failure simulations, not proof of the user's exact error.
+
+## manualFibo 1.20: cancellation proof and fixed balance risk
+
+ManualFibo fixes CFiboModel.BalanceRisk to true in OnInit. AutoFibo keeps false
+(equity). This is EA configuration, not a GUI option; CopyFrom/state loading
+preserve the caller's basis. The codec schema stays 5: there is no new user field.
+The compact shared risk label reads % Balance only for manualFibo.
+
+Deletion intent marker 3 persists the exact ticket before TRADE_ACTION_REMOVE.
+A result code alone cannot rearm it. Poll/explicit Send checks owned exact-ticket
+history: ORDER_STATE_CANCELED, positive ORDER_VOLUME_INITIAL equal to
+ORDER_VOLUME_CURRENT, and ORDER_POSITION_ID=0. Any partial fill, missing data or
+uncertain result retains duplicate protection and All risk reservations.
+Source: [Order properties](https://www.mql5.com/en/docs/constants/tradingconstants/orderproperties).
+
+A durable .Gen per base setup/ratio advances only on this proof, before old
+metadata is removed. New attempts append an eight-hex-digit generation suffix to
+the MF: comment (30 characters total). Old wholly cancelled generations alone
+are ignored by history deduplication; active and filled/partial histories stay
+protected across generations. Reconciliation matches the exact attempt comment
+and ticket, so old cancellation evidence cannot accept a new unknown submission.
+Native history volumes, partial fills and event ordering still need demo tests.

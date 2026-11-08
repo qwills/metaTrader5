@@ -51,7 +51,7 @@ public:
          if(mask < 0 || mask > 255) return false;
          mask = (mask >> 1) & 63;
       }
-      CFiboModel candidate;
+      CFiboModel candidate; candidate.SetBalanceRisk(model.BalanceRisk());
       if(!candidate.SetMask(mask)) return false;
       candidate.SetLocked(fields[3] == "1");
       if(fields[4] == "1"

@@ -31,3 +31,8 @@ manualFibo 1.17 checks also cover All/Per level aggregate caps, partial-retry ri
 reservations, compact risk controls, risk-mode persistence, matched/mismatched
 transaction IDs, no scans inside the event handler, idle backoff, startup/history
 recovery and exact 64-bit ticket reconstruction. All broker APIs are simulated.
+
+manualFibo 1.20 adds fixed-balance versus floating-equity checks, repeated
+send/delete/send cycles, partial/filled protection, delayed cancellation history,
+restart recovery, distinct attempt identities and All reservation release tests.
+The broker fixture models cancelled state and remaining volume explicitly.
