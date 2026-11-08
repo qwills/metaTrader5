@@ -13,7 +13,7 @@ Experts/
   exeMyCalc/       Market BUY/SELL, SL per sisi, lot dihitung dari risiko
   EA1/            Alat menggambar Fibonacci (tanpa pengiriman order)
   myFibo/         Manual/Auto Pivot atau Market Structure, TF chart otomatis, tiga level fibo
-  manualFibo/     Manual saja, checkbox enam rasio Fibonacci termasuk 88.6%
+  manualFibo/     Manual, enam rasio, SL per level dan lot berdasarkan % equity
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/

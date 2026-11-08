@@ -28,6 +28,7 @@ Jika suatu signature berbeda, periksa header terminal yang dipakai untuk F7.
 | --- | --- |
 | Dialog dan application dialog | `Controls\Dialog.mqh` |
 | Bingkai group | `Controls\Panel.mqh` (`CPanel`) |
+| Input harga/risiko | `Controls\Edit.mqh` (`CEdit`) |
 | Tombol / label | `Controls\Button.mqh`, `Controls\Label.mqh` |
 | Pilihan / checkbox / angka | `Controls\ComboBox.mqh`, `Controls\CheckBox.mqh`, `Controls\SpinEdit.mqh` |
 | Informasi chart / objek chart | `Charts\`, `Objects\` |
@@ -133,3 +134,19 @@ manualFibo 1.04 memakai lima segmen CPanel tipis per group, dengan fill/border
 abu-abu yang sama. Bagian atas terputus di area judul; CLabel judul tetap
 transparan tanpa panel latar. Semua segmen dan kontrol terdaftar satu kali pada
 dialog sehingga native drag/minimize/restore tetap mengurus seluruh GUI.
+
+## Input dan estimasi lot manualFibo 1.10
+
+CEdit dibuat dengan Create, ReadOnly(false), Text dan Add. EA meneruskan semua
+chart event ke CAppDialog satu kali. Setelah pemrosesan native, dialog menangkap
+CHARTEVENT_OBJECT_ENDEDIT untuk mengkomit risk/SL. Timer hanya memperbarui hasil
+lot/ekuitas, bukan teks edit yang mungkin sedang diketik. Parser menolak teks
+numerik parsial seperti 2abc dan koma desimal; gunakan titik desimal.
+
+[OrderCalcProfit](https://www.mql5.com/en/docs/trading/ordercalcprofit) menerima
+ORDER_TYPE_BUY/SELL, symbol, volume, entry, exit dan output profit; hasilnya dalam
+mata uang akun. Kalkulator mengambil ACCOUNT_EQUITY dan SYMBOL_VOLUME_MIN/MAX/STEP
+serta SYMBOL_TRADE_TICK_SIZE dari terminal. Referensi volume memakai minimum
+broker, lalu hasil akhir diverifikasi lagi agar estimasi loss tidak di atas
+budget. Ini bukan validasi margin/order, dan tidak menyertakan biaya/slippage.
+Signature CEdit: [dokumentasi resmi](https://www.mql5.com/en/docs/standardlibrary/controls/cedit).

@@ -11,10 +11,33 @@ ROOT = Path(__file__).resolve().parents[1]
 EXTRA = r'''
 const int OBJ_ALL_PERIODS=0x1fffff;
 const int BORDER_FLAT=0,clrSilver=0xc0c0c0;
+const int CHARTEVENT_OBJECT_ENDEDIT=6100,ACCOUNT_EQUITY=1,ACCOUNT_CURRENCY=2;
+const int SYMBOL_VOLUME_STEP=1,SYMBOL_VOLUME_MIN=2,SYMBOL_VOLUME_MAX=3,SYMBOL_TRADE_TICK_SIZE=4;
+enum ENUM_ORDER_TYPE {ORDER_TYPE_BUY,ORDER_TYPE_SELL};
+using ushort=unsigned short;
+double equity=10000,volume_step=.01,volume_min=.01,volume_max=100,tick_size=.00001,profit_factor=100;
+bool profit_failure=false;int profit_calls=0;
+double AccountInfoDouble(int){return equity;}
+string AccountInfoString(int){return "USD";}
+double SymbolInfoDouble(const string&,int prop){
+ if(prop==SYMBOL_VOLUME_STEP)return volume_step;if(prop==SYMBOL_VOLUME_MIN)return volume_min;
+ if(prop==SYMBOL_VOLUME_MAX)return volume_max;return tick_size;
+}
+bool OrderCalcProfit(ENUM_ORDER_TYPE side,const string&,double volume,double entry,double close,double&profit){
+ ++profit_calls;if(profit_failure||volume<volume_min-1e-12||volume>volume_max+1e-12)return false;
+ profit=(close-entry)*volume*profit_factor*(side==ORDER_TYPE_BUY?1:-1);return true;
+}
+double MathRound(double v){return std::round(v);}double MathFloor(double v){return std::floor(v);}
+double MathMin(double a,double b){return std::min(a,b);}
+double NormalizeDouble(double v,int digits){double scale=std::pow(10.,digits);return std::round(v*scale)/scale;}
+int StringTrimLeft(string&s){auto old=s.size();s.erase(0,s.find_first_not_of(" \t\r\n"));return old-s.size();}
+int StringTrimRight(string&s){auto old=s.size();auto last=s.find_last_not_of(" \t\r\n");s.erase(last==string::npos?0:last+1);return old-s.size();}
+ushort StringGetCharacter(const string&s,int i){return s.at(i);}
 '''
 # The native GUI implementation is supplied by the user's terminal. Model only
 # the documented lifecycle, forwarding and geometry needed by controller tests.
 UI = UI_STUB + r'''
+struct CEdit:CWnd {bool ReadOnly(bool){return true;}};
 struct CPanel:CWnd {
  bool BorderType(int){return true;}
  bool ColorBackground(int){return true;}
@@ -36,10 +59,14 @@ TESTS = r'''
 void Check(bool ok,const char*label){if(!ok){std::cerr<<"FAIL: "<<label<<'\n';std::abort();}}
 void Action(const string&control,int event){long id=controls["manualFibo.Panel."+control]->Id();OnChartEvent(CHARTEVENT_CUSTOM+event,id,0,"");}
 void Tick(int index,bool enabled){static_cast<CCheckBox*>(controls["manualFibo.Panel.Level"+IntegerToString(index)])->Checked(enabled);Action("Level"+IntegerToString(index),ON_CHANGE);}
+void Edit(const string&control,const string&text){
+ controls["manualFibo.Panel."+control]->Text(text);
+ OnChartEvent(CHARTEVENT_OBJECT_ENDEDIT,0,0,"manualFibo.Panel."+control);
+}
 void Click(int x,int y){OnChartEvent(CHARTEVENT_CLICK,x,y,"");}
 int main(){
  Check(OnInit()==INIT_SUCCEEDED,"initialize");
- Check(g_dialog.children.size()==24&&controls.size()==25,"unique control registration");
+ Check(g_dialog.children.size()==56&&controls.size()==57,"unique control registration");
  for(size_t i=0;i<g_dialog.children.size();i++){
   auto*a=g_dialog.children[i];
   Check(a->name.find(".Background")==string::npos,"no title background objects");
@@ -47,7 +74,7 @@ int main(){
    auto*b=g_dialog.children[j];Check(a->Id()!=b->Id()&&a->name!=b->name,"unique IDs and names");
   }
  }
- for(const string &group:{string("Swing"),string("Fibo")}){
+ for(const string &group:{string("Swing"),string("Risk"),string("Fibo")}){
   auto*title=controls["manualFibo.Panel."+group+"Title"];
   auto*left=controls["manualFibo.Panel."+group+"Group.TopLeft"];
   auto*right=controls["manualFibo.Panel."+group+"Group.TopRight"];
@@ -62,11 +89,12 @@ int main(){
  Check(redraw_count==redraws,"unchanged status does not redraw");
  Check(controls.count("manualFibo.Panel.Direction")==0,"direction control stays removed");
  Check(!g_model.Ready()&&!g_model.Locked()&&g_model.Mask()==28,"default mask/unlocked");
+ Check(g_model.RiskPercent()==5&&controls["manualFibo.Panel.Risk"]->text=="5","default 5 percent equity risk");
  Check(controls.count("manualFibo.Panel.Level5")==1&&controls["manualFibo.Panel.Level5"]->text=="88.6%: -","88.6 checkbox");
  Check(controls.count("manualFibo.Panel.Mode")==0,"manual-only dialog");
- int calls=native_calls,writes=object_writes;
+ int calls=native_calls,writes=object_writes,profits=profit_calls;
  for(int i=0;i<1000;i++)OnChartEvent(CHARTEVENT_MOUSE_MOVE,550,700,"0");
- Check(native_calls==calls+1000&&copy_calls==0&&object_writes==writes,"mouse dispatch has no redraw/data work");
+ Check(native_calls==calls+1000&&copy_calls==0&&object_writes==writes&&profit_calls==profits,"mouse dispatch has no redraw/data work");
  geometry_enabled=true;ArrayResize(history,12);
  for(int i=0;i<12;i++){history[i]={};history[i].time=1700000000+i*60;history[i].high=10+i;history[i].low=1+i;}
  Action("Draw",ON_CLICK);Check(g_selection==MANUAL_START,"start selection");
@@ -75,6 +103,20 @@ int main(){
  Click(110,890);Check(g_selection==MANUAL_END&&!g_model.Ready(),"equal endpoint rejected");
  Click(190,810);Check(g_model.Ready()&&g_model.StartPrice()==11&&g_model.EndPrice()==19,"manual candle anchors");
  Check(g_selection==MANUAL_IDLE&&!g_scroll_locked,"selection restores scrolling");
+ for(int i=0;i<6;i++)Check(g_model.StopPrice(i)==11&&!g_model.StopCustom(i),"SL defaults to swing start");
+ Check(controls["manualFibo.Panel.SL2"]->text=="11.00000","SL price displayed");
+ Edit("SL2","11.00000");Check(!g_model.StopCustom(2),"focus without change does not freeze default SL");
+ Check(controls["manualFibo.Panel.Lot2"]->text=="1.25"&&controls["manualFibo.Panel.Loss2"]->text=="500.00","5 percent lot preview at 50 percent entry");
+ Edit("Risk","2");Check(g_model.RiskPercent()==2&&controls["manualFibo.Panel.Lot2"]->text=="0.50","risk edit recalculates lots");
+ Edit("SL2","13");Check(g_model.StopCustom(2)&&g_model.StopPrice(2)==13&&controls["manualFibo.Panel.Lot2"]->text=="1.00","custom SL recalculates only that row");
+ Edit("Risk","2oops");Check(g_model.RiskPercent()==2&&controls["manualFibo.Panel.Risk"]->text=="2","malformed risk restored");
+ Edit("SL2","0");Check(g_model.StopPrice(2)==13&&controls["manualFibo.Panel.SL2"]->text=="13.00000","invalid SL text restored");
+ Edit("SL2","15");Check(controls["manualFibo.Panel.Lot2"]->text=="SL invalid","SL equal to entry has no lot");
+ Edit("SL2","");Check(!g_model.StopCustom(2)&&g_model.StopPrice(2)==11,"cleared SL resumes default");
+ Edit("SL5","12");Check(g_model.StopCustom(5)&&controls["manualFibo.Panel.Lot5"]->text=="-","disabled row can keep a custom SL");
+ controls["manualFibo.Panel.SL2"]->Text("draft");equity=20000;OnTimer();
+ Check(controls["manualFibo.Panel.Lot2"]->text=="1.00"&&controls["manualFibo.Panel.SL2"]->text=="draft","timer updates equity without overwriting unfinished edits");
+ equity=10000;Edit("SL2","");
  string name=g_chart.Name();auto &node=Objects()[name];
  Check(node.ints[{OBJPROP_LEVELS,0}]==3&&node.ints[{OBJPROP_BACK,0}]==1,"default black background object levels");
  Tick(5,true);Check(g_model.Enabled(5)&&node.ints[{OBJPROP_LEVELS,0}]==4,"enable 88.6");
@@ -90,6 +132,8 @@ int main(){
  node.prices[0]=25;node.prices[1]=10;
  OnChartEvent(CHARTEVENT_OBJECT_DRAG,0,0,name);
  Check(g_model.StartPrice()==25&&g_model.EndPrice()==10&&std::abs(g_model.Price(5)-23.29)<1e-12,"native bearish edit recalculates");
+ Check(g_model.StopPrice(2)==25&&g_model.StopPrice(5)==12&&controls["manualFibo.Panel.Lot5"]->text=="SL invalid","default SL follows anchors, custom remains fixed with direction validation");
+ Edit("SL5","");Check(g_model.StopPrice(5)==25&&!g_model.StopCustom(5),"restore bearish default");
  node.prices[1]=25;OnChartEvent(CHARTEVENT_OBJECT_CHANGE,0,0,name);
  Check(g_model.EndPrice()==10&&Objects()[name].prices[1]==10,"invalid native edit restored");
  auto *lock=static_cast<CCheckBox*>(controls["manualFibo.Panel.Lock"]);
@@ -103,21 +147,25 @@ int main(){
  OnChartEvent(CHARTEVENT_KEYDOWN,27,0,"");
  Check(g_model.StartPrice()==25&&g_model.EndPrice()==10&&g_selection==MANUAL_IDLE&&!g_scroll_locked,"cancel keeps previous drawing");
  lock->Checked(true);Action("Lock",ON_CHANGE);
- g_dialog.m_rect={50,70,450,570};int mask=g_model.Mask();
+ Edit("SL3","30");
+ g_dialog.m_rect={50,70,670,644};int mask=g_model.Mask();
  OnDeinit(REASON_CHARTCHANGE);_Period=PERIOD_H4;
  Check(OnInit()==INIT_SUCCEEDED&&g_model.StartPrice()==25&&g_model.EndPrice()==10&&g_model.Mask()==mask,"timeframe handoff retains anchors/ratios");
  Check(g_model.Locked()&&g_dialog.AnchorLocked(),"lock survives timeframe change");
+ Check(g_model.RiskPercent()==2&&g_model.StopCustom(3)&&g_model.StopPrice(3)==30,"risk and SL override survive timeframe change");
  Check(g_dialog.m_rect.left==50&&g_dialog.m_rect.top==70,"native GUI position loaded");
  Check(g_storage.Save(g_model,_Symbol),"create legacy handoff fixture");
  CManualFiboModel legacy;
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"1|EURUSD|255|0|1|100|25|200|10");
- Check(g_storage.Load(legacy,_Symbol)&&legacy.Mask()==63&&legacy.StartPrice()==25,"legacy mask migration drops endpoint bits");
+ Check(g_storage.Load(legacy,_Symbol)&&legacy.Mask()==63&&legacy.StartPrice()==25&&legacy.RiskPercent()==5&&legacy.CustomStops()==0,"legacy mask migration drops endpoint bits");
  CManualFiboModel loaded;Check(g_storage.Save(g_model,_Symbol),"save state");
  Check(!g_storage.Load(loaded,"GBPUSD"),"symbol mismatch rejected");
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"2|EURUSD|64|0|0|0|0|0|0");
  Check(!g_storage.Load(loaded,_Symbol),"invalid mask rejected");
  ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"2|EURUSD|28|0|1|100|bad|200|10");
- Check(!g_storage.Load(loaded,_Symbol),"malformed numeric state rejected");g_storage.Consume();
+ Check(!g_storage.Load(loaded,_Symbol),"malformed numeric state rejected");
+ ObjectSetString(0,"manualFibo.State",OBJPROP_TEXT,"3|EURUSD|28|0|1|100|100|200|200|101|0|0|0|0|0|0|0");
+ Check(!g_storage.Load(loaded,_Symbol),"invalid saved risk rejected");g_storage.Consume();
  ObjectDelete(0,name);OnChartEvent(CHARTEVENT_OBJECT_DELETE,0,0,name);
  Check(!g_model.Ready(),"native deletion clears display/model");
  Action("Reset",ON_CLICK);Check(g_model.Mask()==mask&&!g_model.Ready(),"reset retains ratio choices");
@@ -128,7 +176,21 @@ int main(){
  OnChartEvent(CHARTEVENT_KEYDOWN,27,0,"");Check(!ChartGetInteger(0,CHART_MOUSE_SCROLL),"preexisting disabled scrolling restored");
  OnDeinit(REASON_REMOVE);Check(Objects().empty(),"removal clears owned objects");
  Check(CFibonacci().LevelCount()==7,"shared Fibonacci defaults unchanged");
- std::cout<<"PASS: manual candle geometry, ratio checkboxes/88.6, native edits, lock/cancel, rollback, timeframe handoff and cleanup.\n";
+ CManualFiboModel risk_model;risk_model.SetAnchors(100,100,200,200);risk_model.SetMask(63);
+ CManualFiboRisk calculator;ManualFiboLot result;
+ Check(calculator.Calculate(risk_model,2,result)&&result.volume==.1&&result.loss<=500,"risk estimate respects budget");
+ equity=1;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0&&result.error=="Min lot","minimum lot is never rounded up");
+ equity=10000;profit_factor=1;volume_step=.25;volume_min=.25;volume_max=10;risk_model.SetRiskPercent(.3);
+ Check(calculator.Calculate(risk_model,2,result)&&result.volume==.5&&result.loss==25,"nondecimal volume step rounds down");
+ volume_max=.4;Check(calculator.Calculate(risk_model,2,result)&&result.volume==.25,"maximum volume cap respects step");
+ tick_size=.25;risk_model.SetStop(2,100.14);
+ Check(calculator.Calculate(risk_model,2,result)&&result.stop==100.25,"prices normalized to symbol tick");
+ profit_failure=true;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0&&result.error=="Data?","calculation failure clears preview");
+ profit_failure=false;volume_step=0;Check(!calculator.Calculate(risk_model,2,result)&&result.volume==0,"invalid symbol metadata rejected");
+ double parsed=99;Check(!ManualFiboParseNumber("1,5",parsed)&&parsed==99&&!ManualFiboParseNumber("nan",parsed),"strict decimal parser");
+ Check(!risk_model.SetRiskPercent(101)&&!risk_model.SetRiskPercent(-1),"risk percentage bounds");
+ Check(!timer,"timer stopped on removal");
+ std::cout<<"PASS: manual geometry/GUI, per-level SL, equity risk and lot rounding, native edits, input validation, timer and timeframe persistence.\n";
 }
 '''
 
@@ -138,7 +200,7 @@ def main():
     if not compiler:
         raise SystemExit('C++17 compiler required.')
     names = ['Include/Fibo/Fibonacci.mqh', 'Experts/manualFibo/ManualFiboModel.mqh',
-             'Experts/manualFibo/ManualFiboDialog.mqh', 'Experts/manualFibo/ManualFiboChart.mqh',
+             'Experts/manualFibo/ManualFiboRisk.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh', 'Experts/manualFibo/ManualFiboChart.mqh',
              'Experts/manualFibo/ManualFiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
     platform = PLATFORM.replace('void ChartRedraw(int=0){}', 'int redraw_count=0;void ChartRedraw(int=0){++redraw_count;}')
     # MQL accepts fixed arrays through array references; use an equivalent fixed

@@ -1,5 +1,15 @@
 # manualFibo changelog
 
+## 1.10
+
+- Add editable risk percentage of account equity, default 5%, and per-level SL prices.
+- Untouched SLs follow the swing start; manual overrides persist until cleared/reset.
+- Show independent lot and estimated-loss previews for checked levels using
+  OrderCalcProfit, tick-size normalization and downward volume-step rounding.
+- Refresh equity-based estimates on a timer without overwriting edits in progress.
+- Preserve risk/SL settings across timeframe changes and read older state schemas.
+- Keep order submission outside this calculator; no trading controls were added.
+
 ## 1.04
 
 - Replace filled group/title panels with thin border segments and transparent titles.

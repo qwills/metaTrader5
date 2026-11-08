@@ -1,4 +1,4 @@
-manualFibo 1.04 - Windows (source)
+manualFibo 1.10 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.04 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.04 to a chart. Use a separate chart if running myFibo too.
+5. Attach manualFibo 1.10 to a chart. Use a separate chart if running myFibo too.
 
 Package includes Experts/manualFibo, Include/Fibo/Fibonacci.mqh, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -23,3 +23,20 @@ Timeframe changes preserve completed anchors/choices and cancel pending selectio
 
 Build checks on macOS use C++ adapters, not MetaEditor. F7, native GUI rendering,
 panel drag/minimize, object edits, persistence and this CMD need Windows testing.
+
+RISK / LOT PREVIEW
+Default risk is 5 percent of current account equity, applied PER checked level.
+Enter another percentage in the Risk box. Each level has an editable SL price,
+initially following the swing start. Finish editing to apply. Clear an SL field
+to resume following the swing start. Edited SLs remain fixed when anchors move.
+Checked levels show lots and estimated loss in account currency. SL must be on
+the loss side of entry; invalid stops and insufficient minimum-lot risk show a
+message instead of lots. Risk/custom SL settings survive timeframe changes.
+Reset clears SL overrides while retaining risk/ratio choices.
+
+Calculations normalize prices to symbol tick size and round lots down. They do
+not include commissions, swap, slippage/gaps, margin checks or existing exposure.
+Risk is independent per row, so multiple orders can exceed the displayed budget.
+This release calculates lots for manual use and does not submit orders.
+In Windows verify SL/risk editing, BUY/SELL estimates, broker data and account-
+currency conversion, timeframe persistence, timer refresh and input focus.

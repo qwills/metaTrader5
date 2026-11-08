@@ -1,6 +1,6 @@
 #property strict
-#property version "1.04"
-#property description "Manual candle Fibonacci with selectable ratios, including 88.6%."
+#property version "1.10"
+#property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboChart.mqh"
 #include "ManualFiboState.mqh"
@@ -79,7 +79,7 @@ int OnInit(void)
    g_saved_delete = (bool)ChartGetInteger(0, CHART_EVENT_OBJECT_DELETE);
    g_init_scroll = (bool)ChartGetInteger(0, CHART_MOUSE_SCROLL); g_events_saved = true;
    g_dialog.Minimized(false);
-   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 412, 446)) return INIT_FAILED;
+   if(!g_dialog.Create(0, "manualFibo.Panel", 0, 12, 24, 632, 598)) return INIT_FAILED;
    g_created = true; g_dialog.Refresh(g_model);
    if(!g_dialog.Run()) return INIT_FAILED;
    if(restoring) g_dialog.IniFileLoad();
@@ -87,10 +87,12 @@ int OnInit(void)
    g_storage.Consume();
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
    ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
+   if(!EventSetTimer(1)) return INIT_FAILED;
    Status("Klik Pilih Swing."); ChartRedraw(); return INIT_SUCCEEDED;
 }
 void OnDeinit(const int reason)
 {
+   EventKillTimer();
    if(g_created) g_dialog.CancelDrag();
    // Capture the final native edit even if a pending drag event was not delivered.
    if(g_created && g_model.Ready() && !g_model.Locked() && g_chart.HasFibo())
@@ -110,6 +112,11 @@ void OnDeinit(const int reason)
    g_chart.ClearStart();
    if(!preserving) g_chart.ClearAll();
    ChartRedraw();
+}
+
+void OnTimer(void)
+{
+   if(g_created && !IsStopped() && g_dialog.RefreshLots(g_model)) ChartRedraw();
 }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
@@ -147,6 +154,29 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    { SyncObject(); return; }
    if(id == CHARTEVENT_MOUSE_MOVE || id == CHARTEVENT_CHART_CHANGE) return;
    ManualFiboAction action = g_dialog.TakeAction();
+   if(action == MANUAL_RISK)
+   {
+      double percent = 0;
+      if(!ManualFiboParseNumber(g_dialog.RiskText(), percent) || !g_model.SetRiskPercent(percent))
+      { g_dialog.Refresh(g_model); Status("Risk harus angka 0 sampai 100 persen."); return; }
+      g_dialog.Refresh(g_model); ChartRedraw(); Status("Risk diperbarui untuk setiap level."); return;
+   }
+   if(action == MANUAL_SL)
+   {
+      int index = g_dialog.EditIndex();
+      if(index < 0 || index >= MANUAL_FIBO_RATIOS) return;
+      string text = g_dialog.StopText(index); StringTrimLeft(text); StringTrimRight(text);
+      double existing = g_model.StopPrice(index);
+      string displayed = existing == EMPTY_VALUE ? "" : DoubleToString(existing, _Digits);
+      // Focusing/leaving an untouched default field must not freeze its SL.
+      if(text == displayed) return;
+      double stop = 0;
+      if(text == "") g_model.ResetStop(index);
+      else if(!ManualFiboParseNumber(text, stop) || !g_model.SetStop(index, stop))
+      { g_dialog.Refresh(g_model); Status("SL harus harga positif; kosong = awal swing."); return; }
+      g_dialog.Refresh(g_model); ChartRedraw();
+      Status(text == "" ? "SL kembali mengikuti awal swing." : "SL level diperbarui."); return;
+   }
    if(action == MANUAL_LEVELS)
    {
       int mask = g_dialog.RatioMask();
