@@ -12,8 +12,8 @@ def main():
     compiler = shutil.which('clang++') or shutil.which('g++')
     if not compiler:
         raise SystemExit('C++17 compiler required.')
-    sources = ['Include/Swing/SwingTypes.mqh', 'Include/Swing/SwingDetector.mqh',
-               'Include/Structure/MarketStructure.mqh',
+    sources = ['Include/_common/Swing/SwingTypes.mqh', 'Include/_common/Swing/SwingDetector.mqh',
+               'Include/_common/Structure/MarketStructure.mqh',
                'tests/fixtures/market_structure_checks.mqh']
     code = SHIM + '\n'.join(adapt((ROOT/name).read_text()) for name in sources)
     code += '\nint main(){RunMarketStructureChecks();return g_failures == 0 ? 0 : 1;}\n'

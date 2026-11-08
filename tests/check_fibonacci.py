@@ -12,7 +12,7 @@ def main():
     compiler = shutil.which('clang++') or shutil.which('g++')
     if not compiler:
         raise SystemExit('C++17 compiler required.')
-    sources = ['Include/Fibo/Fibonacci.mqh', 'tests/fixtures/fibonacci_checks.mqh']
+    sources = ['Include/_common/Fibo/Fibonacci.mqh', 'tests/fixtures/fibonacci_checks.mqh']
     code = SHIM + '\ndouble MathAbs(double value){return std::abs(value); }\n' + '\n'.join(adapt((ROOT/name).read_text()) for name in sources)
     code += '\nint main(){RunFibonacciChecks();return g_failures == 0 ? 0 : 1;}\n'
     with tempfile.TemporaryDirectory(prefix='fibonacci-checks-') as folder:

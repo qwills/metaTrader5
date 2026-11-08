@@ -59,7 +59,7 @@ def main():
     compiler = shutil.which('clang++') or shutil.which('g++')
     if not compiler:
         raise SystemExit('A C++17 compiler is required for this compatibility check.')
-    sources = [ROOT/'Include/Swing/SwingTypes.mqh', ROOT/'Include/Swing/SwingDetector.mqh',
+    sources = [ROOT/'Include/_common/Swing/SwingTypes.mqh', ROOT/'Include/_common/Swing/SwingDetector.mqh',
                ROOT/'tests/fixtures/swing_detector_checks.mqh']
     code = SHIM + '\n'.join(adapt(p.read_text()) for p in sources)
     code += '\nint main() { RunSwingDetectorChecks(); return g_failures == 0 ? 0 : 1; }\n'

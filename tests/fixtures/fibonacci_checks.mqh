@@ -1,6 +1,6 @@
 // Development-only CFibonacci checks; no script entry point or input demo.
 
-#include <Fibo\Fibonacci.mqh>
+#include <_common\Fibo\Fibonacci.mqh>
 
 
 int g_failures = 0;

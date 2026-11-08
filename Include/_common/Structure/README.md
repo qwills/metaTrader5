@@ -2,7 +2,7 @@
 
 Pure calculation class: confirmed pivot labels, direction and causal close-confirmed
 BOS/CHoCH. No chart, symbol, GUI or trade API. Include:
-`#include <Structure\MarketStructure.mqh>`.
+`#include <_common\Structure\MarketStructure.mqh>`.
 
 ## Labels and rules
 

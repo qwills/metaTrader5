@@ -1,7 +1,7 @@
 #ifndef AUTO_FIBO_AUTO_MQH
 #define AUTO_FIBO_AUTO_MQH
 
-#include <Structure\MarketStructure.mqh>
+#include <_common\Structure\MarketStructure.mqh>
 #include "AutoFiboTypes.mqh"
 
 // Auto selection: latest confirmed Pivot pair or the latest causal BOS impulse.

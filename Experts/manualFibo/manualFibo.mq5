@@ -1,9 +1,9 @@
 #property strict
-#property version "1.14"
+#property version "1.15"
 #property description "Manual Fibonacci with per-level SL and equity-risk lot estimates."
-#include <Fibo\FiboDialog.mqh>
-#include <Fibo\FiboChart.mqh>
-#include <Fibo\FiboState.mqh>
+#include <_common\Fibo\FiboDialog.mqh>
+#include <_common\Fibo\FiboChart.mqh>
+#include <_common\Fibo\FiboState.mqh>
 
 enum ManualSelection { MANUAL_IDLE, MANUAL_START, MANUAL_END };
 CFiboModel g_model;

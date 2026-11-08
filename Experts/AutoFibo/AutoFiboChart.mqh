@@ -1,6 +1,6 @@
 #ifndef AUTO_FIBO_CHART_MQH
 #define AUTO_FIBO_CHART_MQH
-#include <Fibo\FiboChart.mqh>
+#include <_common\Fibo\FiboChart.mqh>
 #include "AutoFiboAnalysis.mqh"
 
 class CAutoFiboChart : public CFiboChart

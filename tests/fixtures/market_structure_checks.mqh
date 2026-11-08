@@ -1,5 +1,5 @@
 // Development-only test fixtures; not an installable MetaTrader script.
-#include <Structure\MarketStructure.mqh>
+#include <_common\Structure\MarketStructure.mqh>
 
 int g_failures = 0;
 int g_checks = 0;

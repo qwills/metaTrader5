@@ -32,6 +32,12 @@ berada di archive/packages/<project>, paket aktif tetap distribution/<project>.
 Pertahankan layout native Experts/Indicators/Include dan relative include.
 
 AutoFibo menggantikan myFibo dan khusus otomatis; tidak ada pilihan Manual/Auto.
-Kelas model/risiko/GUI/chart/state bersama ada di Include/Fibo. Pastikan perubahan
+Kelas model/risiko/GUI/chart/state bersama ada di Include/_common/Fibo. Pastikan perubahan
 kelas bersama lolos tests/check_manualfibo.py dan tests/check_autofibo.py, serta
 regresi analisis otomatis tests/check_autofibo_analysis.py.
+
+Library custom bersama ditempatkan di Include/_common, dengan subfolder Fibo,
+Swing dan Structure. Header native terminal tetap memakai path aslinya.
+Saat diminta commit/push rilis, sertakan annotated tag `<NamaEA>-v<Versi>`
+untuk setiap EA yang versinya berubah; beberapa tag boleh menunjuk commit sama.
+Jangan memindahkan/menimpa tag yang sudah ada. Panduan: docs/releases.md.

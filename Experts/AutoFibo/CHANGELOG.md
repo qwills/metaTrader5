@@ -1,5 +1,10 @@
 # AutoFibo changelog (formerly myFibo)
 
+## 3.02
+
+- Move shared libraries to Include/_common/Fibo, Swing and Structure; update
+  native include paths, source installation instructions and package payloads.
+
 ## 3.01
 
 - Prevent native automatic minimization when the main chart is shorter than the

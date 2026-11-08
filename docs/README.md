@@ -1,6 +1,7 @@
 # Documentation
 
 - [Build guide](BUILD.md): MetaEditor on Windows and optional Wine helper on macOS.
+- [Release tags](releases.md): per-EA annotated tags and commit/push commands.
 - [Package review](package-review.md): current cleanup findings and validation limits.
 - [Standard Library guide](reference/standard-library-guide.md): local API guidance.
   The adjacent download-reference.cmd downloads official PDF/CHM manuals.

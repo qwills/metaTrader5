@@ -12,7 +12,7 @@ DIST = ROOT/'distribution/manualFibo'
 PACKAGE = DIST/'manualFibo.zip'
 PAYLOAD = {f'MQL5/Experts/manualFibo/{name}': ROOT/'Experts/manualFibo'/name
            for name in ('manualFibo.mq5', 'README.md', 'CHANGELOG.md')}
-PAYLOAD.update({f'MQL5/Include/Fibo/{name}': ROOT/'Include/Fibo'/name
+PAYLOAD.update({f'MQL5/Include/_common/Fibo/{name}': ROOT/'Include/_common/Fibo'/name
                 for name in ('Fibonacci.mqh', 'FiboModel.mqh', 'FiboRisk.mqh',
                              'FiboDialog.mqh', 'FiboChart.mqh', 'FiboState.mqh')})
 PAYLOAD.update({name: DIST/name for name in ('install-manualFibo.cmd', 'INSTALL.txt')})

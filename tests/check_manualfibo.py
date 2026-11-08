@@ -276,9 +276,9 @@ def main():
     compiler = shutil.which('clang++') or shutil.which('g++')
     if not compiler:
         raise SystemExit('C++17 compiler required.')
-    names = ['Include/Fibo/Fibonacci.mqh', 'Include/Fibo/FiboModel.mqh',
-             'Include/Fibo/FiboRisk.mqh', 'Include/Fibo/FiboDialog.mqh', 'Include/Fibo/FiboChart.mqh',
-             'Include/Fibo/FiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
+    names = ['Include/_common/Fibo/Fibonacci.mqh', 'Include/_common/Fibo/FiboModel.mqh',
+             'Include/_common/Fibo/FiboRisk.mqh', 'Include/_common/Fibo/FiboDialog.mqh', 'Include/_common/Fibo/FiboChart.mqh',
+             'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
     for source in names:
         text = (ROOT/source).read_text()
         for forbidden in ('ORDER_TYPE_BUY_STOP', 'ORDER_TYPE_SELL_STOP', 'OrderSend(', 'OrderSendAsync('):

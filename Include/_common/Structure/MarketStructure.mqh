@@ -1,7 +1,7 @@
 #ifndef MARKET_STRUCTURE_MQH
 #define MARKET_STRUCTURE_MQH
 
-#include <Swing\SwingDetector.mqh>
+#include <_common\Swing\SwingDetector.mqh>
 
 enum ENUM_STRUCTURE_LABEL { STRUCTURE_H, STRUCTURE_L, STRUCTURE_HH, STRUCTURE_HL,
                             STRUCTURE_LH, STRUCTURE_LL, STRUCTURE_EH, STRUCTURE_EL };

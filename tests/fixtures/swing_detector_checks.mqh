@@ -1,6 +1,6 @@
 // Development-only CSwingDetector checks; not an installable script.
 
-#include <Swing\SwingDetector.mqh>
+#include <_common\Swing\SwingDetector.mqh>
 
 int g_failures = 0;
 int g_checks = 0;

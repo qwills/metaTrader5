@@ -1,4 +1,4 @@
-manualFibo 1.14 - Windows (source)
+manualFibo 1.15 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,9 +7,9 @@ manualFibo 1.14 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.14 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.15 to a chart. Use a separate chart if running AutoFibo too.
 
-Package includes Experts/manualFibo, Include/Fibo/Fibonacci.mqh, the CMD and
+Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
 Standard Library Controls headers come from the installed MT5 terminal.
 
@@ -41,12 +41,12 @@ This release calculates lots for manual use and does not submit orders.
 In Windows verify SL/risk editing, BUY LIMIT/SELL LIMIT estimates, broker data and account-
 currency conversion, timeframe persistence, timer refresh and input focus.
 
-Source 1.14 optimization: one account/symbol snapshot per refresh, no lot work
+Source 1.15 optimization: one account/symbol snapshot per refresh, no lot work
 while minimized, immediate refresh on restore, and independent input recovery.
 Risk supports eight decimal places; values too small to display are rejected.
 Native MetaEditor F7, broker behavior and GUI rendering still need Windows tests.
 
-Source 1.14 limit-only previews:
+Source 1.15 limit-only previews:
 Entry below the current Bid/Ask spread is BUY LIMIT; entry above it is SELL LIMIT.
 Entry inside the spread or equal to Bid/Ask is unavailable. Swing direction does
 not select the order side. BUY STOP and SELL STOP are never selected.
@@ -55,7 +55,10 @@ Invalid levels clear their lot/loss estimate and show a reason. The lot tooltip
 includes the limit type. No additional Order column or per-level send controls;
 actual order submission remains outside this release.
 
-Source 1.14: reusable model/risk/GUI/chart/state headers are now under Include/Fibo,
-shared with AutoFibo. Copy the ENTIRE Include/Fibo folder with Experts/manualFibo.
+Source 1.15: reusable model/risk/GUI/chart/state headers are now under Include/_common/Fibo,
+shared with AutoFibo. Copy the ENTIRE Include/_common/Fibo folder with Experts/manualFibo.
 The old ManualFibo*.mqh sibling files are no longer referenced. Manual selection,
 risk settings and its separate chart namespace remain unchanged.
+When copying source manually, create MQL5/Include/_common and place Fibo inside it.
+Old MQL5/Include/Fibo files are no longer used by this release; the installer
+only copies/overwrites files and does not remove previous folders.

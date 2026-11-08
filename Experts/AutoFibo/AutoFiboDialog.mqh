@@ -1,6 +1,6 @@
 #ifndef AUTO_FIBO_DIALOG_MQH
 #define AUTO_FIBO_DIALOG_MQH
-#include <Fibo\FiboDialog.mqh>
+#include <_common\Fibo\FiboDialog.mqh>
 #include <Controls\ComboBox.mqh>
 #include <Controls\SpinEdit.mqh>
 #include "AutoFiboTypes.mqh"

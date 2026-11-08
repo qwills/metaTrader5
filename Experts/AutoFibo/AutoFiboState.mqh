@@ -1,6 +1,6 @@
 #ifndef AUTO_FIBO_STATE_MQH
 #define AUTO_FIBO_STATE_MQH
-#include <Fibo\FiboState.mqh>
+#include <_common\Fibo\FiboState.mqh>
 #include "AutoFiboAnalysis.mqh"
 
 struct AutoFiboSnapshot

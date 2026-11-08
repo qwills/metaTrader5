@@ -122,9 +122,9 @@ int main(){
 }
 '''
 
-SOURCES = ['Include/Fibo/Fibonacci.mqh','Include/Fibo/FiboModel.mqh','Include/Fibo/FiboRisk.mqh',
- 'Include/Fibo/FiboDialog.mqh','Include/Fibo/FiboChart.mqh','Include/Fibo/FiboState.mqh',
- 'Include/Swing/SwingTypes.mqh','Include/Swing/SwingDetector.mqh','Include/Structure/MarketStructure.mqh',
+SOURCES = ['Include/_common/Fibo/Fibonacci.mqh','Include/_common/Fibo/FiboModel.mqh','Include/_common/Fibo/FiboRisk.mqh',
+ 'Include/_common/Fibo/FiboDialog.mqh','Include/_common/Fibo/FiboChart.mqh','Include/_common/Fibo/FiboState.mqh',
+ 'Include/_common/Swing/SwingTypes.mqh','Include/_common/Swing/SwingDetector.mqh','Include/_common/Structure/MarketStructure.mqh',
  'Experts/AutoFibo/AutoFiboTypes.mqh','Experts/AutoFibo/AutoFiboAnalysis.mqh',
  'Experts/AutoFibo/AutoFiboDialog.mqh','Experts/AutoFibo/AutoFiboChart.mqh','Experts/AutoFibo/AutoFiboState.mqh']
 

@@ -1,5 +1,10 @@
 # manualFibo changelog
 
+## 1.15
+
+- Move shared libraries to Include/_common/Fibo, Swing and Structure; update
+  native include paths, source installation instructions and package payloads.
+
 ## 1.14
 
 - Share model/risk/GUI/chart/state classes with AutoFibo under Include/Fibo.

@@ -35,7 +35,7 @@ Jika suatu signature berbeda, periksa header terminal yang dipakai untuk F7.
 | Trading / indikator / koleksi | `Trade\`, `Indicators\`, `Arrays\`, `Generic\` |
 
 Header pada MQL5\Include dipanggil dengan `<...>`; file saudara pada folder
-EA dengan `"..."`. Contoh proyek: `<Swing\SwingDetector.mqh>` dan
+EA dengan `"..."`. Contoh proyek: `<_common\Swing\SwingDetector.mqh>` dan
 `"MyFiboDialog.mqh"`.
 
 ## Dialog yang dipakai myFibo
@@ -170,7 +170,7 @@ pending. EA hanya menampilkan preview limit; tidak ada OrderSend atau tipe stop.
 
 myFibo diganti menjadi Experts/AutoFibo/AutoFibo.mq5, selalu otomatis. Kelas
 CFiboModel, CFiboRisk, CFiboDialog, CFiboChart dan CFiboState dipakai bersama
-melalui Include/Fibo; include saudara di folder itu memakai tanda kutip. Sensitivitas
+melalui Include/_common/Fibo; include saudara di folder itu memakai tanda kutip. Sensitivitas
 pivot, metode, checkpoint dan label struktur tetap khusus AutoFibo. GUI dasar
 menerima offset isi agar AutoFibo dapat menambahkan group Swing Otomatis di atas
 Swing/Risk/Fibonacci tanpa menduplikasi kalkulator. Tidak ada event-driver drag

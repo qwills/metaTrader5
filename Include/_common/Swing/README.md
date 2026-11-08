@@ -4,7 +4,7 @@ Class MQL5 untuk pivot high/low terkonfirmasi dari candle tertutup. Terpisah dar
 CFibonacci, GUI, objek chart, dan market structure. Tidak mengirim order.
 
 ```cpp
-#include <Swing\SwingDetector.mqh>
+#include <_common\Swing\SwingDetector.mqh>
 
 CSwingDetector detector;
 // Saat inisialisasi:
@@ -72,10 +72,10 @@ memanggil Update jika EA ingin mempertahankan hasil sebelumnya.
 ## Instalasi dan pemeriksaan
 
 Header `.mqh` dipakai oleh EA dan tidak menghasilkan EX5 sendiri. Library ini
-sudah disertakan di `distribution/AutoFibo/AutoFibo.zip`, di bawah MQL5/Include/Swing.
+sudah disertakan di `distribution/AutoFibo/AutoFibo.zip`, di bawah MQL5/Include/_common/Swing.
 Gunakan installer AutoFibo untuk menyalinnya bersama EA. Tidak ada paket atau
 installer SwingDetector terpisah. Untuk penggunaan pada EA lain, salin folder
-Include/Swing ke MQL5/Include/Swing lalu gunakan `<Swing\SwingDetector.mqh>`.
+Include/_common/Swing ke MQL5/Include/_common/Swing lalu gunakan `<_common\Swing\SwingDetector.mqh>`.
 
 Jalankan `python3 tests/check_swing_detector.py` dari workspace untuk 46 pemeriksaan
 di `tests/fixtures/swing_detector_checks.mqh`. Runner C++17 menggunakan adapter

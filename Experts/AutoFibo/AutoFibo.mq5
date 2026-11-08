@@ -1,5 +1,5 @@
 #property strict
-#property version "3.01"
+#property version "3.02"
 #property description "Automatic Pivot/Market Structure Fibonacci with equity-risk lot previews."
 #include "AutoFiboDialog.mqh"
 #include "AutoFiboChart.mqh"

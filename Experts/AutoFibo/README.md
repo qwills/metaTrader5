@@ -1,4 +1,4 @@
-# AutoFibo 3.01
+# AutoFibo 3.02
 
 Automatic Fibonacci EA, renamed from myFibo. Swing selection is always automatic;
 there is no Manual/Auto selector and no candle-click selection. Choose **Pivot**
@@ -73,14 +73,14 @@ shared drawing class; AutoFiboState.mqh persists automatic settings/checkpoints;
 AutoFiboDialog.mqh adds the automatic-analysis controls.
 
 The shared model, risk engine, GUI, drawing and common state codec live under
-**Include/Fibo/** and are used by both AutoFibo and manualFibo. Automatic analysis
-also needs Include/Swing and Include/Structure. Native Controls headers come
+**Include/_common/Fibo/** and are used by both AutoFibo and manualFibo. Automatic analysis
+also needs Include/_common/Swing and Include/_common/Structure. Native Controls headers come
 from the Windows MT5 installation.
 
-Copy **Experts/AutoFibo**, **Include/Fibo**, **Include/Swing**, and
-**Include/Structure** to the corresponding folders under MQL5. Remove the old
+Copy **Experts/AutoFibo**, **Include/_common/Fibo**, **Include/_common/Swing**, and
+**Include/_common/Structure** to the corresponding folders under MQL5. Remove the old
 myFibo EA from the chart; open Experts/AutoFibo/AutoFibo.mq5 in MetaEditor, press
-F7 and attach AutoFibo 3.01. Old myFibo chart state is not imported into the renamed
+F7 and attach AutoFibo 3.02. Old myFibo chart state is not imported into the renamed
 EA. The copy-only CMD does not delete older myFibo source/EX5 files automatically;
 you may remove those manually once AutoFibo works.
 

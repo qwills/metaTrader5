@@ -17,9 +17,10 @@ Experts/
 Indicators/
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/
-  Fibo/           Model, risiko, GUI, chart/state bersama + Fibonacci.mqh
-  Swing/          CSwingDetector dan tipe swing terkonfirmasi
-  Structure/      CMarketStructure: pivot, arah, BOS/CHoCH
+  _common/
+    Fibo/         Model, risiko, GUI, chart/state bersama + Fibonacci.mqh
+    Swing/        CSwingDetector dan tipe swing terkonfirmasi
+    Structure/    CMarketStructure: pivot, arah, BOS/CHoCH
 PineScript/
   smc.txt         Source Pine Script, terpisah dari MQL5
 archive/
@@ -41,6 +42,10 @@ Workspace memakai satu repositori Git di root. ZIP, EX5, log dan arsip lokal
 berada di `.gitignore`. Metadata repositori lama dipertahankan di
 `archive/git-history/`. Helper initial commit lama dipindahkan ke `tools/history/`;
 tidak diperlukan untuk commit harian.
+
+Commit rilis memakai annotated tag per EA, misalnya `AutoFibo-v3.02` dan
+`manualFibo-v1.15`. Panduan commit, tag dan push ada di
+[docs/releases.md](docs/releases.md).
 
 ```bash
 ./tools/compile_mql5.sh --doctor
@@ -80,6 +85,6 @@ menggunakan satu repositori Git dan class kalkulasi Fibonacci bersama.
 
 `myFibo` telah diganti menjadi [AutoFibo](Experts/AutoFibo/README.md), khusus swing
 otomatis tanpa pilihan Manual/Auto. Group box mengikuti manualFibo. Keduanya
-berbagi kelas Include/Fibo untuk rasio, SL per level dan lot berdasarkan % equity.
-Untuk Windows, salin folder EA beserta Include/Fibo lengkap; AutoFibo juga
-memerlukan Include/Swing dan Include/Structure. ZIP tidak dibuat kecuali diminta.
+berbagi kelas Include/_common/Fibo untuk rasio, SL per level dan lot berdasarkan % equity.
+Untuk Windows, salin folder EA beserta Include/_common/Fibo lengkap; AutoFibo juga
+memerlukan Include/_common/Swing dan Include/_common/Structure. ZIP tidak dibuat kecuali diminta.

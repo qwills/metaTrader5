@@ -21,8 +21,8 @@ if(fib.SetAnchors(100.0, 200.0))
 }
 ```
 
-Alternatively, install the folder under `MQL5/Include/Fibo` and use
-`#include <Fibo/Fibonacci.mqh>`.
+Alternatively, install the folder under `MQL5/Include/_common/Fibo` and use
+`#include <_common\Fibo\Fibonacci.mqh>`.
 
 ## Conventions and API
 
@@ -52,14 +52,14 @@ fixture is installed in the release packages.
 
 ## Shared EA components
 
-AutoFibo and manualFibo both use the following headers from MQL5/Include/Fibo:
+AutoFibo and manualFibo both use the following headers from MQL5/Include/_common/Fibo:
 FiboModel.mqh (CFiboModel), FiboRisk.mqh (CFiboRisk), FiboDialog.mqh (CFiboDialog),
 FiboChart.mqh (CFiboChart) and FiboState.mqh (CFiboState). CFibonacci itself keeps
 its original seven default ratios; the EA model defines its separate six choices
 including 88.6%, with 50/61.8/78.6 selected by default.
 
-Use angle includes from an EA, e.g. `<Fibo\FiboRisk.mqh>`. Each EA sets its own
+Use angle includes from an EA, e.g. `<_common\Fibo\FiboRisk.mqh>`. Each EA sets its own
 chart object/state prefix so risk, anchors and drawings cannot cross namespaces.
 The automatic detector and structure checkpoint live in Experts/AutoFibo rather
-than in the shared UI/risk/model code. Copy the complete Include/Fibo folder when
+than in the shared UI/risk/model code. Copy the complete Include/_common/Fibo folder when
 updating either EA. No terminal Standard Library headers are bundled here.

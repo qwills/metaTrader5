@@ -16,7 +16,7 @@ PineScript, development runners, installers, release ZIPs and local archives.
   point, and fixtures are excluded from distribution payloads.
 - The standalone SwingDetector distribution and its builder were removed.
   myFibo.zip already includes the required SwingDetector headers under
-  MQL5/Include/Swing; the source library and its development tests are retained.
+  MQL5/Include/_common/Swing; the source library and its development tests are retained.
 - The current release is myFibo 2.18, distributed only as myFibo.zip. Version-named
   duplicate ZIPs were removed from distribution; historical releases stay in
   archive/packages/myFibo after removal of example entries. Production source/binary
