@@ -10,7 +10,7 @@ from check_myfibo_modes import PLATFORM, UI_STUB
 ROOT = Path(__file__).resolve().parents[1]
 EXTRA = r'''
 const int OBJ_ALL_PERIODS=0x1fffff;
-const int BORDER_FLAT=0,CONTROLS_DIALOG_COLOR_BG=0xf0f0f0,clrSilver=0xc0c0c0;
+const int BORDER_FLAT=0,clrSilver=0xc0c0c0;
 '''
 # The native GUI implementation is supplied by the user's terminal. Model only
 # the documented lifecycle, forwarding and geometry needed by controller tests.
@@ -39,6 +39,28 @@ void Tick(int index,bool enabled){static_cast<CCheckBox*>(controls["manualFibo.P
 void Click(int x,int y){OnChartEvent(CHARTEVENT_CLICK,x,y,"");}
 int main(){
  Check(OnInit()==INIT_SUCCEEDED,"initialize");
+ Check(g_dialog.children.size()==24&&controls.size()==25,"unique control registration");
+ for(size_t i=0;i<g_dialog.children.size();i++){
+  auto*a=g_dialog.children[i];
+  Check(a->name.find(".Background")==string::npos,"no title background objects");
+  for(size_t j=i+1;j<g_dialog.children.size();j++){
+   auto*b=g_dialog.children[j];Check(a->Id()!=b->Id()&&a->name!=b->name,"unique IDs and names");
+  }
+ }
+ for(const string &group:{string("Swing"),string("Fibo")}){
+  auto*title=controls["manualFibo.Panel."+group+"Title"];
+  auto*left=controls["manualFibo.Panel."+group+"Group.TopLeft"];
+  auto*right=controls["manualFibo.Panel."+group+"Group.TopRight"];
+  Check(left->m_rect.bottom-left->m_rect.top==1&&right->m_rect.bottom-right->m_rect.top==1,"thin border edges");
+  Check(left->m_rect.right<title->m_rect.left&&right->m_rect.left>title->m_rect.right,"border gap clears title");
+ }
+ OnChartEvent(TEST_MINIMIZE,0,0,"");
+ for(auto*c:g_dialog.children)Check(!c->visible,"all controls hide when minimized");
+ OnChartEvent(TEST_RESTORE,0,0,"");
+ for(auto*c:g_dialog.children)Check(c->visible,"all controls restore together");
+ int redraws=redraw_count;Status("Klik Pilih Swing.");Status("Klik Pilih Swing.");
+ Check(redraw_count==redraws,"unchanged status does not redraw");
+ Check(controls.count("manualFibo.Panel.Direction")==0,"direction control stays removed");
  Check(!g_model.Ready()&&!g_model.Locked()&&g_model.Mask()==28,"default mask/unlocked");
  Check(controls.count("manualFibo.Panel.Level5")==1&&controls["manualFibo.Panel.Level5"]->text=="88.6%: -","88.6 checkbox");
  Check(controls.count("manualFibo.Panel.Mode")==0,"manual-only dialog");
@@ -118,7 +140,12 @@ def main():
     names = ['Include/Fibo/Fibonacci.mqh', 'Experts/manualFibo/ManualFiboModel.mqh',
              'Experts/manualFibo/ManualFiboDialog.mqh', 'Experts/manualFibo/ManualFiboChart.mqh',
              'Experts/manualFibo/ManualFiboState.mqh', 'Experts/manualFibo/manualFibo.mq5']
-    code = SHIM + PLATFORM + EXTRA + UI + '\n'.join(adapt((ROOT/name).read_text()) for name in names) + TESTS
+    platform = PLATFORM.replace('void ChartRedraw(int=0){}', 'int redraw_count=0;void ChartRedraw(int=0){++redraw_count;}')
+    # MQL accepts fixed arrays through array references; use an equivalent fixed
+    # C++ array reference for the five native CPanel edge controls.
+    code = SHIM + platform + EXTRA + UI + '\n'.join(
+        adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]'))
+        for name in names) + TESTS
     with tempfile.TemporaryDirectory(prefix='manualfibo-checks-') as folder:
         cpp = Path(folder)/'checks.cpp'
         binary = Path(folder)/'checks'

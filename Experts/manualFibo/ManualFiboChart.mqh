@@ -21,7 +21,7 @@ public:
                             model.EndTime(), model.EndPrice())) return false;
       bool ok = Configure(model);
       if(!ok && !existed) ClearFibo();
-      ChartRedraw(); return ok;
+      return ok;
    }
    bool Configure(const CManualFiboModel &model)
    {

@@ -1,5 +1,5 @@
 #property strict
-#property version "1.03"
+#property version "1.04"
 #property description "Manual candle Fibonacci with selectable ratios, including 88.6%."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboChart.mqh"
@@ -46,8 +46,10 @@ bool ApplyModel(const CManualFiboModel &candidate)
 {
    if(candidate.Ready() && !g_chart.Draw(candidate))
    {
+      int drawing_error = GetLastError();
       if(g_model.Ready()) g_chart.Draw(g_model); else g_chart.ClearFibo();
-      Print("manualFibo: drawing failed, error ", GetLastError());
+      ChartRedraw();
+      Print("manualFibo: drawing failed, error ", drawing_error);
       return false;
    }
    g_model.CopyFrom(candidate); g_dialog.Refresh(g_model); ChartRedraw(); return true;
@@ -58,7 +60,7 @@ void SyncObject(void)
    CManualFiboModel candidate; candidate.CopyFrom(g_model);
    if(g_model.Locked() || !g_chart.Read(candidate) || !g_chart.Configure(candidate))
    {
-      g_chart.Draw(g_model);
+      g_chart.Draw(g_model); ChartRedraw();
       Status("Edit tidak valid; anchor dipulihkan."); return;
    }
    g_model.CopyFrom(candidate); g_dialog.Refresh(g_model); ChartRedraw();
@@ -85,7 +87,7 @@ int OnInit(void)
    g_storage.Consume();
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
    ChartSetInteger(0, CHART_EVENT_OBJECT_DELETE, true);
-   Status("Klik Pilih Swing."); return INIT_SUCCEEDED;
+   Status("Klik Pilih Swing."); ChartRedraw(); return INIT_SUCCEEDED;
 }
 void OnDeinit(const int reason)
 {
@@ -166,7 +168,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    }
    if(action == MANUAL_RESET)
    {
-      CancelSelection(); g_model.Clear(); g_chart.ClearFibo(); g_dialog.Refresh(g_model);
+      g_model.Clear(); CancelSelection(); g_chart.ClearFibo(); ChartRedraw();
       Status("Fibo dihapus. Klik Pilih Swing."); return;
    }
    if(action == MANUAL_DRAW)

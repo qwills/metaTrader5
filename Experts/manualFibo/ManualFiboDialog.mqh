@@ -12,7 +12,7 @@ enum ManualFiboAction { MANUAL_NONE, MANUAL_DRAW, MANUAL_RESET, MANUAL_LEVELS, M
 class CManualFiboDialog : public CAppDialog
 {
 private:
-   CPanel m_swing_group, m_fibo_group, m_swing_caption_bg, m_fibo_caption_bg;
+   CPanel m_swing_frame[5], m_fibo_frame[5];
    CButton m_draw, m_reset;
    CLabel m_swing_title, m_start, m_end, m_fibo_title, m_status;
    CCheckBox m_levels[MANUAL_FIBO_RATIOS];
@@ -26,10 +26,10 @@ public:
       m_action = MANUAL_NONE;
       if(!CAppDialog::Create(chart, name, subwin, x1, y1, x2, y2) || !Caption("manualFibo")) return false;
       // Register decorative frames first so native controls are created above them.
-      if(!Group(m_swing_group, chart, name + ".SwingGroup", subwin, 6, 14, 374, 128)
-         || !Group(m_fibo_group, chart, name + ".FiboGroup", subwin, 6, 142, 374, 316)) return false;
-      if(!GroupTitle(m_swing_caption_bg, m_swing_title, chart, name + ".SwingTitle", "Swing", 20, 4, 64)
-         || !GroupTitle(m_fibo_caption_bg, m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 20, 132, 96)
+      if(!Group(m_swing_frame, chart, name + ".SwingGroup", subwin, 6, 14, 374, 128, 14, 90)
+         || !Group(m_fibo_frame, chart, name + ".FiboGroup", subwin, 6, 142, 374, 316, 14, 122)) return false;
+      if(!Label(m_swing_title, chart, name + ".SwingTitle", "Swing", 20, 4, 84, 24)
+         || !Label(m_fibo_title, chart, name + ".FiboTitle", "Fibonacci", 20, 132, 116, 152)
          || !m_draw.Create(chart, name + ".Draw", subwin, 14, 34, 180, 62)
          || !m_draw.Text("Pilih Swing") || !Add(m_draw)
          || !m_reset.Create(chart, name + ".Reset", subwin, 194, 34, 300, 62)
@@ -85,32 +85,40 @@ public:
       if(m_lock.Checked() != model.Locked()) m_lock.Checked(model.Locked());
    }
    void SetStatus(const string text, const bool selecting)
-   { SetText(m_status, text); SetText(m_draw, selecting ? "Batal" : "Pilih Swing"); ChartRedraw(m_chart_id); }
+   {
+      bool changed = SetText(m_status, text);
+      if(SetText(m_draw, selecting ? "Batal" : "Pilih Swing")) changed = true;
+      if(changed) ChartRedraw(m_chart_id);
+   }
    virtual string IniFileName(void) const { return "manualFibo_" + IntegerToString(ChartID()) + "_GUI_v3"; }
    bool Dragging(void) const { return m_drag_object != NULL; }
    void CancelDrag(void) { if(Dragging()) CDialog::OnDialogDragEnd(); MouseFocusKill(); }
 protected:
-   bool GroupTitle(CPanel &background, CLabel &label, const long chart, const string name,
-                   const string text, const int x, const int y, const int width)
+   // Five one-pixel edges leave a real gap for a transparent title label.
+   // All pieces belong to the native dialog: no extra mouse or drag driver.
+   bool Group(CPanel &edges[], const long chart, const string name, const int subwin,
+              const int x1, const int y1, const int x2, const int y2,
+              const int gap_start, const int gap_end)
    {
-      // A small dialog-colored backing breaks the frame's top edge behind its title.
-      return background.Create(chart, name + ".Background", 0, x - 6, y, x + width, y + 20)
-             && background.BorderType(BORDER_FLAT)
-             && background.ColorBackground(CONTROLS_DIALOG_COLOR_BG)
-             && background.ColorBorder(CONTROLS_DIALOG_COLOR_BG) && Add(background)
-             && Label(label, chart, name, text, x, y, x + width, y + 20);
+      return Edge(edges[0], chart, name + ".TopLeft", subwin, x1, y1, gap_start, y1 + 1)
+             && Edge(edges[1], chart, name + ".TopRight", subwin, gap_end, y1, x2, y1 + 1)
+             && Edge(edges[2], chart, name + ".Left", subwin, x1, y1, x1 + 1, y2)
+             && Edge(edges[3], chart, name + ".Right", subwin, x2 - 1, y1, x2, y2)
+             && Edge(edges[4], chart, name + ".Bottom", subwin, x1, y2 - 1, x2, y2);
    }
-   bool Group(CPanel &panel, const long chart, const string name, const int subwin,
-              const int x1, const int y1, const int x2, const int y2)
+   bool Edge(CPanel &panel, const long chart, const string name, const int subwin,
+             const int x1, const int y1, const int x2, const int y2)
    {
       return panel.Create(chart, name, subwin, x1, y1, x2, y2)
              && panel.BorderType(BORDER_FLAT)
-             && panel.ColorBackground(CONTROLS_DIALOG_COLOR_BG)
-             && panel.ColorBorder(clrSilver) && Add(panel);
+             && panel.ColorBackground(clrSilver) && panel.ColorBorder(clrSilver) && Add(panel);
    }
-   void SetText(CLabel &control, const string text) { if(control.Text() != text) control.Text(text); }
-   void SetText(CButton &control, const string text) { if(control.Text() != text) control.Text(text); }
-   void SetText(CCheckBox &control, const string text) { if(control.Text() != text) control.Text(text); }
+   bool SetText(CLabel &control, const string text)
+   { if(control.Text() == text) return false; return control.Text(text); }
+   bool SetText(CButton &control, const string text)
+   { if(control.Text() == text) return false; return control.Text(text); }
+   bool SetText(CCheckBox &control, const string text)
+   { if(control.Text() == text) return false; return control.Text(text); }
    bool Label(CLabel &label, const long chart, const string name, const string text,
               const int x1, const int y1, const int x2, const int y2)
    { return label.Create(chart, name, 0, x1, y1, x2, y2) && label.Text(text) && Add(label); }

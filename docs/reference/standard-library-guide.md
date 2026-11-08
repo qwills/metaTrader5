@@ -128,3 +128,8 @@ mengurus perpindahan, minimize dan restore, tanpa handler mouse tambahan.
 Signature diperiksa pada [CPanel resmi](https://www.mql5.com/en/docs/standardlibrary/controls/cpanel)
 dan [ColorBorder](https://www.mql5.com/en/docs/standardlibrary/controls/cwndobj/cwndobjcolorborder).
 Header terminal tetap menjadi acuan F7; rendering perlu diverifikasi Windows.
+
+manualFibo 1.04 memakai lima segmen CPanel tipis per group, dengan fill/border
+abu-abu yang sama. Bagian atas terputus di area judul; CLabel judul tetap
+transparan tanpa panel latar. Semua segmen dan kontrol terdaftar satu kali pada
+dialog sehingga native drag/minimize/restore tetap mengurus seluruh GUI.

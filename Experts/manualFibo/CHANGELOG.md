@@ -1,5 +1,12 @@
 # manualFibo changelog
 
+## 1.04
+
+- Replace filled group/title panels with thin border segments and transparent titles.
+- Review control registration and event dispatch; verify unique names/IDs and
+  native minimize/restore behavior in the adapter.
+- Remove redundant Reset display refresh and drawing/status redraws.
+
 ## 1.03
 
 - Place Swing and Fibonacci titles into their group frame top borders.

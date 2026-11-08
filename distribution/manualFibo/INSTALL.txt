@@ -1,4 +1,4 @@
-manualFibo 1.03 - Windows (source)
+manualFibo 1.04 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.03 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.03 to a chart. Use a separate chart if running myFibo too.
+5. Attach manualFibo 1.04 to a chart. Use a separate chart if running myFibo too.
 
 Package includes Experts/manualFibo, Include/Fibo/Fibonacci.mqh, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
