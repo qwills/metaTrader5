@@ -304,3 +304,23 @@ are ignored by history deduplication; active and filled/partial histories stay
 protected across generations. Reconciliation matches the exact attempt comment
 and ticket, so old cancellation evidence cannot accept a new unknown submission.
 Native history volumes, partial fills and event ordering still need demo tests.
+
+## manualFibo 1.21: TP modes and RR settings
+
+ManualFiboSettings.mqh owns the EA-local TP mode (positive IDs 1/2/3) and a positive
+RR with up to eight decimal places. Defaults: Swing end and RR 2. The chart-local
+TradeOptions object uses schema 2 and migrates the old 0/1 checkbox. It is separate
+from terminal-global submission records and the shared Fibo model/state schema.
+
+ManualFiboDialog uses native CComboBox, CLabel and CEdit; Show/Hide apply only to
+the RR label/input, on mode changes and after native restore. No mouse handler or
+per-tick visibility loop is added. Timer lot refresh never updates RR text. Send
+captures current RR before other refreshes; deinit captures a valid draft for TF
+handoff. Non-RR modes preserve the last valid RR without validating hidden text.
+
+ManualFiboOrders computes TP from normalized entry/SL, then rounds to tick size:
+entry +/- abs(entry-SL)*RR. RR is a price-distance ratio, not guaranteed net P/L
+including costs. TP must be finite/positive, on the profit side and meet broker
+minimum distance. No mode change modifies existing orders or bypasses deduplication.
+All native class signatures are already covered by the local API map above;
+Windows F7, dropdown rendering/focus and trade-server behavior still need testing.

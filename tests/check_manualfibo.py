@@ -75,7 +75,7 @@ void Edit(const string&control,const string&text){
 void Click(int x,int y){OnChartEvent(CHARTEVENT_CLICK,x,y,"");}
 int main(){
  Check(OnInit()==INIT_SUCCEEDED,"initialize");
- Check(g_dialog.children.size()==61&&controls.size()==62,"unique control registration");
+ Check(g_dialog.children.size()==63&&controls.size()==64,"unique control registration");
  for(size_t i=0;i<g_dialog.children.size();i++){
   auto*a=g_dialog.children[i];
   Check(a->name.find(".Background")==string::npos,"no title background objects");
@@ -93,7 +93,7 @@ int main(){
  OnChartEvent(TEST_MINIMIZE,0,0,"");
  for(auto*c:g_dialog.children)Check(!c->visible,"all controls hide when minimized");
  OnChartEvent(TEST_RESTORE,0,0,"");
- for(auto*c:g_dialog.children)Check(c->visible,"all controls restore together");
+ for(auto*c:g_dialog.children){bool rr=c->name=="manualFibo.Panel.RR"||c->name=="manualFibo.Panel.RRLabel";Check(c->visible!=rr,"restore keeps RR-only controls hidden in swing mode");}
  int redraws=redraw_count;Status("Klik Pilih Swing.");Status("Klik Pilih Swing.");
  Check(redraw_count==redraws,"unchanged status does not redraw");
  Check(controls.count("manualFibo.Panel.Direction")==0,"direction control stays removed");
@@ -280,7 +280,7 @@ def main():
         raise SystemExit('C++17 compiler required.')
     names = ['Include/_common/Fibo/Fibonacci.mqh', 'Include/_common/Fibo/FiboModel.mqh',
              'Include/_common/Fibo/FiboRisk.mqh', 'Include/_common/Fibo/FiboDialog.mqh', 'Include/_common/Fibo/FiboChart.mqh',
-             'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh',
+             'Include/_common/Fibo/FiboState.mqh', 'Experts/manualFibo/ManualFiboSettings.mqh', 'Experts/manualFibo/ManualFiboDialog.mqh',
              'Experts/manualFibo/ManualFiboReconcile.mqh', 'Experts/manualFibo/ManualFiboOrders.mqh', 'Experts/manualFibo/manualFibo.mq5']
     for source in names:
         text = (ROOT/source).read_text()
@@ -292,6 +292,7 @@ def main():
     extra = EXTRA.replace('ORDER_TYPE_BUY,ORDER_TYPE_SELL}', 'ORDER_TYPE_BUY,ORDER_TYPE_SELL,ORDER_TYPE_BUY_LIMIT,ORDER_TYPE_SELL_LIMIT,ORDER_TYPE_BUY_STOP}')
     extra = extra.replace('double AccountInfoDouble(int prop){++account_reads;return prop==ACCOUNT_BALANCE?balance:equity;}', 'double FakeFreeMargin();double AccountInfoDouble(int prop){++account_reads;return prop==20?FakeFreeMargin():(prop==ACCOUNT_BALANCE?balance:equity);}')
     ui = UI.replace('struct CDialog:CWnd{', 'struct CDialog:CWnd{virtual bool OnEvent(int,const long&,const double&,const string&){return false;}')
+    ui = ui.replace(' bool Visible(bool v)', ' bool Show(){return Visible(true);} bool Hide(){return Visible(false);}\n bool Visible(bool v)')
     ui = ui.replace(' bool Caption(', ' void SubwinOff(){}\n bool Caption(')
     code = SHIM + platform + extra + TRADE_API + 'double FakeFreeMargin(){return free_margin;}\n' + ui + '\n'.join(
         adapt((ROOT/name).read_text().replace('CPanel &edges[]', 'CPanel (&edges)[5]').replace('input ulong', 'ulong').replace('ManualFiboPending m_pending[];', 'MqlArray<ManualFiboPending> m_pending;'))

@@ -1,4 +1,4 @@
-manualFibo 1.20 - Windows (source)
+manualFibo 1.21 - Windows (source)
 
 1. Place manualFibo.zip beside install-manualFibo.cmd, or extract the entire ZIP.
 2. Run install-manualFibo.cmd. It extracts and copies/overwrites MQL5 contents
@@ -7,7 +7,7 @@ manualFibo 1.20 - Windows (source)
    C:\Users\qwills\AppData\Roaming\MetaQuotes\Terminal\E3E3B02889D32F38295D39BF94B6AD4A
    Other location: install-manualFibo.cmd "C:\path\data-folder"
 4. Open Experts\manualFibo\manualFibo.mq5 in MetaEditor and press F7.
-5. Attach manualFibo 1.20 to a chart. Use a separate chart if running AutoFibo too.
+5. Attach manualFibo 1.21 to a chart. Use a separate chart if running AutoFibo too.
 
 Package includes Experts/manualFibo, the required headers in Include/_common/Fibo, the CMD and
 instructions. No EX5, Auto/market-structure libraries, examples or tests are included.
@@ -122,3 +122,13 @@ old cancellation history/events from resolving a newer request. All frees only
 confirmed wholly cancelled risk reservations. Do not manually erase these records.
 F7 and demo validation for partial fills, delayed history and repeated cycles are
 still required on Windows. The Mac runner uses a fake broker, not MetaTrader.
+
+SOURCE 1.21: TP MODES / RR
+Copy the new ManualFiboSettings.mqh with ALL other Experts/manualFibo headers,
+plus Include/_common/Fibo, then F7. TP now offers Tanpa TP / Swing end / RR.
+Swing end remains default. RR defaults to 2 and its input appears only in RR mode.
+Each RR target uses that row's normalized entry and SL, then rounds to tick size.
+Invalid/too-close/nonpositive TP blocks the batch. Existing orders are unaffected.
+Mode and last valid RR survive timeframe changes; legacy TP checkbox state loads.
+The timer does not rewrite RR drafts. Risk remains fixed to balance, with the
+existing All / Per level selector. Native F7, GUI and demo tests remain required.

@@ -1,4 +1,4 @@
-# manualFibo 1.20
+# manualFibo 1.21
 
 Manual Fibonacci drawing EA. No automatic swing detection, market structure,
 or indicators. It submits pending LIMIT orders on demand. This is a separate EA in the same Git repository;
@@ -25,8 +25,9 @@ want both EAs running.
 6. Edit the **SL price** beside each level if needed. An untouched SL follows the
    swing-start price. Clear the field and finish editing to restore that default.
    Each checked row displays its lot size and estimated loss in account currency.
-7. Leave **TP: swing end** checked to use the swing-end price as TP, or uncheck
-   it to send without TP. Click **Send Orders** to submit all new checked levels.
+7. Select **Tanpa TP / Swing end / RR**. Swing end remains the default. RR shows
+   an editable ratio (default **2**), while the other modes hide that field.
+   Click **Send Orders** to submit all new checked levels.
 8. **Delete Orders** cancels manualFibo pending limits for this chart symbol and
    configured OrderMagic, including earlier setups. Filled positions remain open.
 
@@ -121,9 +122,23 @@ not portfolio exposure or a guarantee of realized loss.
 Each request is checked again just before submission. Orders are independent;
 there is no atomic basket operation or automatic rollback of successful orders.
 
-TP is the normalized swing end, common to the batch, when checked. It must be on
-the profit side of each entry and meet broker distance rules; otherwise nothing
-is sent. Uncheck TP to send zero TP. This checkbox survives timeframe changes.
+TP mode belongs to manualFibo settings:
+
+- **Tanpa TP** sends zero TP.
+- **Swing end** uses the normalized swing-end price (default).
+- **RR** calculates each level's TP from its own normalized entry and SL:
+  BUY target = entry + abs(entry - SL) * RR; SELL target = entry - abs(entry - SL) * RR.
+
+RR defaults to 2, must be positive and supports up to eight decimal places. Its
+field is shown only in RR mode. Targets are rounded to the symbol tick size, so
+actual price-distance RR may differ slightly. Each TP must be positive, on the
+profit side and meet broker distance rules; one invalid new level blocks the
+batch before any send. The ratio is based on price distances and excludes costs.
+Mode and the last valid RR survive timeframe changes, including a valid RR draft
+when the chart is switched before end-edit. Invalid committed RR restores the
+previous value; invalid live input on Send blocks sending. Timer refreshes never
+overwrite an RR draft. Changing these settings affects future submissions only.
+It never modifies submitted orders or bypasses duplicate protection.
 Dragging/resetting/removing the drawing or EA does not modify or cancel submitted
 orders. Use Delete Orders explicitly. Deletion does not close filled positions,
 modify BUY STOP/SELL STOP, or touch other symbols/magic numbers/EA comments.
@@ -173,7 +188,8 @@ reset is not an order reset and does not rearm filled positions.
 ## Files and dependencies
 
 - Experts/manualFibo/manualFibo.mq5: lifecycle, manual selection and event coordination.
-- Experts/manualFibo/ManualFiboDialog.mqh: TP checkbox, total loss, send/delete controls.
+- Experts/manualFibo/ManualFiboDialog.mqh: TP mode/RR controls, total loss and send/delete buttons.
+- Experts/manualFibo/ManualFiboSettings.mqh: TP mode and RR configuration, validation and chart handoff.
 - Experts/manualFibo/ManualFiboOrders.mqh: batch preflight, limit execution, risk reservations and deletion.
 - Experts/manualFibo/ManualFiboReconcile.mqh: durable intent metadata, transaction matching and bounded recovery.
 - Include/_common/Fibo/FiboModel.mqh: shared anchors, ratio choices and calculation wrapper.
@@ -193,7 +209,7 @@ MQL5 locations. Older sibling headers in Experts/manualFibo are no longer used.
 When generating a ZIP, use distribution/manualFibo/manualFibo.zip with
 install-manualFibo.cmd on Windows.
 The installer extracts and copies/overwrites MQL5 files without backups. Open
-Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.20.
+Experts/manualFibo/manualFibo.mq5 in MetaEditor, press F7, then attach manualFibo 1.21.
 
 ```bash
 python3 tests/check_manualfibo.py
@@ -230,3 +246,9 @@ existing submission meanings. Attempt counters are stored separately as .Gen
 and old attempt metadata is removed only after the counter is saved. A restart
 between those writes stays protected. The existing GUI status/log reports the
 result; no per-level order status column or automatic resend is introduced.
+
+TP settings use the hidden chart-local manualFibo.TradeOptions object with schema
+2 (mode plus RR). Legacy checkbox text 0/1 migrates to Tanpa TP/Swing end and RR 2.
+This is separate from terminal-global submission/risk records; the shared Fibo
+model/state schema and AutoFibo controls are unaffected. Removal/symbol changes
+clear these chart settings; fresh attachment defaults to Swing end and RR 2.

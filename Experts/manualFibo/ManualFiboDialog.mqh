@@ -2,6 +2,7 @@
 #define MANUAL_FIBO_DIALOG_MQH
 #include <_common\Fibo\FiboDialog.mqh>
 #include <Controls\ComboBox.mqh>
+#include "ManualFiboSettings.mqh"
 
 // CListView treats zero as an automatic item value; use explicit positive IDs.
 enum ManualFiboRiskChoice { MANUAL_RISK_ALL = 1, MANUAL_RISK_PER_LEVEL = 2 };
@@ -11,7 +12,10 @@ class CManualFiboDialog : public CFiboDialog
 {
 private:
    CButton m_send, m_delete;
-   CCheckBox m_take_profit;
+   CComboBox m_tp_mode;
+   CEdit m_rr;
+   CLabel m_rr_label;
+   string m_rr_name;
    CComboBox m_risk_mode;
    CLabel m_total;
    int m_trade_action;
@@ -30,14 +34,23 @@ public:
       m_risk_mode.ListViewItems(2);
       if(!m_risk_mode.SelectByValue(MANUAL_RISK_PER_LEVEL) || !Add(m_risk_mode))
       { Print("manualFibo GUI: risk mode selection/registration failed, error ", GetLastError()); return false; }
-      bool created = m_take_profit.Create(chart, name + ".TP", subwin, 374, 386, 584, 410)
-             && m_take_profit.Text("TP: swing end") && m_take_profit.Checked(true) && Add(m_take_profit)
-             && Label(m_total, chart, name + ".Total", "Total est. loss: -", 14, 450, 584, 472)
+      m_rr_name = name + ".RR";
+      if(!m_tp_mode.Create(chart, name + ".TPMode", subwin, 374, 386, 584, 412)
+         || !m_tp_mode.AddItem("Tanpa TP", MANUAL_TP_NONE) || !m_tp_mode.AddItem("Swing end", MANUAL_TP_SWING)
+         || !m_tp_mode.AddItem("RR", MANUAL_TP_RR))
+      { Print("manualFibo GUI: TP mode creation/items failed, error ", GetLastError()); return false; }
+      m_tp_mode.ListViewItems(3);
+      if(!m_tp_mode.SelectByValue(MANUAL_TP_SWING) || !Add(m_tp_mode))
+      { Print("manualFibo GUI: TP mode selection/registration failed, error ", GetLastError()); return false; }
+      bool created = Label(m_rr_label, chart, name + ".RRLabel", "RR", 440, 452, 472, 472)
+             && Edit(m_rr, chart, m_rr_name, subwin, "2", 480, 450, 584, 474)
+             && Label(m_total, chart, name + ".Total", "Total est. loss: -", 14, 450, 426, 472)
              && m_send.Create(chart, name + ".Send", subwin, 14, 484, 288, 514)
              && m_send.Text("Send Orders") && Add(m_send)
              && m_delete.Create(chart, name + ".Delete", subwin, 310, 484, 584, 514)
              && m_delete.Text("Delete Orders") && Add(m_delete);
-      if(!created) Print("manualFibo GUI: trading controls failed, error ", GetLastError());
+      if(!created) Print("manualFibo GUI: RR/trading controls failed, error ", GetLastError());
+      if(created) UpdateRRVisibility();
       return created;
    }
    virtual bool OnEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
@@ -49,7 +62,12 @@ public:
       }
       if(id == CHARTEVENT_CUSTOM + ON_CHANGE && lparam == m_risk_mode.Id())
       { m_trade_action = 3; return true; }
-      return CFiboDialog::OnEvent(id, lparam, dparam, sparam);
+      if(id == CHARTEVENT_CUSTOM + ON_CHANGE && lparam == m_tp_mode.Id())
+      { m_trade_action = 4; return true; }
+      bool handled = CFiboDialog::OnEvent(id, lparam, dparam, sparam);
+      if(id == CHARTEVENT_OBJECT_ENDEDIT && sparam == m_rr_name)
+      { m_trade_action = 5; return true; }
+      return handled;
    }
    int TakeTradeAction(void) { int action = m_trade_action; m_trade_action = 0; return action; }
    void DispatchEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
@@ -63,13 +81,43 @@ public:
             SubwinOff(); return;
          }
       }
+      bool minimized = IsMinimized();
       ChartEvent(id, lparam, dparam, sparam);
+      if(minimized && !IsMinimized()) UpdateRRVisibility();
    }
    bool RiskAll(void) { return m_risk_mode.Value() == MANUAL_RISK_ALL; }
    void SyncRiskMode(const CFiboModel &model)
    { m_risk_mode.SelectByValue(model.RiskAll() ? MANUAL_RISK_ALL : MANUAL_RISK_PER_LEVEL); }
-   bool UseTP(void) { return m_take_profit.Checked(); }
-   void UseTP(const bool value) { m_take_profit.Checked(value); }
+   ManualFiboTPMode TPMode(void) { return (ManualFiboTPMode)m_tp_mode.Value(); }
+   bool ReadSettings(CManualFiboSettings &settings)
+   {
+      if(!settings.SetTPMode(TPMode())) return false;
+      if(TPMode() != MANUAL_TP_RR) return true;
+      double rr = 0;
+      return FiboParseNumber(m_rr.Text(), rr) && settings.SetRR(rr);
+   }
+   void RefreshSettings(const CManualFiboSettings &settings)
+   {
+      if(m_tp_mode.Value() != (long)settings.TPMode()) m_tp_mode.SelectByValue(settings.TPMode());
+      string rr = DoubleToString(settings.RR(), 8);
+      while(StringLen(rr) > 1 && StringSubstr(rr, StringLen(rr) - 1) == "0") rr = StringSubstr(rr, 0, StringLen(rr) - 1);
+      if(StringSubstr(rr, StringLen(rr) - 1) == ".") rr = StringSubstr(rr, 0, StringLen(rr) - 1);
+      SetText(m_rr, rr); UpdateRRVisibility();
+   }
+   void UpdateRRVisibility(void)
+   {
+      bool show = TPMode() == MANUAL_TP_RR && !IsMinimized();
+      if(show)
+      {
+         if(!m_rr.IsVisible()) m_rr.Show();
+         if(!m_rr_label.IsVisible()) m_rr_label.Show();
+      }
+      else
+      {
+         if(m_rr.IsVisible()) m_rr.Hide();
+         if(m_rr_label.IsVisible()) m_rr_label.Hide();
+      }
+   }
    virtual bool RefreshLots(const CFiboModel &model)
    {
       bool changed = CFiboDialog::RefreshLots(model);

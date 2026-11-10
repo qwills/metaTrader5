@@ -2,6 +2,7 @@
 #define MANUAL_FIBO_ORDERS_MQH
 #include <_common\Fibo\FiboRisk.mqh>
 #include "ManualFiboReconcile.mqh"
+#include "ManualFiboSettings.mqh"
 
 // Execution is private to manualFibo; the shared model/calculator never trades.
 class CManualFiboOrders
@@ -86,7 +87,7 @@ private:
              && AccountInfoInteger(ACCOUNT_TRADE_EXPERT);
    }
    string Level(const int index) const { return DoubleToString(FiboRatio(index) * 100, 1) + "%"; }
-   bool Prepare(const CFiboModel &model, const bool use_tp, const int index,
+   bool Prepare(const CFiboModel &model, const CManualFiboSettings &settings, const int index,
                 const FiboRiskContext &context, MqlTradeRequest &request, double &loss, string &error) const
    {
       CFiboRisk risk; FiboLot lot;
@@ -97,17 +98,25 @@ private:
       request.type_filling = ORDER_FILLING_RETURN; request.type_time = ORDER_TIME_GTC;
       request.price = lot.entry; request.sl = lot.stop; request.volume = lot.volume;
       request.tp = 0;
-      if(use_tp)
+      if(settings.TPMode() != MANUAL_TP_NONE)
       {
-         request.tp = NormalizeDouble(MathRound(model.EndPrice() / context.tick) * context.tick, _Digits);
+         double target = model.EndPrice();
+         if(settings.TPMode() == MANUAL_TP_RR)
+         {
+            double reward = MathAbs(request.price - request.sl) * settings.RR();
+            target = request.price + (buy ? reward : -reward);
+         }
+         if(!MathIsValidNumber(target) || target <= 0 || target == EMPTY_VALUE)
+         { error = "TP invalid"; return false; }
+         request.tp = NormalizeDouble(MathRound(target / context.tick) * context.tick, _Digits);
          double distance = buy ? request.tp - request.price : request.price - request.tp;
          if(!MathIsValidNumber(request.tp) || request.tp <= 0 || distance <= 0
             || distance + context.tick * 0.0000001 < context.stop_distance)
-         { error = "TP swing end invalid"; return false; }
+         { error = settings.TPMode() == MANUAL_TP_RR ? "TP RR invalid" : "TP swing end invalid"; return false; }
       }
       request.comment = Comment(model, index); loss = lot.loss; return true;
    }
-   string SendLocked(const CFiboModel &model, const bool use_tp)
+   string SendLocked(const CFiboModel &model, const CManualFiboSettings &settings)
    {
       if(!Permissions()) return "Aktifkan Algo Trading / koneksi akun.";
       if(!model.Ready() || model.Mask() == 0) return "Pilih swing dan minimal satu level.";
@@ -150,7 +159,7 @@ private:
          if(!model.Enabled(i)) continue;
          if(AlreadySent(Comment(model, i))) { skipped++; continue; }
          string error = "";
-         if(!Prepare(model, use_tp, i, context, requests[i], losses[i], error)) return Level(i) + ": " + error;
+         if(!Prepare(model, settings, i, context, requests[i], losses[i], error)) return Level(i) + ": " + error;
          total_loss += losses[i];
          MqlTradeCheckResult check = {};
          if(!OrderCheck(requests[i], check) || (check.retcode != 0 && check.retcode != TRADE_RETCODE_DONE))
@@ -213,10 +222,10 @@ public:
       uint generation = m_reconcile.Generation(base);
       return generation == 0 ? base : base + "-" + Hex(generation);
    }
-   string Send(const CFiboModel &model, const bool use_tp)
+   string Send(const CFiboModel &model, const CManualFiboSettings &settings)
    {
       if(!Acquire()) return m_lock_message;
-      string message = SendLocked(model, use_tp); Release(); return message;
+      string message = SendLocked(model, settings); Release(); return message;
    }
    void Transaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
    { m_reconcile.Transaction(trans, request, result); }

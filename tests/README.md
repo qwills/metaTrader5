@@ -36,3 +36,8 @@ manualFibo 1.20 adds fixed-balance versus floating-equity checks, repeated
 send/delete/send cycles, partial/filled protection, delayed cancellation history,
 restart recovery, distinct attempt identities and All reservation release tests.
 The broker fixture models cancelled state and remaining volume explicitly.
+
+manualFibo 1.21 checks cover TP mode/RR defaults, settings-schema migration,
+normalized BUY/SELL targets and per-level SLs, invalid TP distance, live RR input
+capture, no modification/duplication of existing orders, native restore visibility
+and timeframe handoff of valid drafts. These remain fake broker/GUI checks.

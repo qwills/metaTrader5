@@ -1,5 +1,5 @@
 #property strict
-#property version "1.20"
+#property version "1.21"
 #property description "Manual Fibonacci with balance-risk limit orders and scoped deletion."
 #include "ManualFiboDialog.mqh"
 #include "ManualFiboOrders.mqh"
@@ -10,6 +10,7 @@ enum ManualSelection { MANUAL_IDLE, MANUAL_START, MANUAL_END };
 CFiboModel g_model;
 CManualFiboDialog g_dialog;
 CManualFiboOrders g_orders;
+CManualFiboSettings g_settings;
 input ulong OrderMagic = 11600101;
 CFiboChart g_chart;
 CFiboState g_storage;
@@ -97,6 +98,17 @@ void SyncObject(void)
    Status("Anchor diperbarui.");
 }
 
+bool CommitTPSettings(const bool restore_invalid = false)
+{
+   CManualFiboSettings candidate; candidate.CopyFrom(g_settings);
+   if(!g_dialog.ReadSettings(candidate))
+   {
+      if(restore_invalid) g_dialog.RefreshSettings(g_settings);
+      Status("RR harus positif, maksimal 8 desimal."); return false;
+   }
+   g_settings.CopyFrom(candidate); g_dialog.RefreshSettings(g_settings); ChartRedraw(); return true;
+}
+
 int InitFailed(const string stage)
 {
    Print("manualFibo OnInit failed: ", stage, "; error ", GetLastError());
@@ -110,6 +122,8 @@ int OnInit(void)
    g_storage.SetPrefix("manualFibo."); g_chart.SetPrefix("manualFibo.");
    CFiboModel initial; initial.SetBalanceRisk(true); g_model.CopyFrom(initial);
    bool restoring = g_storage.Load(g_model, _Symbol);
+   CManualFiboSettings defaults; g_settings.CopyFrom(defaults);
+   if(restoring) g_settings.Load();
    g_symbol = _Symbol; g_created = false; g_events_saved = false;
    g_selection = MANUAL_IDLE; g_pick_time = 0; g_pick_price = 0;
    g_left_down = false; g_panel_pressed = false; g_scroll_locked = false; g_ignore_click_until = 0;
@@ -125,9 +139,7 @@ int OnInit(void)
    ResetLastError();
    if(!g_dialog.Run()) return InitFailed("Run GUI");
    if(restoring) g_dialog.IniFileLoad();
-   if(restoring && ObjectFind(0, "manualFibo.TradeOptions") >= 0)
-      g_dialog.UseTP(ObjectGetString(0, "manualFibo.TradeOptions", OBJPROP_TEXT) != "0");
-   ObjectDelete(0, "manualFibo.TradeOptions");
+   g_dialog.RefreshSettings(g_settings); g_settings.Consume();
    ResetLastError();
    if(g_model.Ready() && !g_chart.Draw(g_model)) return InitFailed("restore Fibonacci drawing");
    g_storage.Consume();
@@ -149,12 +161,11 @@ void OnDeinit(const int reason)
    }
    if(g_model.Ready() && !g_chart.HasFibo()) g_model.Clear();
    bool preserving = reason == REASON_CHARTCHANGE && g_created && g_storage.Save(g_model, g_symbol);
-   if(preserving && ObjectCreate(0, "manualFibo.TradeOptions", OBJ_LABEL, 0, 0, 0))
+   if(preserving)
    {
-      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_HIDDEN, true);
-      ObjectSetInteger(0, "manualFibo.TradeOptions", OBJPROP_SELECTABLE, false);
-      ObjectSetString(0, "manualFibo.TradeOptions", OBJPROP_TEXT, g_dialog.UseTP() ? "1" : "0");
+      CManualFiboSettings candidate; candidate.CopyFrom(g_settings);
+      if(g_dialog.ReadSettings(candidate)) g_settings.CopyFrom(candidate);
+      if(!g_settings.Save()) Print("manualFibo: failed to save TP/RR settings, error ", GetLastError());
    }
    g_dialog.Destroy(reason); g_created = false; g_panel_pressed = false; UnlockScroll();
    if(g_events_saved)
@@ -234,12 +245,17 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       }
       return;
    }
+   if(trade_action == 4 || trade_action == 5)
+   {
+      if(CommitTPSettings(true)) Status("Pengaturan TP diperbarui.");
+      return;
+   }
    if(trade_action == 2) { Status(g_orders.Delete()); return; }
    if(trade_action == 1)
    {
       if(g_selection != MANUAL_IDLE) { Status("Selesaikan atau batalkan pemilihan swing."); return; }
       if(!g_model.Ready() || !g_chart.HasFibo()) { Status("Pilih swing dan level terlebih dahulu."); return; }
-      if(CommitOrderInputs()) Status(g_orders.Send(g_model, g_dialog.UseTP()));
+      if(CommitTPSettings() && CommitOrderInputs()) Status(g_orders.Send(g_model, g_settings));
       return;
    }
    FiboAction action = g_dialog.TakeAction();

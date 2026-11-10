@@ -4,7 +4,7 @@
   AutoFibo.zip can be generated on request with the shared Fibo/Swing/Structure libraries.
 - manualFibo/: manualFibo.zip, install-manualFibo.cmd and INSTALL.txt. Manual-only
   EA with ratio checkboxes including 88.6%, per-level SL and equity-risk lot
-  estimates, batch limit send/delete and optional TP. Uses Include/_common/Fibo;
+  estimates, batch limit send/delete and TP modes including RR. Uses Include/_common/Fibo;
   no swing/market-structure library is required.
 
 Place the chosen CMD beside its ZIP, then run it on Windows. An optional first

@@ -1,5 +1,18 @@
 # manualFibo changelog
 
+## 1.21
+
+- Replace the TP checkbox with Tanpa TP / Swing end / RR, using positive native
+  combo-box IDs. Swing end remains default; the RR input defaults to 2 and is
+  visible only in RR mode, including after native minimize/restore.
+- Add ManualFiboSettings.mqh for validated TP/RR settings and chart-local handoff;
+  migrate legacy checkbox state and capture valid drafts on timeframe changes.
+- Compute each RR target from its normalized entry/SL, then normalize TP to tick
+  size and preflight all new selected levels before sending. Existing orders and
+  duplicate/risk-reservation rules remain unchanged.
+- Extend fake-broker/GUI checks for BUY/SELL RR, custom stops, invalid/near TP,
+  tick rounding, input isolation, persistence and settings migration.
+
 ## 1.20
 
 - Allow Send -> Delete -> Send on the same anchors after exact-ticket history
