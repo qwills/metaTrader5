@@ -27,6 +27,10 @@ default/custom/empty timeframe selection and skipped reads for disabled rows,
 intrabar changes, unchanged-display command suppression, rollover rejection and
 data/command-failure recovery. They do not validate native iBands calculations,
 plot buffers, history downloads or chart rendering.
+Reload checks also cover retaining table objects/values on chart changes,
+claiming multiple pending instances separately, scoped cleanup, and rejecting
+tables from other symbols/settings or with missing rows. Native handles are
+reacquired on initialization; simulated reload does not prove MT5 cache behavior.
 
 manualFibo execution tests use manualfibo_trade_adapter.py, a fake broker that
 records requests without network access. They cover batch preflight/margin,

@@ -12,18 +12,26 @@ TABLE_ADAPTER = r"""
 #include <string>
 #include <cstdio>
 #include <cmath>
+#include <map>
 using string = std::string;
 using color = int;
 using datetime = long;
 const color clrSilver=0, clrLimeGreen=1, clrRed=2, clrDodgerBlue=3, clrOrange=4;
 const int SERIES_LASTBAR_DATE=1, SERIES_SYNCHRONIZED=2;
 const int OBJPROP_TEXT=1, OBJPROP_COLOR=2;
+const int REASON_CHARTCHANGE=3, INVALID_HANDLE=-1;
 const double EMPTY_VALUE=1e308;
-int InpPeriod=20, _Digits=5, _Symbol=1;
+int InpPeriod=20, _Digits=5;
+string _Symbol="EURUSD";
+double InpDeviation=2;
+int InpAppliedPrice=0, InpTableX=12, InpTableY=28, InpFontSize=10;
+int InpUpperColor=2, InpMiddleColor=3, InpLowerColor=1;
+int ChartHandle=100;
 int Timeframes[9]={}, TableHandles[9]={};
 bool TimeframeEnabled[9];
 int SelectedCount=0;
 string Prefix="test_", DisplayedText[9];
+string TableKey="";
 color DisplayedColor[9];
 struct MqlRates { datetime time; double close; };
 double previous_close=99, current_close=102, previous_middle=100, current_middle=101;
@@ -36,10 +44,10 @@ string DoubleToString(double value, int digits)
     char text[64]; std::snprintf(text, sizeof(text), "%.*f", digits, value); return text;
 }
 bool MathIsValidNumber(double value) { return std::isfinite(value); }
-long SeriesInfoInteger(int, int, int property)
+long SeriesInfoInteger(const string &, int, int property)
 { return property == SERIES_LASTBAR_DATE ? current_time : synchronized; }
 int BarsCalculated(int) { return ready ? 100 : 0; }
-int CopyRates(int, int, int shift, int count, MqlRates (&rates)[2])
+int CopyRates(const string &, int, int shift, int count, MqlRates (&rates)[2])
 {
     assert(shift == 0 && count == 2); ++rates_calls;
     rates[0] = {current_time-100, previous_close};
@@ -52,11 +60,82 @@ int CopyBuffer(int, int index, int shift, int count, double (&middle)[2])
     if(rollover) ++current_time;
     return 2;
 }
-bool ObjectSetString(int, const string &, int, const string &)
-{ ++text_commands; return !reject_commands; }
+struct FakeObject { std::map<int,string> text; color tint=0; };
+std::map<string,FakeObject> objects;
+bool ObjectSetString(int, const string &name, int property, const string &value)
+{
+    ++text_commands;
+    if(reject_commands) return false;
+    objects[name].text[property]=value; return true;
+}
 bool ObjectSetInteger(int, const string &, int, color)
 { ++color_commands; return !reject_commands; }
 void ChartRedraw(int) { ++redraws; }
+int StringLen(const string &text) { return static_cast<int>(text.size()); }
+int StringFind(const string &text, const string &part)
+{ auto pos=text.find(part); return pos==string::npos ? -1 : static_cast<int>(pos); }
+string StringSubstr(const string &text, int start, int length=-1)
+{ return text.substr(start, length<0 ? string::npos : static_cast<size_t>(length)); }
+int ObjectsTotal(int,int,int) { return static_cast<int>(objects.size()); }
+string ObjectName(int,int index,int,int)
+{ auto it=objects.begin(); std::advance(it,index); return it->first; }
+int ObjectFind(int,const string &name) { return objects.count(name) ? 0 : -1; }
+string ObjectGetString(int,const string &name,int prop) { return objects[name].text[prop]; }
+long ObjectGetInteger(int,const string &name,int) { return objects[name].tint; }
+void ObjectsDeleteAll(int,const string &prefix)
+{
+    for(auto it=objects.begin(); it!=objects.end();)
+        if(it->first.find(prefix)==0) it=objects.erase(it); else ++it;
+}
+int released=0;
+void IndicatorRelease(int) { ++released; }
+void EventKillTimer() {}
+"""
+
+RELOAD_CHECKS = r"""
+void SeedTable(const string &prefix, const string &symbol)
+{
+    objects[prefix+"State"].text[OBJPROP_TEXT]="pending|"+TableKey+symbol;
+    objects[prefix+"Background"]={};
+    objects[prefix+"Title"]={}; objects[prefix+"TF"]={}; objects[prefix+"Middle"]={};
+    for(int i=0;i<9;++i)
+        if(TimeframeEnabled[i])
+        {
+            objects[prefix+"TF"+IntegerToString(i)]={};
+            auto &obj=objects[prefix+"Value"+IntegerToString(i)];
+            obj.text[OBJPROP_TEXT]="101.00000"; obj.tint=clrDodgerBlue;
+        }
+}
+void RunReloadChecks()
+{
+    objects.clear();
+    InpShowM15=true; InpShowM30=true; InpShowH1=true; InpShowH4=true;
+    ConfigureTimeframes(); TableKey=TableSettingsKey();
+    SeedTable("BBT_first_", _Symbol); SeedTable("BBT_second_", _Symbol);
+    // Restore without invoking rates or indicator copies, keeping exact display.
+    int before_rates=rates_calls, before_buffers=buffer_calls;
+    assert(RestoreTable());
+    string first=Prefix;
+    assert(DisplayedText[2]=="101.00000" && DisplayedColor[2]==clrDodgerBlue);
+    assert(RestoreTable() && Prefix!=first); // each pending instance claimed once
+    assert(!RestoreTable());
+    assert(rates_calls==before_rates && buffer_calls==before_buffers);
+    Prefix=first;
+    OnDeinit(REASON_CHARTCHANGE);
+    assert(ObjectFind(0,first+"Background")>=0);
+    assert(RestoreTable() && Prefix==first);
+    OnDeinit(1); // remove only this instance
+    assert(ObjectFind(0,first+"Background")==-1 && !objects.empty());
+    objects.clear(); SeedTable("BBT_oldsymbol_", "GBPUSD");
+    assert(!RestoreTable() && objects.empty());
+    SeedTable("BBT_incomplete_", _Symbol);
+    objects.erase("BBT_incomplete_Value2");
+    assert(!RestoreTable() && objects.empty());
+    SeedTable("BBT_other_", _Symbol);
+    InpPeriod=21; TableKey=TableSettingsKey();
+    assert(!RestoreTable() && !objects.empty()); // mismatched config untouched
+    InpPeriod=20;
+}
 """
 
 TABLE_CHECKS = r"""
@@ -166,15 +245,18 @@ int main()
 }
 """
     source = (ROOT / "Indicators/BollingerTable/BollingerTable.mq5").read_text()
+    restore = source.split("string TableSettingsKey()", 1)[1].split("void ConfigureTimeframes()", 1)[0]
+    deinit = source.split("void OnDeinit(", 1)[1]
     selection_inputs = "\n".join(re.findall(r"input (bool\s+InpShow\w+\s*=\s*(?:true|false);)", source))
     configure = source.split("void ConfigureTimeframes()", 1)[1].split("color SignalColor(", 1)[0]
     signal_color = source.split("color SignalColor(", 1)[1].split("bool CreateLabel(", 1)[0]
     table = source.split("bool ValidBandValue(", 1)[1].split("int OnInit()", 1)[0]
     adapter = (TABLE_ADAPTER + selection_inputs + "\nvoid ConfigureTimeframes()" + configure +
                "\ncolor SignalColor(" + signal_color +
-               "\nbool ValidBandValue(" + table + TABLE_CHECKS)
+               "\nbool ValidBandValue(" + table + TABLE_CHECKS +
+               "\nstring TableSettingsKey()" + restore + "\nvoid OnDeinit(" + deinit + RELOAD_CHECKS)
     code = code.replace("int main()", adapter + "\nint main()")
-    code = code.replace("int main()\n{", "int main()\n{\n    RunTableChecks();")
+    code = code.replace("int main()\n{", "int main()\n{\n    RunTableChecks();\n    RunReloadChecks();")
     with tempfile.TemporaryDirectory(prefix="bollinger-checks-") as folder:
         cpp = Path(folder) / "checks.cpp"
         binary = Path(folder) / "checks"
@@ -183,7 +265,7 @@ int main()
                         "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
                         str(cpp), "-o", str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
-    print("14 BB signal checks and timeframe-selection/live-table/cache/recovery checks passed; "
+    print("14 BB signal checks and timeframe-selection/live-table/cache/reload/recovery checks passed; "
           "Windows F7 and GUI validation remain required.")
 
 

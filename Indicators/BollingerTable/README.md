@@ -1,4 +1,4 @@
-# BollingerTable 1.02
+# BollingerTable 1.03
 
 Indikator MT5 dengan garis upper, middle, lower Bollinger Bands pada timeframe
 chart serta tabel kecil dua kolom: TF dan Middle BB. Default periode **20**,
@@ -39,7 +39,13 @@ Middle ditampilkan mengikuti jumlah digit simbol.
 
 Input posisi X/Y mengatur jarak dari kiri/atas chart; ukuran font 8–16.
 Jika memasang beberapa instance pada satu chart, atur offset berbeda agar tabel
-tidak bertumpuk. Objek setiap instance dibersihkan saat indikator dilepas.
+tidak bertumpuk. Judul tabel hanya `BB`.
+
+Saat timeframe chart diganti, tabel dan nilai/warna terakhir dipertahankan;
+tidak dikosongkan atau dibaca ulang secara paksa pada init. Timer melanjutkan
+pembaruan normal untuk timeframe tabel yang tetap sama. Jika simbol berubah,
+nilai lama dibuang agar tidak menampilkan nilai simbol sebelumnya. Objek setiap
+instance dibersihkan saat indikator dilepas atau inisialisasinya gagal.
 
 ## Instalasi
 
@@ -68,6 +74,14 @@ periode default. Indikator hanya menampilkan data, tanpa order atau alert.
   pembacaan untuk menolak snapshot saat pergantian candle.
 - Perintah teks/warna hanya dikirim jika tampilan berubah. `ChartRedraw` tabel
   hanya dipanggil ketika ada perubahan objek yang berhasil dikirim.
+- Pergantian timeframe chart tidak memicu kalkulasi manual atau pembacaan
+  histori penuh untuk middle tabel. MT5 tetap memuat ulang indikator dan
+  handle native harus diperoleh kembali; jangan menyimpan handle integer
+  dari instance sebelumnya. Cache kalkulasi `iBands` dikelola terminal.
+  Tabel memakai kembali objek/nilai tampilan, lalu melanjutkan salinan dua bar
+  per refresh. Garis BB chart tetap harus dimuat untuk timeframe chart baru.
+
+Siklus reload indikator: [MetaQuotes OnInit/OnDeinit](https://www.mql5.com/en/book/applications/runtime/runtime_oninit_ondeinit).
 
 Ini pemeriksaan kode dan simulasi, belum pengukuran CPU/latensi di terminal MT5.
 
@@ -77,6 +91,8 @@ Jalankan `python3 tests/check_bollinger_table.py` dari root workspace untuk
 memeriksa pemilihan timeframe default/custom/kosong, pengabaian baris nonaktif,
 logika warna/cross, pembacaan shift 0/1, perubahan intrabar, cache
 tampilan, penolakan snapshot rollover, dan pemulihan data melalui adapter C++.
+Tes reload memeriksa pemulihan tabel tanpa pembacaan harga, beberapa instance,
+pembersihan objek, dan penolakan snapshot simbol/konfigurasi berbeda atau rusak.
 Runner ini bukan compiler MQL5 dan tidak membuktikan kalkulasi native `iBands`.
 F7 dan rendering GUI tetap harus diuji pada MT5 Windows. Cocokkan tiga garis
 dengan Bollinger Bands bawaan (20, shift 0, deviasi 2, Close), serta nilai tabel

@@ -1,5 +1,5 @@
 #property copyright "will_santoso"
-#property version   "1.02"
+#property version   "1.03"
 #property description "Bollinger Bands with a current-candle multi-timeframe middle-band table."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -48,6 +48,65 @@ bool TimeframeEnabled[9];
 int SelectedCount = 0;
 // Reuse copy storage across ticks; normal updates need only one or two bars.
 double CopyMiddle[], CopyUpper[], CopyLower[];
+string TableKey = "";
+
+// The key intentionally excludes the chart timeframe. A matching pending table
+// belongs to the same configuration after MT5 unloads/reloads the indicator.
+string TableSettingsKey()
+{
+   string key = "BBT103|" + IntegerToString(InpPeriod) + "|" +
+                DoubleToString(InpDeviation, 16) + "|" + IntegerToString(InpAppliedPrice) + "|" +
+                IntegerToString(InpTableX) + "|" + IntegerToString(InpTableY) + "|" +
+                IntegerToString(InpFontSize) + "|" + IntegerToString(InpUpperColor) + "|" +
+                IntegerToString(InpMiddleColor) + "|" + IntegerToString(InpLowerColor) + "|";
+   for(int i = 0; i < 9; i++)
+      key += TimeframeEnabled[i] ? "1" : "0";
+   return key + "|";
+}
+
+bool RestoreTable()
+{
+   // Objects survive indicator reloads. Claim one pending matching instance;
+   // never reuse integer indicator handles across unload/reload boundaries.
+   string pending_key = "pending|" + TableKey;
+   int count = ObjectsTotal(0, 0, -1);
+   for(int n = 0; n < count; n++)
+   {
+      string name = ObjectName(0, n, 0, -1);
+      int length = StringLen(name);
+      if(StringFind(name, "BBT_") != 0 || length < 5 ||
+         StringSubstr(name, length - 5) != "State")
+         continue;
+      string marker = ObjectGetString(0, name, OBJPROP_TEXT);
+      if(StringFind(marker, pending_key) != 0)
+         continue;
+      Prefix = StringSubstr(name, 0, length - 5);
+      bool valid = marker == pending_key + _Symbol;
+      for(int i = 0; i < 9 && valid; i++)
+      {
+         if(!TimeframeEnabled[i])
+            continue;
+         string value_name = Prefix + "Value" + IntegerToString(i);
+         valid = ObjectFind(0, value_name) >= 0 &&
+                 ObjectFind(0, Prefix + "TF" + IntegerToString(i)) >= 0;
+         if(valid)
+         {
+            DisplayedText[i] = ObjectGetString(0, value_name, OBJPROP_TEXT);
+            DisplayedColor[i] = (color)ObjectGetInteger(0, value_name, OBJPROP_COLOR);
+         }
+      }
+      valid = valid && ObjectFind(0, Prefix + "Title") >= 0 &&
+              ObjectFind(0, Prefix + "TF") >= 0 && ObjectFind(0, Prefix + "Middle") >= 0 &&
+              ObjectFind(0, Prefix + "Background") >= 0;
+      if(valid && ObjectSetString(0, name, OBJPROP_TEXT, "active|" + TableKey + _Symbol))
+         return true;
+      // A symbol change shares REASON_CHARTCHANGE: discard its old values.
+      ObjectsDeleteAll(0, Prefix);
+      Prefix = "";
+      return false;
+   }
+   return false;
+}
 
 void ConfigureTimeframes()
 {
@@ -118,7 +177,7 @@ bool CreateTable()
    int left = InpTableX + 10;
    int value_x = left + InpFontSize * 6;
    int top = InpTableY + 6;
-   if(!CreateLabel("Title", "BB | current candle", left, top) ||
+   if(!CreateLabel("Title", "BB", left, top) ||
       !CreateLabel("TF", "TF", left, top + row_height) ||
       !CreateLabel("Middle", "Middle BB", value_x, top + row_height))
       return false;
@@ -135,7 +194,12 @@ bool CreateTable()
       DisplayedColor[i] = clrWhite;
       row++;
    }
-   return true;
+   // Keep handoff metadata off the chart and out of visible tooltips.
+   string state = Prefix + "State";
+   if(!CreateLabel("State", "", 0, 0) ||
+      !ObjectSetInteger(0, state, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS))
+      return false;
+   return ObjectSetString(0, state, OBJPROP_TEXT, "active|" + TableKey + _Symbol);
 }
 
 bool ValidBandValue(const double value)
@@ -191,10 +255,14 @@ int OnInit()
 {
    ArrayInitialize(TableHandles, INVALID_HANDLE);
    ConfigureTimeframes();
+   TableKey = TableSettingsKey();
    if(InpPeriod < 2 || !MathIsValidNumber(InpDeviation) || InpDeviation <= 0 ||
       InpTableX < 0 || InpTableY < 0 || InpFontSize < 8 || InpFontSize > 16)
       return INIT_PARAMETERS_INCORRECT;
 
+   // Claim retained objects before any operation that could fail initialization,
+   // so REASON_INITFAILED also cleans up a previously retained table.
+   bool restored = SelectedCount > 0 && RestoreTable();
    if(!SetIndexBuffer(0, MiddleBuffer, INDICATOR_DATA) ||
       !SetIndexBuffer(1, UpperBuffer, INDICATOR_DATA) ||
       !SetIndexBuffer(2, LowerBuffer, INDICATOR_DATA))
@@ -228,13 +296,21 @@ int OnInit()
       if(TableHandles[i] == INVALID_HANDLE)
          return INIT_FAILED;
    }
-   Prefix = "BBT_" + IntegerToString(ChartID()) + "_" +
-            IntegerToString((long)GetMicrosecondCount()) + "_";
    if(SelectedCount > 0)
    {
-      if(!CreateTable() || !EventSetTimer(1))
+      if(!restored)
+      {
+         Prefix = "BBT_" + IntegerToString(ChartID()) + "_" +
+                  IntegerToString((long)GetMicrosecondCount()) + "_";
+         if(!CreateTable())
+            return INIT_FAILED;
+      }
+      if(!EventSetTimer(1))
          return INIT_FAILED;
-      RefreshTable();
+      // A TF switch does not force another table read or clear its last values.
+      // The normal timer will pick up live prices independently of chart TF.
+      if(!restored)
+         RefreshTable();
    }
    return INIT_SUCCEEDED;
 }
@@ -278,7 +354,13 @@ void OnDeinit(const int reason)
 {
    EventKillTimer();
    if(Prefix != "")
-      ObjectsDeleteAll(0, Prefix);
+   {
+      bool retained = reason == REASON_CHARTCHANGE &&
+                      ObjectSetString(0, Prefix + "State", OBJPROP_TEXT,
+                                      "pending|" + TableKey + _Symbol);
+      if(!retained)
+         ObjectsDeleteAll(0, Prefix);
+   }
    if(ChartHandle != INVALID_HANDLE)
       IndicatorRelease(ChartHandle);
    for(int i = 0; i < 9; i++)
