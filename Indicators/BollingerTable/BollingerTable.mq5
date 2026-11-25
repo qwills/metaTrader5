@@ -1,5 +1,5 @@
 #property copyright "will_santoso"
-#property version   "1.03"
+#property version   "1.04"
 #property description "Bollinger Bands with a current-candle multi-timeframe middle-band table."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -44,6 +44,9 @@ string TimeframeNames[9] = {"M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "M
 string Prefix = "";
 string DisplayedText[9];
 color DisplayedColor[9];
+string LastValidText[9];
+color LastValidColor[9];
+string DisplayedTooltip[9];
 bool TimeframeEnabled[9];
 int SelectedCount = 0;
 // Reuse copy storage across ticks; normal updates need only one or two bars.
@@ -93,6 +96,14 @@ bool RestoreTable()
          {
             DisplayedText[i] = ObjectGetString(0, value_name, OBJPROP_TEXT);
             DisplayedColor[i] = (color)ObjectGetInteger(0, value_name, OBJPROP_COLOR);
+            DisplayedTooltip[i] = ObjectGetString(0, value_name, OBJPROP_TOOLTIP);
+            if(DisplayedText[i] != "" && DisplayedText[i] != "Loading...")
+            {
+               LastValidText[i] = DisplayedText[i];
+               LastValidColor[i] = DisplayedColor[i];
+            }
+            else
+               LastValidText[i] = "";
          }
       }
       valid = valid && ObjectFind(0, Prefix + "Title") >= 0 &&
@@ -192,6 +203,8 @@ bool CreateTable()
          return false;
       DisplayedText[i] = "Loading...";
       DisplayedColor[i] = clrWhite;
+      LastValidText[i] = "";
+      DisplayedTooltip[i] = "";
       row++;
    }
    // Keep handoff metadata off the chart and out of visible tooltips.
@@ -215,8 +228,13 @@ void RefreshTable()
       if(!TimeframeEnabled[i])
          continue;
       string name = Prefix + "Value" + IntegerToString(i);
-      string text = "Loading...";
-      color text_color = clrSilver;
+      // A temporary read failure must not erase a valid restored/live value.
+      // LastValid is independent of successful chart-command submission.
+      bool has_cached_value = LastValidText[i] != "";
+      string text = has_cached_value ? LastValidText[i] : "Loading...";
+      color text_color = has_cached_value ? LastValidColor[i] : clrSilver;
+      string tooltip = has_cached_value ? "Last valid value; waiting for fresh data" :
+                                         "Waiting for initial data";
       MqlRates rates[2];
       double middle[2];
       // Static arrays are chronological: [0] is shift 1, [1] is current bar.
@@ -234,6 +252,9 @@ void RefreshTable()
          text = DoubleToString(middle[1], _Digits);
          text_color = SignalColor(BollingerSignal(rates[0].close, middle[0],
                                                  rates[1].close, middle[1]));
+         LastValidText[i] = text;
+         LastValidColor[i] = text_color;
+         tooltip = "Live middle BB (current candle)";
       }
       // Avoid queuing chart commands when the displayed value/color is unchanged.
       if(text != DisplayedText[i] && ObjectSetString(0, name, OBJPROP_TEXT, text))
@@ -244,6 +265,11 @@ void RefreshTable()
       if(text_color != DisplayedColor[i] && ObjectSetInteger(0, name, OBJPROP_COLOR, text_color))
       {
          DisplayedColor[i] = text_color;
+         changed = true;
+      }
+      if(tooltip != DisplayedTooltip[i] && ObjectSetString(0, name, OBJPROP_TOOLTIP, tooltip))
+      {
+         DisplayedTooltip[i] = tooltip;
          changed = true;
       }
    }

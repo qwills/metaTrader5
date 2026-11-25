@@ -18,7 +18,7 @@ using color = int;
 using datetime = long;
 const color clrSilver=0, clrLimeGreen=1, clrRed=2, clrDodgerBlue=3, clrOrange=4;
 const int SERIES_LASTBAR_DATE=1, SERIES_SYNCHRONIZED=2;
-const int OBJPROP_TEXT=1, OBJPROP_COLOR=2;
+const int OBJPROP_TEXT=1, OBJPROP_COLOR=2, OBJPROP_TOOLTIP=3;
 const int REASON_CHARTCHANGE=3, INVALID_HANDLE=-1;
 const double EMPTY_VALUE=1e308;
 int InpPeriod=20, _Digits=5;
@@ -33,11 +33,13 @@ int SelectedCount=0;
 string Prefix="test_", DisplayedText[9];
 string TableKey="";
 color DisplayedColor[9];
+string LastValidText[9], DisplayedTooltip[9];
+color LastValidColor[9];
 struct MqlRates { datetime time; double close; };
 double previous_close=99, current_close=102, previous_middle=100, current_middle=101;
 datetime current_time=200;
 bool ready=true, synchronized=true, rollover=false, reject_commands=false;
-int text_commands=0, color_commands=0, redraws=0, rates_calls=0, buffer_calls=0;
+int text_commands=0, color_commands=0, tooltip_commands=0, redraws=0, rates_calls=0, buffer_calls=0;
 string IntegerToString(int value) { return std::to_string(value); }
 string DoubleToString(double value, int digits)
 {
@@ -64,12 +66,16 @@ struct FakeObject { std::map<int,string> text; color tint=0; };
 std::map<string,FakeObject> objects;
 bool ObjectSetString(int, const string &name, int property, const string &value)
 {
-    ++text_commands;
+    if(property==OBJPROP_TEXT) ++text_commands; else ++tooltip_commands;
     if(reject_commands) return false;
     objects[name].text[property]=value; return true;
 }
-bool ObjectSetInteger(int, const string &, int, color)
-{ ++color_commands; return !reject_commands; }
+bool ObjectSetInteger(int, const string &name, int, color value)
+{
+    ++color_commands;
+    if(reject_commands) return false;
+    objects[name].tint=value; return true;
+}
 void ChartRedraw(int) { ++redraws; }
 int StringLen(const string &text) { return static_cast<int>(text.size()); }
 int StringFind(const string &text, const string &part)
@@ -117,6 +123,11 @@ void RunReloadChecks()
     assert(RestoreTable());
     string first=Prefix;
     assert(DisplayedText[2]=="101.00000" && DisplayedColor[2]==clrDodgerBlue);
+    ready=false;
+    RefreshTable(); // Recreated handles can still be warming up after restore.
+    assert(DisplayedText[2]=="101.00000" && DisplayedColor[2]==clrDodgerBlue);
+    assert(DisplayedTooltip[2]=="Last valid value; waiting for fresh data");
+    ready=true;
     assert(RestoreTable() && Prefix!=first); // each pending instance claimed once
     assert(!RestoreTable());
     assert(rates_calls==before_rates && buffer_calls==before_buffers);
@@ -147,6 +158,11 @@ void RunTableChecks()
         assert(TimeframeEnabled[i] == (i>=2 && i<=5));
     // Exercise the full table first, then restrict it to the default selection.
     for(int i=0; i<9; ++i) TimeframeEnabled[i]=true;
+    ready=false;
+    RefreshTable();
+    assert(DisplayedText[0]=="Loading..." && LastValidText[0].empty());
+    ready=true;
+    text_commands=0; color_commands=0; tooltip_commands=0; redraws=0;
     RefreshTable();
     assert(rates_calls == 9 && buffer_calls == 9);
     assert(text_commands == 9 && color_commands == 9 && redraws == 1);
@@ -169,29 +185,32 @@ void RunTableChecks()
     assert(DisplayedText[0] == "101.50000");
     rollover=true;
     RefreshTable();
-    assert(DisplayedText[0] == "Loading..." && DisplayedColor[0] == clrSilver);
+    assert(DisplayedText[0] == "101.50000" && DisplayedColor[0] == clrLimeGreen);
+    assert(DisplayedTooltip[0] == "Last valid value; waiting for fresh data");
     rollover=false;
     RefreshTable();
     assert(DisplayedText[0] == "101.50000");
     ready=false;
     RefreshTable();
-    assert(DisplayedText[0] == "Loading...");
+    assert(DisplayedText[0] == "101.50000");
     int before=redraws;
     RefreshTable();
     assert(redraws == before);
     ready=true; synchronized=false;
     RefreshTable();
-    assert(DisplayedText[0] == "Loading...");
+    assert(DisplayedText[0] == "101.50000");
     synchronized=true; current_middle=EMPTY_VALUE;
     RefreshTable();
-    assert(DisplayedText[0] == "Loading...");
+    assert(DisplayedText[0] == "101.50000");
     current_middle=101;
     reject_commands=true;
     RefreshTable();
-    assert(DisplayedText[0] == "Loading...");
+    assert(DisplayedText[0] == "101.50000" && LastValidText[0] == "101.00000");
     reject_commands=false;
+    ready=false; // A failed render must not discard the most recent good data.
     RefreshTable();
     assert(DisplayedText[0] == "101.00000");
+    ready=true;
     ConfigureTimeframes();
     DisplayedText[0]="disabled";
     int before_rates=rates_calls, before_buffers=buffer_calls;

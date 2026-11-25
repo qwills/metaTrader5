@@ -1,4 +1,4 @@
-# BollingerTable 1.03
+# BollingerTable 1.04
 
 Indikator MT5 dengan garis upper, middle, lower Bollinger Bands pada timeframe
 chart serta tabel kecil dua kolom: TF dan Middle BB. Default periode **20**,
@@ -55,8 +55,14 @@ instance dibersihkan saat indikator dilepas atau inisialisasinya gagal.
 3. Buka `BollingerTable.mq5` di MetaEditor, tekan **F7**.
 4. Tambahkan indikator melalui Navigator > Indicators > BollingerTable.
 
-Saat histori multi-timeframe belum tersedia, tabel menampilkan `Loading...`
-dan mencoba lagi otomatis. Histori MN1 memerlukan setidaknya 21 candle untuk
+`Loading...` hanya ditampilkan jika belum pernah ada nilai valid untuk baris itu.
+Jika pembacaan sementara belum siap (termasuk handle baru setelah pergantian
+timeframe), nilai dan warna valid terakhir tetap tampil sambil mencoba lagi.
+Tooltip nilai menjelaskan apakah data live atau nilai terakhir yang sedang
+menunggu pembaruan; nilai cache belum tentu mencerminkan harga terbaru.
+Cache data valid diperbarui walaupun perintah pembaruan tampilan gagal, sehingga
+percobaan berikutnya tetap memakai data valid terbaru.
+Histori MN1 memerlukan setidaknya 21 candle untuk
 periode default. Indikator hanya menampilkan data, tanpa order atau alert.
 
 ## Efisiensi
@@ -93,6 +99,9 @@ logika warna/cross, pembacaan shift 0/1, perubahan intrabar, cache
 tampilan, penolakan snapshot rollover, dan pemulihan data melalui adapter C++.
 Tes reload memeriksa pemulihan tabel tanpa pembacaan harga, beberapa instance,
 pembersihan objek, dan penolakan snapshot simbol/konfigurasi berbeda atau rusak.
+Regresi warm-up memeriksa bahwa timer setelah restore tidak menimpa nilai
+dengan `Loading...`; kegagalan data/sinkronisasi/rollover dan kegagalan render
+tetap mempertahankan data valid terbaru sampai data baru tersedia.
 Runner ini bukan compiler MQL5 dan tidak membuktikan kalkulasi native `iBands`.
 F7 dan rendering GUI tetap harus diuji pada MT5 Windows. Cocokkan tiga garis
 dengan Bollinger Bands bawaan (20, shift 0, deviasi 2, Close), serta nilai tabel

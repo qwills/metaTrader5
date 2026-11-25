@@ -31,6 +31,10 @@ Reload checks also cover retaining table objects/values on chart changes,
 claiming multiple pending instances separately, scoped cleanup, and rejecting
 tables from other symbols/settings or with missing rows. Native handles are
 reacquired on initialization; simulated reload does not prove MT5 cache behavior.
+Warm-up regressions preserve last valid values/colors when native data is not
+ready after restore, distinguish initial loading from temporary read failures,
+and retain the latest valid data across failed chart commands. Tooltips distinguish
+live values from cached values awaiting an update.
 
 manualFibo execution tests use manualfibo_trade_adapter.py, a fake broker that
 records requests without network access. They cover batch preflight/margin,
