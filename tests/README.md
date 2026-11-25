@@ -4,6 +4,7 @@ Run from the workspace root:
 
 ```bash
 python3 tests/check_fibonacci.py
+python3 tests/check_bollinger_table.py
 python3 tests/check_swing_detector.py
 python3 tests/check_market_structure.py
 python3 tests/check_autofibo.py
@@ -19,6 +20,10 @@ have no standalone script entry point and are excluded from release packages.
 A C++17 compiler is required. Tests use AddressSanitizer/UndefinedBehaviorSanitizer
 and temporary build directories. These adapters are not MQL5 compilers;
 MetaEditor F7, chart rendering and Windows CMD execution need Windows validation.
+
+BollingerTable checks exercise its production closed-bar signal classifier,
+including cross priority, equality, moving middle values and cross expiry.
+They do not simulate native iBands, history downloads, buffers or chart objects.
 
 manualFibo execution tests use manualfibo_trade_adapter.py, a fake broker that
 records requests without network access. They cover batch preflight/margin,

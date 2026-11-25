@@ -15,6 +15,7 @@ Experts/
   AutoFibo/       Swing otomatis Pivot/Market Structure, risiko/SL/lot per level
   manualFibo/     Manual, enam rasio, balance-risk lot, kirim/hapus pending limit
 Indicators/
+  BollingerTable/ BB (20, 2, Close) dan tabel middle BB multi-timeframe berwarna
   RiskReward/     Visualisasi risk/reward Long dan Short
 Include/
   _common/
@@ -67,6 +68,8 @@ Backup sebelum perubahan dan hash file asli tercatat di
 [docs/history/cleanup-manifest.json](docs/history/cleanup-manifest.json). Arsip disimpan di `archive/backups/`; isinya telah dibersihkan dari program contoh.
 
 Referensi Standard Library lokal: [panduan](docs/reference/standard-library-guide.md).
+Indikator BB baru: [BollingerTable](Indicators/BollingerTable/README.md), dengan
+tabel candle tertutup dan warna Close/cross terhadap middle BB.
 Downloader manual resmi Windows ada di `docs/reference/download-reference.cmd`.
 
 Semua program contoh telah dihapus dari source dan paket ZIP, termasuk arsip
