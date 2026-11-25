@@ -69,7 +69,7 @@ Backup sebelum perubahan dan hash file asli tercatat di
 
 Referensi Standard Library lokal: [panduan](docs/reference/standard-library-guide.md).
 Indikator BB baru: [BollingerTable](Indicators/BollingerTable/README.md), dengan
-tabel candle tertutup dan warna Close/cross terhadap middle BB.
+tabel candle berjalan, pilihan warna garis, dan warna Close/cross terhadap middle BB.
 Downloader manual resmi Windows ada di `docs/reference/download-reference.cmd`.
 
 Semua program contoh telah dihapus dari source dan paket ZIP, termasuk arsip

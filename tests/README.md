@@ -21,9 +21,12 @@ A C++17 compiler is required. Tests use AddressSanitizer/UndefinedBehaviorSaniti
 and temporary build directories. These adapters are not MQL5 compilers;
 MetaEditor F7, chart rendering and Windows CMD execution need Windows validation.
 
-BollingerTable checks exercise its production closed-bar signal classifier,
-including cross priority, equality, moving middle values and cross expiry.
-They do not simulate native iBands, history downloads, buffers or chart objects.
+BollingerTable checks exercise its production signal classifier and table refresh
+with fake APIs: shift 0/1 reads, cross priority, equality, moving middle values,
+default/custom/empty timeframe selection and skipped reads for disabled rows,
+intrabar changes, unchanged-display command suppression, rollover rejection and
+data/command-failure recovery. They do not validate native iBands calculations,
+plot buffers, history downloads or chart rendering.
 
 manualFibo execution tests use manualfibo_trade_adapter.py, a fake broker that
 records requests without network access. They cover batch preflight/margin,

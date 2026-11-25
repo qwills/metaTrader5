@@ -10,7 +10,7 @@ enum ENUM_BB_SIGNAL
    BB_DEAD_CROSS
 };
 
-// Compare two consecutive CLOSED bars with their respective middle bands.
+// Compare the previous closed bar and the current bar with their own middle bands.
 ENUM_BB_SIGNAL BollingerSignal(const double previous_close,
                               const double previous_middle,
                               const double latest_close,

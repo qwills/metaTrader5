@@ -1,4 +1,4 @@
-# BollingerTable 1.00
+# BollingerTable 1.02
 
 Indikator MT5 dengan garis upper, middle, lower Bollinger Bands pada timeframe
 chart serta tabel kecil dua kolom: TF dan Middle BB. Default periode **20**,
@@ -6,22 +6,34 @@ deviasi **2.0**, shift **0**, applied price **Close**. Middle adalah SMA bawaan
 `iBands`; parameter periode/deviasi/applied price berlaku sama untuk chart dan tabel.
 Referensi buffer native: [MetaQuotes iBands](https://www.mql5.com/en/docs/indicators/ibands).
 
-Tabel menampilkan simbol chart pada M1, M5, M15, M30, H1, H4, D1, W1, MN1.
-Nilai dan warna memakai **candle terakhir yang sudah tutup** di setiap timeframe,
-bukan candle chart yang masih berjalan. Tabel diperbarui setiap satu detik.
+Warna garis dapat dipilih di Inputs: `InpUpperColor` (default merah),
+`InpMiddleColor` (DodgerBlue), dan `InpLowerColor` (Green).
+Pilihan ini mengatur garis BB; aturan warna sinyal tabel tetap mengikuti tabel di bawah.
+
+Timeframe tabel dapat dipilih melalui Inputs `InpShowM1`, `InpShowM5`,
+`InpShowM15`, `InpShowM30`, `InpShowH1`, `InpShowH4`, `InpShowD1`, `InpShowW1`,
+dan `InpShowMN1`. Default hanya **M15, M30, H1, H4** yang aktif.
+Aktifkan/nonaktifkan setiap pilihan dengan `true`/`false`. Baris tetap berurutan
+dari timeframe terkecil dan tinggi tabel menyesuaikan jumlah pilihan tanpa baris
+kosong. Jika semua dinonaktifkan, tabel dan timer tidak dibuat; garis BB tetap tampil.
+Nilai dan warna memakai **candle berjalan (shift 0)** di setiap timeframe.
+Close berarti harga terakhir pada candle yang sedang terbentuk.
+Tabel diperbarui setiap satu detik, sehingga dapat tertinggal hingga sekitar satu
+detik dari tick chart ketika terminal berjalan normal.
 Garis chart tetap mengikuti candle berjalan seperti BB standar.
 
 | Warna nilai Middle BB | Kondisi |
 | --- | --- |
 | Hijau | Close di atas middle BB |
 | Merah | Close di bawah middle BB |
-| Biru | Golden cross: Close sebelumnya <= middle sebelumnya, Close terakhir > middle terakhir |
-| Oranye | Dead cross: Close sebelumnya >= middle sebelumnya, Close terakhir < middle terakhir |
+| Biru | Golden cross: Close candle sebelumnya <= middle sebelumnya, Close berjalan > middle berjalan |
+| Oranye | Dead cross: Close candle sebelumnya >= middle sebelumnya, Close berjalan < middle berjalan |
 | Abu-abu | Close tepat sama dengan middle, atau data belum siap (`Loading...`) |
 
 Istilah golden/dead cross di indikator ini berarti **Close melintasi middle BB**.
-Cross mendapat prioritas atas hijau/merah dan berlaku untuk candle tertutup yang
-baru melintas. Pada penutupan berikutnya, warna dievaluasi ulang. Masing-masing
+Cross mendapat prioritas atas hijau/merah. Pembandingnya selalu candle sebelumnya
+yang sudah tutup (shift 1), bukan tick sebelumnya. Sinyal dievaluasi ulang setiap
+refresh dan bisa muncul/hilang sebelum candle berjalan tutup. Masing-masing
 Close dibandingkan dengan middle pada candle yang sama, tanpa pembulatan harga.
 Middle ditampilkan mengikuti jumlah digit simbol.
 
@@ -38,15 +50,37 @@ tidak bertumpuk. Objek setiap instance dibersihkan saat indikator dilepas.
 4. Tambahkan indikator melalui Navigator > Indicators > BollingerTable.
 
 Saat histori multi-timeframe belum tersedia, tabel menampilkan `Loading...`
-dan mencoba lagi otomatis. Histori MN1 memerlukan setidaknya 22 candle untuk
+dan mencoba lagi otomatis. Histori MN1 memerlukan setidaknya 21 candle untuk
 periode default. Indikator hanya menampilkan data, tanpa order atau alert.
+
+## Efisiensi
+
+- Garis menggunakan buffer indikator native; objek tabel dibuat sekali saat init.
+- Handle `iBands` dibuat sekali hanya untuk timeframe terpilih; baris timeframe
+  chart memakai handle chart yang sama. Timeframe nonaktif tidak dibaca.
+- Setelah pemuatan awal, garis menyalin satu bar per tick; saat bar baru, hanya
+  bar sebelumnya dan bar baru yang disalin. Reset/perluasan histori menyalin ulang.
+- Penyimpanan sementara hasil salinan garis dipakai ulang. Kegagalan sementara
+  pembacaan mempertahankan progres agar percobaan berikutnya tidak menyalin
+  seluruh histori tanpa kebutuhan.
+- Tabel membaca dua bar per timeframe terpilih setiap satu detik, bukan seluruh histori
+  atau seluruh timeframe pada setiap tick. Identitas candle dicek sebelum/sesudah
+  pembacaan untuk menolak snapshot saat pergantian candle.
+- Perintah teks/warna hanya dikirim jika tampilan berubah. `ChartRedraw` tabel
+  hanya dipanggil ketika ada perubahan objek yang berhasil dikirim.
+
+Ini pemeriksaan kode dan simulasi, belum pengukuran CPU/latensi di terminal MT5.
 
 ## Validasi
 
 Jalankan `python3 tests/check_bollinger_table.py` dari root workspace untuk
-memeriksa logika warna/cross melalui adapter C++. Runner ini bukan compiler MQL5.
+memeriksa pemilihan timeframe default/custom/kosong, pengabaian baris nonaktif,
+logika warna/cross, pembacaan shift 0/1, perubahan intrabar, cache
+tampilan, penolakan snapshot rollover, dan pemulihan data melalui adapter C++.
+Runner ini bukan compiler MQL5 dan tidak membuktikan kalkulasi native `iBands`.
 F7 dan rendering GUI tetap harus diuji pada MT5 Windows. Cocokkan tiga garis
 dengan Bollinger Bands bawaan (20, shift 0, deviasi 2, Close), serta nilai tabel
-dengan Data Window BB pada candle tertutup di masing-masing timeframe.
+dengan Data Window BB pada candle berjalan di masing-masing timeframe.
 Periksa pembaruan setelah pergantian candle, histori belum siap, pergantian
-timeframe chart, dan pembersihan objek saat indikator dilepas.
+timeframe chart, pilihan timeframe (termasuk semua nonaktif), tinggi tabel,
+dan pembersihan objek saat indikator dilepas.

@@ -1,6 +1,6 @@
 #property copyright "will_santoso"
-#property version   "1.00"
-#property description "Bollinger Bands with a closed-bar multi-timeframe middle-band table."
+#property version   "1.02"
+#property description "Bollinger Bands with a current-candle multi-timeframe middle-band table."
 #property indicator_chart_window
 #property indicator_buffers 3
 #property indicator_plots 3
@@ -9,19 +9,31 @@
 #property indicator_color1 clrDodgerBlue
 #property indicator_label2 "Upper BB"
 #property indicator_type2 DRAW_LINE
-#property indicator_color2 clrSilver
+#property indicator_color2 clrRed
 #property indicator_label3 "Lower BB"
 #property indicator_type3 DRAW_LINE
-#property indicator_color3 clrSilver
+#property indicator_color3 clrGreen
 
 #include "BollingerSignal.mqh"
 
 input int                InpPeriod       = 20;          // BB period
 input double             InpDeviation    = 2.0;         // Standard deviations
 input ENUM_APPLIED_PRICE InpAppliedPrice = PRICE_CLOSE; // BB applied price
+input color              InpUpperColor   = clrRed;      // Upper BB line color
+input color              InpMiddleColor  = clrDodgerBlue;// Middle BB line color
+input color              InpLowerColor   = clrGreen;    // Lower BB line color
 input int                InpTableX       = 12;          // Table left offset (pixels)
 input int                InpTableY       = 28;          // Table top offset (pixels)
 input int                InpFontSize     = 10;          // Table font size (8..16)
+input bool               InpShowM1       = false;       // Show M1
+input bool               InpShowM5       = false;       // Show M5
+input bool               InpShowM15      = true;        // Show M15
+input bool               InpShowM30      = true;        // Show M30
+input bool               InpShowH1       = true;        // Show H1
+input bool               InpShowH4       = true;        // Show H4
+input bool               InpShowD1       = false;       // Show D1
+input bool               InpShowW1       = false;       // Show W1
+input bool               InpShowMN1      = false;       // Show MN1
 
 double MiddleBuffer[], UpperBuffer[], LowerBuffer[];
 int ChartHandle = INVALID_HANDLE;
@@ -30,6 +42,29 @@ ENUM_TIMEFRAMES Timeframes[9] = {PERIOD_M1, PERIOD_M5, PERIOD_M15, PERIOD_M30,
                                PERIOD_H1, PERIOD_H4, PERIOD_D1, PERIOD_W1, PERIOD_MN1};
 string TimeframeNames[9] = {"M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN1"};
 string Prefix = "";
+string DisplayedText[9];
+color DisplayedColor[9];
+bool TimeframeEnabled[9];
+int SelectedCount = 0;
+// Reuse copy storage across ticks; normal updates need only one or two bars.
+double CopyMiddle[], CopyUpper[], CopyLower[];
+
+void ConfigureTimeframes()
+{
+   TimeframeEnabled[0] = InpShowM1;
+   TimeframeEnabled[1] = InpShowM5;
+   TimeframeEnabled[2] = InpShowM15;
+   TimeframeEnabled[3] = InpShowM30;
+   TimeframeEnabled[4] = InpShowH1;
+   TimeframeEnabled[5] = InpShowH4;
+   TimeframeEnabled[6] = InpShowD1;
+   TimeframeEnabled[7] = InpShowW1;
+   TimeframeEnabled[8] = InpShowMN1;
+   SelectedCount = 0;
+   for(int i = 0; i < 9; i++)
+      if(TimeframeEnabled[i])
+         SelectedCount++;
+}
 
 color SignalColor(const ENUM_BB_SIGNAL signal)
 {
@@ -72,7 +107,7 @@ bool CreateTable()
    ok = ObjectSetInteger(0, background, OBJPROP_XDISTANCE, InpTableX) && ok;
    ok = ObjectSetInteger(0, background, OBJPROP_YDISTANCE, InpTableY) && ok;
    ok = ObjectSetInteger(0, background, OBJPROP_XSIZE, width) && ok;
-   ok = ObjectSetInteger(0, background, OBJPROP_YSIZE, row_height * 11 + 12) && ok;
+   ok = ObjectSetInteger(0, background, OBJPROP_YSIZE, row_height * (SelectedCount + 2) + 12) && ok;
    ok = ObjectSetInteger(0, background, OBJPROP_BGCOLOR, C'24,28,34') && ok;
    ok = ObjectSetInteger(0, background, OBJPROP_BORDER_TYPE, BORDER_FLAT) && ok;
    ok = ObjectSetInteger(0, background, OBJPROP_COLOR, clrDimGray) && ok;
@@ -83,16 +118,22 @@ bool CreateTable()
    int left = InpTableX + 10;
    int value_x = left + InpFontSize * 6;
    int top = InpTableY + 6;
-   if(!CreateLabel("Title", "BB | closed candle", left, top) ||
+   if(!CreateLabel("Title", "BB | current candle", left, top) ||
       !CreateLabel("TF", "TF", left, top + row_height) ||
       !CreateLabel("Middle", "Middle BB", value_x, top + row_height))
       return false;
+   int row = 0;
    for(int i = 0; i < 9; i++)
    {
-      int y = top + (i + 2) * row_height;
+      if(!TimeframeEnabled[i])
+         continue;
+      int y = top + (row + 2) * row_height;
       if(!CreateLabel("TF" + IntegerToString(i), TimeframeNames[i], left, y) ||
          !CreateLabel("Value" + IntegerToString(i), "Loading...", value_x, y))
          return false;
+      DisplayedText[i] = "Loading...";
+      DisplayedColor[i] = clrWhite;
+      row++;
    }
    return true;
 }
@@ -104,39 +145,52 @@ bool ValidBandValue(const double value)
 
 void RefreshTable()
 {
+   bool changed = false;
    for(int i = 0; i < 9; i++)
    {
+      if(!TimeframeEnabled[i])
+         continue;
       string name = Prefix + "Value" + IntegerToString(i);
       string text = "Loading...";
       color text_color = clrSilver;
       MqlRates rates[2];
       double middle[2];
-      // Static arrays are chronological: [0] is shift 2, [1] is shift 1.
+      // Static arrays are chronological: [0] is shift 1, [1] is current bar.
       // Check bar identity around the copies to avoid mixing rollover snapshots.
-      datetime open_time = iTime(_Symbol, Timeframes[i], 0);
+      datetime open_time = (datetime)SeriesInfoInteger(_Symbol, Timeframes[i], SERIES_LASTBAR_DATE);
       if(open_time > 0 &&
-         BarsCalculated(TableHandles[i]) >= InpPeriod + 2 &&
-         CopyRates(_Symbol, Timeframes[i], 1, 2, rates) == 2 &&
-         CopyBuffer(TableHandles[i], 0, 1, 2, middle) == 2 &&
+         BarsCalculated(TableHandles[i]) >= InpPeriod + 1 &&
+         CopyRates(_Symbol, Timeframes[i], 0, 2, rates) == 2 &&
+         CopyBuffer(TableHandles[i], 0, 0, 2, middle) == 2 &&
          SeriesInfoInteger(_Symbol, Timeframes[i], SERIES_SYNCHRONIZED) &&
-         open_time == iTime(_Symbol, Timeframes[i], 0) &&
-         rates[1].time == iTime(_Symbol, Timeframes[i], 1) &&
-         rates[0].time == iTime(_Symbol, Timeframes[i], 2) &&
+         open_time == (datetime)SeriesInfoInteger(_Symbol, Timeframes[i], SERIES_LASTBAR_DATE) &&
+         rates[1].time == open_time && rates[0].time < rates[1].time &&
          ValidBandValue(middle[0]) && ValidBandValue(middle[1]))
       {
          text = DoubleToString(middle[1], _Digits);
          text_color = SignalColor(BollingerSignal(rates[0].close, middle[0],
                                                  rates[1].close, middle[1]));
       }
-      ObjectSetString(0, name, OBJPROP_TEXT, text);
-      ObjectSetInteger(0, name, OBJPROP_COLOR, text_color);
+      // Avoid queuing chart commands when the displayed value/color is unchanged.
+      if(text != DisplayedText[i] && ObjectSetString(0, name, OBJPROP_TEXT, text))
+      {
+         DisplayedText[i] = text;
+         changed = true;
+      }
+      if(text_color != DisplayedColor[i] && ObjectSetInteger(0, name, OBJPROP_COLOR, text_color))
+      {
+         DisplayedColor[i] = text_color;
+         changed = true;
+      }
    }
-   ChartRedraw(0);
+   if(changed)
+      ChartRedraw(0);
 }
 
 int OnInit()
 {
    ArrayInitialize(TableHandles, INVALID_HANDLE);
+   ConfigureTimeframes();
    if(InpPeriod < 2 || !MathIsValidNumber(InpDeviation) || InpDeviation <= 0 ||
       InpTableX < 0 || InpTableY < 0 || InpFontSize < 8 || InpFontSize > 16)
       return INIT_PARAMETERS_INCORRECT;
@@ -150,6 +204,9 @@ int OnInit()
    ArraySetAsSeries(LowerBuffer, false);
    for(int i = 0; i < 3; i++)
       PlotIndexSetInteger(i, PLOT_DRAW_BEGIN, InpPeriod - 1);
+   PlotIndexSetInteger(0, PLOT_LINE_COLOR, InpMiddleColor);
+   PlotIndexSetInteger(1, PLOT_LINE_COLOR, InpUpperColor);
+   PlotIndexSetInteger(2, PLOT_LINE_COLOR, InpLowerColor);
    IndicatorSetInteger(INDICATOR_DIGITS, _Digits);
    IndicatorSetString(INDICATOR_SHORTNAME,
                       "BollingerTable (" + IntegerToString(InpPeriod) + ", " +
@@ -160,16 +217,25 @@ int OnInit()
       return INIT_FAILED;
    for(int i = 0; i < 9; i++)
    {
-      TableHandles[i] = iBands(_Symbol, Timeframes[i], InpPeriod, 0,
-                              InpDeviation, InpAppliedPrice);
+      if(!TimeframeEnabled[i])
+         continue;
+      // The chart timeframe already has an identical BB handle.
+      if(Timeframes[i] == _Period)
+         TableHandles[i] = ChartHandle;
+      else
+         TableHandles[i] = iBands(_Symbol, Timeframes[i], InpPeriod, 0,
+                                 InpDeviation, InpAppliedPrice);
       if(TableHandles[i] == INVALID_HANDLE)
          return INIT_FAILED;
    }
    Prefix = "BBT_" + IntegerToString(ChartID()) + "_" +
             IntegerToString((long)GetMicrosecondCount()) + "_";
-   if(!CreateTable() || !EventSetTimer(1))
-      return INIT_FAILED;
-   RefreshTable();
+   if(SelectedCount > 0)
+   {
+      if(!CreateTable() || !EventSetTimer(1))
+         return INIT_FAILED;
+      RefreshTable();
+   }
    return INIT_SUCCEEDED;
 }
 
@@ -185,21 +251,20 @@ int OnCalculate(const int rates_total, const int prev_calculated,
       ArrayInitialize(LowerBuffer, EMPTY_VALUE);
    }
    if(rates_total < InpPeriod || BarsCalculated(ChartHandle) < rates_total)
-      return 0;
+      return prev_calculated;
    int count = rates_total;
    if(prev_calculated > 0 && prev_calculated <= rates_total)
       count = rates_total - prev_calculated + 1;
-   double middle[], upper[], lower[];
-   if(CopyBuffer(ChartHandle, 0, 0, count, middle) != count ||
-      CopyBuffer(ChartHandle, 1, 0, count, upper) != count ||
-      CopyBuffer(ChartHandle, 2, 0, count, lower) != count)
-      return 0;
+   if(CopyBuffer(ChartHandle, 0, 0, count, CopyMiddle) != count ||
+      CopyBuffer(ChartHandle, 1, 0, count, CopyUpper) != count ||
+      CopyBuffer(ChartHandle, 2, 0, count, CopyLower) != count)
+      return prev_calculated;
    int start = rates_total - count;
    for(int i = 0; i < count; i++)
    {
-      MiddleBuffer[start + i] = middle[i];
-      UpperBuffer[start + i] = upper[i];
-      LowerBuffer[start + i] = lower[i];
+      MiddleBuffer[start + i] = CopyMiddle[i];
+      UpperBuffer[start + i] = CopyUpper[i];
+      LowerBuffer[start + i] = CopyLower[i];
    }
    return rates_total;
 }
@@ -217,7 +282,7 @@ void OnDeinit(const int reason)
    if(ChartHandle != INVALID_HANDLE)
       IndicatorRelease(ChartHandle);
    for(int i = 0; i < 9; i++)
-      if(TableHandles[i] != INVALID_HANDLE)
+      if(TableHandles[i] != INVALID_HANDLE && TableHandles[i] != ChartHandle)
          IndicatorRelease(TableHandles[i]);
    ChartRedraw(0);
 }
