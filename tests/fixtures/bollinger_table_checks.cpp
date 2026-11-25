@@ -7,6 +7,7 @@ void Reset()
     calculated=-1; failed_copy_index=-1; connected=true; rates_ready=true;
     synchronized=true; rollover=false; partial_rates=-1; timer_running=false;
     rates_calls=0; bands_calls=0; released=0; redraws=0; object_writes=0; dropped_writes=0;
+    object_reads=0; log_messages=0;
     copy_counts.clear(); plots.clear(); histories.clear();
     wall_time=1700000000; _Symbol="EURUSD"; _Period=PERIOD_M15;
     InpPeriod=20; InpDeviation=2; InpAppliedPrice=PRICE_CLOSE;
@@ -27,6 +28,12 @@ void Reset()
         chart_values[index].clear();
         for(int i=0;i<40;++i) chart_values[index].push_back(100+index*10+i);
     }
+}
+int Start()
+{
+    int result=OnInit();
+    if(result==INIT_SUCCEEDED) { OnTimer(); Flush(); }
+    return result;
 }
 string ValueName(int i=2) { return Prefix+"Value"+IntegerToString(i); }
 string Display(int i=2) { return ObjectGetString(0,ValueName(i),OBJPROP_TEXT); }
@@ -57,7 +64,7 @@ void CheckSignals()
 }
 void CheckLiveTable()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     assert(SelectedCount==4 && bands_calls==1 && live_handles.size()==1 && timer_running);
     assert(rates_calls==4 && last_rates_count==21);
     assert(ObjectGetString(0,Prefix+"Title",OBJPROP_TEXT)=="BB");
@@ -70,6 +77,8 @@ void CheckLiveTable()
     assert(plots[std::make_pair(2,PLOT_LINE_COLOR)]==clrGreen);
     int before=redraws, writes=object_writes;
     OnTimer(); assert(redraws==before && object_writes==writes);
+    int reads_before=object_reads;
+    OnTimer(); assert(object_reads-reads_before<=70); // bounded steady-state chart barriers
     wall_time++;
     OnTimer(); assert(redraws==before); // timestamps/tooltips do not force redraw
     histories[PERIOD_M15].back().close=99;
@@ -102,7 +111,7 @@ void CheckLiveTable()
 }
 void CheckPrices()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     for(auto &entry:histories) for(auto &bar:entry.second)
     { bar.open=10; bar.high=16; bar.low=8; bar.close=14; }
     const double expected[]={14,10,16,8,12,38.0/3,13};
@@ -121,30 +130,31 @@ void CheckPrices()
 }
 void CheckQueuedCommands()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     string name=ValueName(), old=Display();
     histories[PERIOD_M15].back().close=106;
     drop_next_write=true; OnTimer();
-    // Setter returned true, but execution was dropped: verified helper must report failure.
+    // Accepted-but-dropped writes are detected from actual properties on the next timer.
     assert(dropped_writes==1 && Display()==old && LastValidText[2]=="100.30000");
     OnTimer(); assert(Display()=="100.30000");
     histories[PERIOD_M15].back().close=107;
     reject_commands=true; OnTimer(); assert(Display()=="100.30000" && LastValidText[2]=="100.35000");
     reject_commands=false; rates_ready=false; OnTimer(); assert(Display()=="100.35000");
     // Accepted-but-unexecuted color update also retries; no implicit object creation.
-    drop_next_write=true; assert(!SetNumber(name,OBJPROP_COLOR,clrRed));
+    drop_next_write=true; assert(SetNumber(name,OBJPROP_COLOR,clrRed));
+    assert(Tint()!=clrRed);
     assert(SetNumber(name,OBJPROP_COLOR,clrRed));
     ObjectDelete(0,name); Flush();
     drop_next_write=true; OnTimer(); // incomplete repair is retried
     drop_next_write=false; OnTimer(); assert(TableObjectsReady());
     ObjectDelete(0,name); Flush(); drop_all_writes=true;
-    OnTimer(); assert(TableNeedsRepair);
-    drop_all_writes=false; OnTimer(); assert(!TableNeedsRepair && TableObjectsReady());
+    OnTimer(); assert(LayoutCheckPending && !TableLayoutReady());
+    drop_all_writes=false; OnTimer(); OnTimer(); assert(!TableNeedsRepair && TableObjectsReady());
     OnDeinit(REASON_REMOVE); assert(objects.empty());
 }
 void CheckReload()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     string prefix=Prefix, value=Display(); datetime last=LastValidTime[2];
     int reads=rates_calls, redraw_count=redraws;
     OnDeinit(REASON_CHARTCHANGE);
@@ -169,7 +179,7 @@ void CheckReload()
 }
 void CheckCandidatesAndValidation()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     string valid=Prefix;
     OnDeinit(REASON_CHARTCHANGE);
     // Add a later-sorted invalid candidate so backward traversal examines it first.
@@ -180,7 +190,8 @@ void CheckCandidatesAndValidation()
     assert(ObjectFind(0,invalid+"State")==-1);
     // A missing visual label is repaired using independent numerical cache.
     OnDeinit(REASON_CHARTCHANGE); ObjectDelete(0,valid+"Value2"); Flush();
-    assert(OnInit()==INIT_SUCCEEDED && Prefix==valid && Display()=="100.10000");
+    assert(OnInit()==INIT_SUCCEEDED && Prefix==valid);
+    OnTimer(); assert(Display()=="100.10000");
     string number; color tint; datetime updated;
     for(const string bad:{"", "nan", "1abc", "--1", "1.2.3", "-", ".", "1e300", "1,2"})
         assert(!ValidNumberText(bad));
@@ -196,7 +207,7 @@ void CheckCandidatesAndValidation()
 }
 void CheckMultipleInstances()
 {
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     string first=Prefix; OnDeinit(REASON_CHARTCHANGE);
     // Clone a same-settings pending instance; each claim must be independent.
     auto snapshot=objects;
@@ -208,9 +219,9 @@ void CheckMultipleInstances()
     OnDeinit(REASON_REMOVE);
     assert(OnInit()==INIT_SUCCEEDED && Prefix!=claimed);
     OnDeinit(REASON_REMOVE); assert(objects.empty());
-    Reset(); assert(OnInit()==INIT_SUCCEEDED);
+    Reset(); assert(Start()==INIT_SUCCEEDED);
     first=Prefix; OnDeinit(REASON_CHARTCHANGE);
-    InpTableX=300; assert(OnInit()==INIT_SUCCEEDED && Prefix!=first);
+    InpTableX=300; assert(Start()==INIT_SUCCEEDED && Prefix!=first);
     second=Prefix; OnDeinit(REASON_CHARTCHANGE);
     InpTableX=12; assert(OnInit()==INIT_SUCCEEDED && Prefix==first);
     OnDeinit(REASON_REMOVE); assert(ObjectFind(0,second+"State")>=0);
@@ -223,7 +234,7 @@ void CheckSelectionAndFailures()
     assert(OnInit()==INIT_SUCCEEDED && SelectedCount==0 && !timer_running && objects.empty());
     OnTimer(); assert(rates_calls==0); OnDeinit(REASON_REMOVE);
     Reset(); InpShowM1=true; InpShowM15=false; InpShowM30=false; InpShowH1=false; InpShowH4=false; InpShowMN1=true;
-    assert(OnInit()==INIT_SUCCEEDED && SelectedCount==2 && rates_calls==2);
+    assert(Start()==INIT_SUCCEEDED && SelectedCount==2 && rates_calls==2);
     assert(ObjectGetInteger(0,Prefix+"Background",OBJPROP_YSIZE)==108);
     assert(ObjectFind(0,Prefix+"Value2")==-1 && ObjectFind(0,Prefix+"Value8")>=0);
     OnDeinit(REASON_REMOVE);
@@ -237,15 +248,53 @@ void CheckSelectionAndFailures()
         if(failure==4) fail_create=true;
         if(failure==5) fail_timer=true;
         if(failure==6) drop_all_writes=true;
-        assert(OnInit()!=INIT_SUCCEEDED);
+        if(failure==4 || failure==6)
+        {
+            assert(OnInit()==INIT_SUCCEEDED); // GUI failures cannot disable line buffers
+            assert(Calculate(40,0)==40 && MiddleBuffer[39]==chart_values[0][39]);
+            int messages_before=log_messages;
+            OnTimer(); OnTimer();
+            assert(log_messages>messages_before);
+        }
+        else { assert(OnInit()!=INIT_SUCCEEDED); assert(log_messages>=1); }
         OnDeinit(REASON_INITFAILED);
         assert(objects.empty() && live_handles.empty() && !timer_running);
     }
-    Reset(); rates_ready=false; assert(OnInit()==INIT_SUCCEEDED && Display()=="Loading...");
+    Reset(); rates_ready=false; assert(Start()==INIT_SUCCEEDED && Display()=="Loading...");
     rates_ready=true; OnTimer(); assert(Display()=="100.10000");
     OnDeinit(REASON_CHARTCHANGE); fail_bands=true;
     assert(OnInit()==INIT_FAILED); OnDeinit(REASON_INITFAILED);
     assert(objects.empty() && live_handles.empty());
+}
+void CheckLightInitAndDeferredLayout()
+{
+    Reset();
+    // A chart with many drawing objects must not be enumerated one object at a time.
+    for(int i=0;i<1000;++i)
+        objects["OTHER_"+IntegerToString(i)].number[OBJPROP_TYPE]=OBJ_RECTANGLE_LABEL;
+    int reads=object_reads;
+    assert(OnInit()==INIT_SUCCEEDED);
+    assert(object_reads-reads<=8 && object_writes==0 && rates_calls==0);
+    assert(Calculate(40,0)==40); // BB is available before any table work
+    int builds_before=object_writes;
+    OnTimer(); Flush();
+    assert(object_writes>builds_before && TableObjectsReady() && TableLayoutReady());
+    int reads_before=object_reads;
+    OnDeinit(REASON_CHARTCHANGE);
+    assert(object_reads-reads_before<=8); // one handoff batch, not per-setter barriers
+    reads_before=object_reads;
+    assert(OnInit()==INIT_SUCCEEDED);
+    assert(object_reads-reads_before<=40); // enumerate labels only, ignoring drawing objects
+    OnDeinit(REASON_REMOVE);
+    assert(objects.size()==1000);
+    Reset();
+    assert(OnInit()==INIT_SUCCEEDED);
+    // An accepted but dropped layout setter is reconciled on a later timer.
+    drop_all_writes=true; OnTimer();
+    assert(LayoutCheckPending && !TableLayoutReady());
+    drop_all_writes=false; OnTimer(); OnTimer();
+    assert(TableLayoutReady() && Display()=="100.10000");
+    OnDeinit(REASON_REMOVE);
 }
 void CheckPlotBuffers()
 {
@@ -273,6 +322,6 @@ int main()
 {
     CheckSignals(); CheckLiveTable(); CheckPrices(); CheckQueuedCommands();
     CheckReload(); CheckCandidatesAndValidation(); CheckMultipleInstances();
-    CheckSelectionAndFailures(); CheckPlotBuffers();
+    CheckSelectionAndFailures(); CheckPlotBuffers(); CheckLightInitAndDeferredLayout();
     std::puts("BollingerTable full-source lifecycle, async objects, snapshot/SMA, cache and buffer checks passed.");
 }

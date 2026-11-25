@@ -31,6 +31,11 @@ one-snapshot table SMA/signals, default/custom/empty TF selection, stale markers
 and timestamps, connection/data recovery, missing/wrong-type object repair,
 cache/schema validation, invalid-candidate scanning and multiple instances.
 No table BB handles are used; one native chart handle is acquired per init.
+Version 1.07 regressions defer table creation to the timer, preserve working plot
+buffers through GUI failures, verify queued layout changes on a later timer,
+and bound synchronous object calls in init/handoff/steady refresh. A fixture with
+1,000 unrelated drawing objects checks that restore enumerates labels only.
+These call-count assertions are not native MT5 latency or rendering benchmarks.
 The adapter does not validate native iBands calculations, history downloads,
 scheduler behavior, latency or GUI rendering. Windows F7 and visual checks remain
 required; see Indicators/BollingerTable/README.md.

@@ -1,5 +1,5 @@
 #property copyright "will_santoso"
-#property version   "1.06"
+#property version   "1.07"
 #property description "Bollinger Bands with a current-candle multi-timeframe middle-band table."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -50,6 +50,8 @@ color LastValidColor[9];
 datetime LastValidTime[9];
 bool RowFresh[9];
 bool TableNeedsRepair = false;
+bool QueueLayout = false, LayoutCheckPending = false;
+datetime LastRepairLog = 0;
 
 void ConfigureTimeframes()
 {
@@ -81,25 +83,28 @@ string TableSettingsKey()
 
 bool SetText(const string name, const ENUM_OBJECT_PROPERTY_STRING property, const string value)
 {
-   if(ObjectFind(0, name) < 0) return false;
+   if(QueueLayout) return ObjectSetString(0, name, property, value);
    if(ObjectGetString(0, name, property) == value) return true;
-   // A true setter result only means queued. The synchronous getter verifies execution.
-   return ObjectSetString(0, name, property, value) && ObjectGetString(0, name, property) == value;
+   // Reconcile against actual properties on the next timer, not after every write.
+   return ObjectSetString(0, name, property, value);
 }
 
 bool SetNumber(const string name, const ENUM_OBJECT_PROPERTY_INTEGER property, const long value)
 {
-   if(ObjectFind(0, name) < 0) return false;
+   if(QueueLayout) return ObjectSetInteger(0, name, property, value);
    if(ObjectGetInteger(0, name, property) == value) return true;
-   return ObjectSetInteger(0, name, property, value) && ObjectGetInteger(0, name, property) == value;
+   return ObjectSetInteger(0, name, property, value);
 }
 
 bool EnsureObject(const string name, const ENUM_OBJECT type)
 {
-   if(ObjectFind(0, name) >= 0 && ObjectGetInteger(0, name, OBJPROP_TYPE) != type)
+   bool exists = ObjectFind(0, name) >= 0;
+   if(exists && ObjectGetInteger(0, name, OBJPROP_TYPE) != type)
+   {
       if(!ObjectDelete(0, name)) return false;
-   if(ObjectFind(0, name) < 0 && !ObjectCreate(0, name, type, 0, 0, 0)) return false;
-   return ObjectFind(0, name) >= 0 && ObjectGetInteger(0, name, OBJPROP_TYPE) == type;
+      exists = false;
+   }
+   return exists || ObjectCreate(0, name, type, 0, 0, 0);
 }
 
 bool CreateLabel(const string suffix, const string text, const int x, const int y)
@@ -111,6 +116,7 @@ bool CreateLabel(const string suffix, const string text, const int x, const int 
    ok = SetNumber(name, OBJPROP_XDISTANCE, x) && ok;
    ok = SetNumber(name, OBJPROP_YDISTANCE, y) && ok;
    ok = SetNumber(name, OBJPROP_FONTSIZE, InpFontSize) && ok;
+   ok = SetNumber(name, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS) && ok;
    ok = SetNumber(name, OBJPROP_COLOR, clrWhite) && ok;
    ok = SetNumber(name, OBJPROP_SELECTABLE, false) && ok;
    ok = SetNumber(name, OBJPROP_HIDDEN, true) && ok;
@@ -188,9 +194,9 @@ bool RestoreTable()
 {
    string pending_key = "pending|" + TableKey;
    // Backward traversal remains valid when an invalid candidate is deleted.
-   for(int n = ObjectsTotal(0, 0, -1) - 1; n >= 0; n--)
+   for(int n = ObjectsTotal(0, 0, OBJ_LABEL) - 1; n >= 0; n--)
    {
-      string name = ObjectName(0, n, 0, -1);
+      string name = ObjectName(0, n, 0, OBJ_LABEL);
       int length = StringLen(name);
       if(StringFind(name, "BBT_") != 0 || length < 5 ||
          StringSubstr(name, length - 5) != "State") continue;
@@ -206,7 +212,9 @@ bool RestoreTable()
          valid = ObjectFind(0, cache) >= 0 &&
                  DecodeRow(ObjectGetString(0, cache, OBJPROP_TEXT), values[i], tints[i], updated[i]);
       }
-      if(valid && SetText(name, OBJPROP_TEXT, "active|" + TableKey + _Symbol))
+      string claim = "active|" + TableKey + _Symbol;
+      if(valid && ObjectSetString(0, name, OBJPROP_TEXT, claim) &&
+         ObjectGetString(0, name, OBJPROP_TEXT) == claim)
       {
          Prefix = candidate;
          for(int i = 0; i < 9; i++)
@@ -219,7 +227,7 @@ bool RestoreTable()
       }
       ObjectsDeleteAll(0, candidate);
       // Continue searching: another matching pending instance may be valid.
-      int remaining = ObjectsTotal(0, 0, -1);
+      int remaining = ObjectsTotal(0, 0, OBJ_LABEL);
       if(n > remaining) n = remaining;
    }
    return false;
@@ -246,7 +254,9 @@ bool CreateTable()
    int row_height = InpFontSize * 2 + 4;
    string background = Prefix + "Background";
    if(!EnsureObject(background, OBJ_RECTANGLE_LABEL)) return false;
+   QueueLayout = true;
    bool ok = SetNumber(background, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ok = SetNumber(background, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS) && ok;
    ok = SetNumber(background, OBJPROP_XDISTANCE, InpTableX) && ok;
    ok = SetNumber(background, OBJPROP_YDISTANCE, InpTableY) && ok;
    ok = SetNumber(background, OBJPROP_XSIZE, InpFontSize * 22) && ok;
@@ -274,13 +284,14 @@ bool CreateTable()
       row++;
    }
    ok = CreateHiddenLabel("State", "active|" + TableKey + _Symbol) && ok;
+   QueueLayout = false;
+   LayoutCheckPending = true;
    TableNeedsRepair = !ok;
    return ok;
 }
 
 bool TableObjectsReady()
 {
-   if(TableNeedsRepair) return false;
    string names[5] = {"Background", "Title", "TF", "Middle", "State"};
    for(int i = 0; i < 5; i++)
       if(ObjectFind(0, Prefix + names[i]) < 0 ||
@@ -297,6 +308,39 @@ bool TableObjectsReady()
          if(ObjectFind(0, name) < 0 || ObjectGetInteger(0, name, OBJPROP_TYPE) != OBJ_LABEL) return false;
          if(k == 2 && ObjectGetInteger(0, name, OBJPROP_TIMEFRAMES) != OBJ_NO_PERIODS) return false;
       }
+   }
+   return true;
+}
+
+bool LabelLayoutReady(const string suffix, const int x, const int y)
+{
+   string name = Prefix + suffix;
+   return ObjectGetInteger(0, name, OBJPROP_XDISTANCE) == x &&
+          ObjectGetInteger(0, name, OBJPROP_YDISTANCE) == y &&
+          ObjectGetInteger(0, name, OBJPROP_TIMEFRAMES) == OBJ_ALL_PERIODS;
+}
+
+bool TableLayoutReady()
+{
+   // One deferred layout check after a build, never a readback after each setter.
+   int height = InpFontSize * 2 + 4, left = InpTableX + 10, top = InpTableY + 6;
+   int value_x = left + InpFontSize * 6;
+   string background = Prefix + "Background";
+   if(ObjectGetInteger(0, background, OBJPROP_XDISTANCE) != InpTableX ||
+      ObjectGetInteger(0, background, OBJPROP_YDISTANCE) != InpTableY ||
+      ObjectGetInteger(0, background, OBJPROP_XSIZE) != InpFontSize * 22 ||
+      ObjectGetInteger(0, background, OBJPROP_YSIZE) != height * (SelectedCount + 2) + 12 ||
+      ObjectGetInteger(0, background, OBJPROP_TIMEFRAMES) != OBJ_ALL_PERIODS ||
+      !LabelLayoutReady("Title", left, top) || !LabelLayoutReady("TF", left, top + height) ||
+      !LabelLayoutReady("Middle", value_x, top + height)) return false;
+   int row = 0;
+   for(int i = 0; i < 9; i++)
+   {
+      if(!TimeframeEnabled[i]) continue;
+      int y = top + (row + 2) * height;
+      if(!LabelLayoutReady("TF" + IntegerToString(i), left, y) ||
+         !LabelLayoutReady("Value" + IntegerToString(i), value_x, y)) return false;
+      row++;
    }
    return true;
 }
@@ -380,8 +424,27 @@ void RefreshTable()
          LastValidText[i] = text; LastValidColor[i] = tint; LastValidTime[i] = TimeLocal();
       }
    }
-   bool changed = !TableObjectsReady();
-   if(changed && !CreateTable()) return; // Retry repair on the next timer.
+   bool ready = TableObjectsReady();
+   bool deferred_failure = false;
+   if(LayoutCheckPending)
+   {
+      ready = ready && TableLayoutReady();
+      deferred_failure = !ready;
+      LayoutCheckPending = false;
+   }
+   bool changed = TableNeedsRepair || !ready;
+   if(changed)
+   {
+      // GUI failures are retried here; they must never disable BB plot buffers.
+      bool queued = CreateTable();
+      if((!queued || deferred_failure) && (LastRepairLog == 0 || TimeLocal() - LastRepairLog >= 30))
+      {
+         PrintFormat("BollingerTable: table repair incomplete; retrying (error=%d)", GetLastError());
+         LastRepairLog = TimeLocal();
+      }
+      ChartRedraw(0);
+      return; // Verify the batch on the next timer, after chart rendering.
+   }
    for(int i = 0; i < 9; i++)
    {
       if(!TimeframeEnabled[i]) continue;
@@ -389,12 +452,18 @@ void RefreshTable()
       color tint = LastValidText[i] == "" ? clrSilver : LastValidColor[i];
       bool text_changed = ObjectGetString(0, name, OBJPROP_TEXT) != text;
       bool color_changed = ObjectGetInteger(0, name, OBJPROP_COLOR) != tint;
-      if(text_changed && SetText(name, OBJPROP_TEXT, text)) changed = true;
-      if(color_changed && SetNumber(name, OBJPROP_COLOR, tint)) changed = true;
+      if(text_changed && ObjectSetString(0, name, OBJPROP_TEXT, text)) changed = true;
+      if(color_changed && ObjectSetInteger(0, name, OBJPROP_COLOR, tint)) changed = true;
       SetText(name, OBJPROP_TOOLTIP, RowTooltip(i));
       SetText(Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, EncodeRow(i));
    }
    if(changed) ChartRedraw(0);
+}
+
+int InitFailure(const string stage, const int result = INIT_FAILED)
+{
+   PrintFormat("BollingerTable: initialization failed at %s (error=%d)", stage, GetLastError());
+   return result;
 }
 
 int OnInit()
@@ -402,40 +471,42 @@ int OnInit()
    ChartHandle = INVALID_HANDLE;
    Prefix = "";
    TableNeedsRepair = false;
+   QueueLayout = false; LayoutCheckPending = false; LastRepairLog = 0;
    ArrayInitialize(LastValidTime, 0);
    for(int i = 0; i < 9; i++) { LastValidText[i] = ""; RowFresh[i] = false; }
    ConfigureTimeframes();
    TableKey = TableSettingsKey();
    if(InpPeriod < 2 || InpPeriod >= 2147483647 || !MathIsValidNumber(InpDeviation) || InpDeviation <= 0 ||
       InpTableX < 0 || InpTableY < 0 || InpFontSize < 8 || InpFontSize > 16)
-      return INIT_PARAMETERS_INCORRECT;
+      return InitFailure("inputs", INIT_PARAMETERS_INCORRECT);
    bool restored = SelectedCount > 0 && RestoreTable();
    if(!SetIndexBuffer(0, MiddleBuffer, INDICATOR_DATA) ||
       !SetIndexBuffer(1, UpperBuffer, INDICATOR_DATA) ||
-      !SetIndexBuffer(2, LowerBuffer, INDICATOR_DATA)) return INIT_FAILED;
+      !SetIndexBuffer(2, LowerBuffer, INDICATOR_DATA)) return InitFailure("plot buffers");
    ArraySetAsSeries(MiddleBuffer, false); ArraySetAsSeries(UpperBuffer, false);
    ArraySetAsSeries(LowerBuffer, false); ArraySetAsSeries(TableRates, false);
    for(int i = 0; i < 3; i++)
-      if(!PlotIndexSetInteger(i, PLOT_DRAW_BEGIN, InpPeriod - 1)) return INIT_FAILED;
+      if(!PlotIndexSetInteger(i, PLOT_DRAW_BEGIN, InpPeriod - 1)) return InitFailure("plot draw begin");
    if(!PlotIndexSetInteger(0, PLOT_LINE_COLOR, InpMiddleColor) ||
       !PlotIndexSetInteger(1, PLOT_LINE_COLOR, InpUpperColor) ||
-      !PlotIndexSetInteger(2, PLOT_LINE_COLOR, InpLowerColor)) return INIT_FAILED;
+      !PlotIndexSetInteger(2, PLOT_LINE_COLOR, InpLowerColor)) return InitFailure("plot colors");
    if(!IndicatorSetInteger(INDICATOR_DIGITS, _Digits) ||
       !IndicatorSetString(INDICATOR_SHORTNAME, "BollingerTable (" + IntegerToString(InpPeriod) + ", " +
-                         DoubleToString(InpDeviation, 2) + ")")) return INIT_FAILED;
+                         DoubleToString(InpDeviation, 2) + ")")) return InitFailure("indicator properties");
    ChartHandle = iBands(_Symbol, _Period, InpPeriod, 0, InpDeviation, InpAppliedPrice);
-   if(ChartHandle == INVALID_HANDLE) return INIT_FAILED;
+   if(ChartHandle == INVALID_HANDLE) return InitFailure("iBands handle");
    if(SelectedCount > 0)
    {
       if(!restored)
       {
          Prefix = "BBT_" + IntegerToString(ChartID()) + "_" + IntegerToString((long)GetMicrosecondCount()) + "_";
-         if(!CreateTable()) return INIT_FAILED;
+         TableNeedsRepair = true;
       }
-      else if(!TableObjectsReady() && !CreateTable()) return INIT_FAILED;
-      if(!EventSetTimer(1)) return INIT_FAILED;
-      if(!restored) RefreshTable();
+      // No table construction, history read or per-property verification in init.
+      if(!EventSetTimer(1)) return InitFailure("timer");
    }
+   PrintFormat("BollingerTable 1.07: initialized (%s, %s, %d table rows)",
+               _Symbol, EnumToString(_Period), SelectedCount);
    return INIT_SUCCEEDED;
 }
 
@@ -480,12 +551,21 @@ void OnDeinit(const int reason)
    {
       // Persist numerical cache independently of visible labels, including after
       // a failed display command. Verify all writes before retaining ownership.
-      bool saved = true;
-      for(int i = 0; i < 9; i++)
-         if(TimeframeEnabled[i]) saved = SetText(Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, EncodeRow(i)) && saved;
-      retained = reason == REASON_CHARTCHANGE && saved &&
-                 SetText(Prefix + "State", OBJPROP_TEXT, "pending|" + TableKey + _Symbol);
-      if(!retained) { ObjectsDeleteAll(0, Prefix); ChartRedraw(0); }
+      if(reason == REASON_CHARTCHANGE)
+      {
+         bool saved = true;
+         for(int i = 0; i < 9; i++)
+            if(TimeframeEnabled[i])
+               saved = ObjectSetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, EncodeRow(i)) && saved;
+         string marker = "pending|" + TableKey + _Symbol;
+         saved = ObjectSetString(0, Prefix + "State", OBJPROP_TEXT, marker) && saved;
+         // One batch barrier followed by cache reads, only for ownership handoff.
+         retained = ObjectGetString(0, Prefix + "State", OBJPROP_TEXT) == marker && saved;
+         for(int i = 0; i < 9 && retained; i++)
+            if(TimeframeEnabled[i])
+               retained = ObjectGetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT) == EncodeRow(i);
+      }
+      if(!retained && ObjectsDeleteAll(0, Prefix) > 0) ChartRedraw(0);
    }
    if(ChartHandle != INVALID_HANDLE) { IndicatorRelease(ChartHandle); ChartHandle = INVALID_HANDLE; }
 }

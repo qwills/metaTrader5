@@ -28,7 +28,7 @@ enum {
  OBJPROP_SELECTABLE, OBJPROP_HIDDEN, OBJPROP_TIMEFRAMES, OBJPROP_XSIZE, OBJPROP_YSIZE,
  OBJPROP_BGCOLOR, OBJPROP_BORDER_TYPE,
  SERIES_LASTBAR_DATE=401, SERIES_SYNCHRONIZED,
- CORNER_LEFT_UPPER=0, ANCHOR_LEFT_UPPER=0, BORDER_FLAT=0, OBJ_NO_PERIODS=0,
+ CORNER_LEFT_UPPER=0, ANCHOR_LEFT_UPPER=0, BORDER_FLAT=0, OBJ_NO_PERIODS=0, OBJ_ALL_PERIODS=0x1FFFFF,
  PLOT_DRAW_BEGIN=501, PLOT_LINE_COLOR, INDICATOR_DIGITS, INDICATOR_SHORTNAME, INDICATOR_DATA,
  TERMINAL_CONNECTED=601, TIME_DATE=1, TIME_SECONDS=2,
  INIT_SUCCEEDED=0, INIT_FAILED=-1, INIT_PARAMETERS_INCORRECT=-2,
@@ -70,6 +70,7 @@ string StringSubstr(const string &value,int start,int length=-1) {
 }
 ushort StringGetCharacter(const string &value,int index) { return value.at(index); }
 string IntegerToString(long long value) { return std::to_string(value); }
+string EnumToString(int value) { return std::to_string(value); }
 string DoubleToString(double value,int digits) {
  char buffer[400]; std::snprintf(buffer,sizeof(buffer),"%.*f",digits,value); return buffer;
 }
@@ -93,16 +94,18 @@ long GetMicrosecondCount() { return ++sequence; }
 struct FakeObject { std::map<int,string> text; std::map<int,long> number; };
 std::map<string,FakeObject> objects;
 std::vector<std::function<void()>> commands;
-int redraws=0, object_writes=0, dropped_writes=0;
+int redraws=0, object_writes=0, dropped_writes=0, object_reads=0, log_messages=0;
+int GetLastError() { return 0; }
+template<class... Args> void PrintFormat(const string &,Args...) { ++log_messages; }
 bool reject_commands=false, drop_next_write=false, drop_all_writes=false, fail_create=false;
 void Flush() { auto pending=std::move(commands); commands.clear(); for(auto &call:pending) call(); }
 void ChartRedraw(int) { Flush(); ++redraws; }
-int ObjectFind(int,const string &name) { Flush(); return objects.count(name) ? 0 : -1; }
+int ObjectFind(int,const string &name) { ++object_reads; Flush(); return objects.count(name) ? 0 : -1; }
 long ObjectGetInteger(int,const string &name,int property) {
- Flush(); auto it=objects.find(name); return it==objects.end() ? 0 : it->second.number[property];
+ ++object_reads; Flush(); auto it=objects.find(name); return it==objects.end() ? 0 : it->second.number[property];
 }
 string ObjectGetString(int,const string &name,int property) {
- Flush(); auto it=objects.find(name); return it==objects.end() ? "" : it->second.text[property];
+ ++object_reads; Flush(); auto it=objects.find(name); return it==objects.end() ? "" : it->second.text[property];
 }
 bool ObjectCreate(int,const string &name,int type,int,datetime,double) {
  if(fail_create) return false;
@@ -135,10 +138,18 @@ bool ObjectSetInteger(int,const string &name,int property,long value) {
 bool ObjectDelete(int,const string &name) {
  commands.push_back([name] { objects.erase(name); }); return true;
 }
-int ObjectsTotal(int,int,int) { Flush(); return static_cast<int>(objects.size()); }
-string ObjectName(int,int index,int,int) {
- Flush(); if(index<0 || index>=static_cast<int>(objects.size())) return "";
- auto it=objects.begin(); std::advance(it,index); return it->first;
+int ObjectsTotal(int,int,int type) {
+ ++object_reads; Flush(); int count=0;
+ for(const auto &entry:objects)
+  if(type<0 || entry.second.number.at(OBJPROP_TYPE)==type) ++count;
+ return count;
+}
+string ObjectName(int,int index,int,int type) {
+ ++object_reads; Flush();
+ for(const auto &entry:objects) {
+  if(type>=0 && entry.second.number.at(OBJPROP_TYPE)!=type) continue;
+  if(index--==0) return entry.first;
+ } return "";
 }
 int ObjectsDeleteAll(int,const string &prefix) {
  Flush(); int count=0;

@@ -1,4 +1,4 @@
-# BollingerTable 1.06
+# BollingerTable 1.07
 
 Indikator MT5 dengan tiga garis Bollinger Bands pada timeframe chart dan tabel
 TF/Middle BB untuk simbol chart. Default: periode **20**, deviasi **2**, shift
@@ -14,7 +14,9 @@ instance, gunakan posisi berbeda agar tabel tidak bertumpuk. Judul hanya `BB`.
 
 Tabel menggunakan **current candle (shift 0)**, diperbarui setiap satu detik;
 Close berarti harga terakhir candle berjalan. Garis chart diperbarui per tick.
-Timer bukan jaminan latensi maksimal satu detik saat terminal sibuk.
+Timer bukan jaminan latensi maksimal satu detik saat terminal sibuk. Pada pemasangan
+baru, tabel dibuat oleh timer pertama (sekitar satu detik setelah init); garis
+BB tidak menunggu pembuatan tabel.
 
 | Warna nilai Middle BB | Kondisi |
 | --- | --- |
@@ -70,13 +72,24 @@ pencarian berlanjut ke kandidat lain. Metadata schema tidak mengikuti versi rili
   yang hilang dibuat kembali menggunakan cache; objek lain di chart tidak dihapus.
   Perbaikan layout yang belum selesai dicoba lagi pada timer berikutnya.
 - Setter objek yang mengembalikan true baru menjamin perintah masuk antrean.
-  Getter sinkron memverifikasi eksekusinya; perubahan gagal dicoba lagi. Pemeriksaan
-  ini dibatasi pada tabel kecil dan timer, bukan semua objek pada setiap tick.
+  Perubahan layout dikirim secara berkelompok tanpa getter setelah setiap setter.
+  Hasilnya diperiksa pada timer berikutnya; teks/warna dibandingkan dengan properti
+  aktual setiap refresh sehingga perintah yang gagal dieksekusi tetap dicoba lagi.
+  Verifikasi cache saat handoff deinit juga dilakukan sesudah seluruh batch dikirim.
+- Init tidak membuat tabel atau membaca histori tabel. Pemulihan cache hanya
+  memindai objek bertipe label, bukan seluruh gambar chart. Kegagalan GUI ditangani
+  timer dan tidak menggagalkan indikator/garis BB. Ini memperbaiki regresi 1.06,
+  yang terlalu banyak melakukan verifikasi sinkron dan menggagalkan init jika
+  layout belum siap. Angka jumlah panggilan dari adapter bukan pengukuran latensi MT5.
 - Redraw hanya dipaksa saat teks/warna berubah, objek diperbaiki, atau tabel
   dihapus. Tooltip/timestamp/cache saja tidak memaksa redraw. MT5 tetap dapat
   melakukan repaint chart saat timeframe berubah; ini bukan jaminan tanpa repaint.
 - Timer diaktifkan di `OnInit`, diproses di `OnTimer`, dimatikan di `OnDeinit`.
   Handle chart dilepas setelah deinit. Objek dibersihkan saat dilepas atau init gagal.
+
+Experts/Journal mencatat `BollingerTable 1.07: initialized` ketika init berhasil.
+Kegagalan init mencatat tahap yang gagal dan error terminal. Perbaikan tabel
+yang belum selesai dicatat maksimal satu kali setiap 30 detik, sambil dicoba ulang.
 
 ## Instalasi dan validasi
 
@@ -90,7 +103,10 @@ Jalankan `python3 tests/check_bollinger_table.py` dari root workspace. Runner
 mengompilasi **seluruh source** lewat adapter C++ dan antrean objek simulasi:
 init/deinit/timer, kegagalan init, salinan buffer, pemilihan timeframe, SMA tujuh
 applied price, deret datar, snapshot/data gagal, status cache, beberapa instance,
-label hilang, cache rusak dan perintah diterima tetapi gagal dieksekusi.
+label hilang, cache rusak dan perintah diterima tetapi gagal dieksekusi. Regresi
+1.07 memeriksa bahwa kegagalan GUI tidak menonaktifkan garis, layout diverifikasi
+pada timer berikutnya, dan jumlah panggilan sinkron init/handoff/refresh dibatasi
+bahkan dengan 1.000 objek gambar lain di chart simulasi.
 Adapter ini **bukan compiler MQL5** dan tidak membuktikan rendering, scheduler,
 latensi atau kalkulasi `iBands` native di build terminal pengguna.
 
