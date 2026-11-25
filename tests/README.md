@@ -12,7 +12,7 @@ python3 tests/check_autofibo_analysis.py
 python3 tests/check_manualfibo.py
 ```
 
-The first three runners exercise library assertions from fixtures/. The AutoFibo
+The Fibonacci, Swing and Structure runners exercise library assertions from fixtures/. The AutoFibo
 and manualFibo runners check controller behavior and GUI contracts with fake MT5 APIs. Shared
 fake APIs live in mt5_adapter.py and C++ array adaptation in check_swing_detector.py; the fixtures
 have no standalone script entry point and are excluded from release packages.
@@ -21,20 +21,19 @@ A C++17 compiler is required. Tests use AddressSanitizer/UndefinedBehaviorSaniti
 and temporary build directories. These adapters are not MQL5 compilers;
 MetaEditor F7, chart rendering and Windows CMD execution need Windows validation.
 
-BollingerTable checks exercise its production signal classifier and table refresh
-with fake APIs: shift 0/1 reads, cross priority, equality, moving middle values,
-default/custom/empty timeframe selection and skipped reads for disabled rows,
-intrabar changes, unchanged-display command suppression, rollover rejection and
-data/command-failure recovery. They do not validate native iBands calculations,
-plot buffers, history downloads or chart rendering.
-Reload checks also cover retaining table objects/values on chart changes,
-claiming multiple pending instances separately, scoped cleanup, and rejecting
-tables from other symbols/settings or with missing rows. Native handles are
-reacquired on initialization; simulated reload does not prove MT5 cache behavior.
-Warm-up regressions preserve last valid values/colors when native data is not
-ready after restore, distinguish initial loading from temporary read failures,
-and retain the latest valid data across failed chart commands. Tooltips distinguish
-live values from cached values awaiting an update.
+BollingerTable compiles the entire production indicator through
+bollinger_table_adapter.py and fixtures/bollinger_table_checks.cpp, including
+OnInit, CreateTable, OnCalculate, OnTimer and OnDeinit. Its queued object model
+separates command acceptance from execution and can drop accepted writes.
+Checks cover init failure cleanup, full/incremental/reset plot-buffer copies,
+partial copy rejection, all seven applied prices, flat-series numerical stability,
+one-snapshot table SMA/signals, default/custom/empty TF selection, stale markers
+and timestamps, connection/data recovery, missing/wrong-type object repair,
+cache/schema validation, invalid-candidate scanning and multiple instances.
+No table BB handles are used; one native chart handle is acquired per init.
+The adapter does not validate native iBands calculations, history downloads,
+scheduler behavior, latency or GUI rendering. Windows F7 and visual checks remain
+required; see Indicators/BollingerTable/README.md.
 
 manualFibo execution tests use manualfibo_trade_adapter.py, a fake broker that
 records requests without network access. They cover batch preflight/margin,
