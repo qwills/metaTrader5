@@ -1,5 +1,5 @@
 #property copyright "will_santoso"
-#property version   "1.07"
+#property version   "1.08"
 #property description "Bollinger Bands with a current-candle multi-timeframe middle-band table."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -22,8 +22,8 @@ input ENUM_APPLIED_PRICE InpAppliedPrice = PRICE_CLOSE; // BB applied price
 input color              InpUpperColor   = clrRed;      // Upper BB line color
 input color              InpMiddleColor  = clrDodgerBlue;// Middle BB line color
 input color              InpLowerColor   = clrGreen;    // Lower BB line color
-input int                InpTableX       = 12;          // Table left offset (pixels)
-input int                InpTableY       = 28;          // Table top offset (pixels)
+input int                InpTableX       = 20;          // Table left offset (pixels)
+input int                InpTableY       = 125;         // Table top offset (pixels)
 input int                InpFontSize     = 10;          // Table font size (8..16)
 input bool               InpShowM1       = false;       // Show M1
 input bool               InpShowM5       = false;       // Show M5
@@ -50,8 +50,47 @@ color LastValidColor[9];
 datetime LastValidTime[9];
 bool RowFresh[9];
 bool TableNeedsRepair = false;
-bool QueueLayout = false, LayoutCheckPending = false;
+bool LayoutCheckPending = false;
 datetime LastRepairLog = 0;
+bool RestorePending = false, RestoreRetry = false;
+datetime NextAuditTime = 0;
+string QueuedText[9], QueuedTooltip[9], QueuedCache[9];
+color QueuedColor[9];
+bool QueuedColorKnown[9];
+
+string LeaseKey(const string prefix) { return prefix + "Released"; }
+
+bool SetLease(const string prefix, const double released)
+{
+   string key = LeaseKey(prefix);
+   // Temporary terminal globals are independent of the graphical command queue.
+   if(!GlobalVariableCheck(key) && !GlobalVariableTemp(key)) return false;
+   return GlobalVariableSet(key, released) > 0;
+}
+
+void DeleteTable(const string prefix)
+{
+   // Queue only our known objects. Do not flush the chart with ObjectsDeleteAll.
+   string names[5] = {"Background", "Title", "TF", "Middle", "State"};
+   for(int i = 0; i < 5; i++) ObjectDelete(0, prefix + names[i]);
+   for(int i = 0; i < 9; i++)
+   {
+      string number = IntegerToString(i);
+      ObjectDelete(0, prefix + "TF" + number);
+      ObjectDelete(0, prefix + "Value" + number);
+      ObjectDelete(0, prefix + "Cache" + number);
+   }
+   GlobalVariableDel(LeaseKey(prefix));
+}
+
+void ForgetQueuedDisplay()
+{
+   for(int i = 0; i < 9; i++)
+   {
+      QueuedText[i] = ""; QueuedTooltip[i] = ""; QueuedCache[i] = "";
+      QueuedColorKnown[i] = false;
+   }
+}
 
 void ConfigureTimeframes()
 {
@@ -83,16 +122,11 @@ string TableSettingsKey()
 
 bool SetText(const string name, const ENUM_OBJECT_PROPERTY_STRING property, const string value)
 {
-   if(QueueLayout) return ObjectSetString(0, name, property, value);
-   if(ObjectGetString(0, name, property) == value) return true;
-   // Reconcile against actual properties on the next timer, not after every write.
    return ObjectSetString(0, name, property, value);
 }
 
 bool SetNumber(const string name, const ENUM_OBJECT_PROPERTY_INTEGER property, const long value)
 {
-   if(QueueLayout) return ObjectSetInteger(0, name, property, value);
-   if(ObjectGetInteger(0, name, property) == value) return true;
    return ObjectSetInteger(0, name, property, value);
 }
 
@@ -192,7 +226,9 @@ bool DecodeRow(const string text, string &value, color &tint, datetime &updated)
 
 bool RestoreTable()
 {
+   RestoreRetry = false;
    string pending_key = "pending|" + TableKey;
+   string active_key = "active|" + TableKey;
    // Backward traversal remains valid when an invalid candidate is deleted.
    for(int n = ObjectsTotal(0, 0, OBJ_LABEL) - 1; n >= 0; n--)
    {
@@ -201,10 +237,15 @@ bool RestoreTable()
       if(StringFind(name, "BBT_") != 0 || length < 5 ||
          StringSubstr(name, length - 5) != "State") continue;
       string marker = ObjectGetString(0, name, OBJPROP_TEXT);
-      if(StringFind(marker, pending_key) != 0) continue;
       string candidate = StringSubstr(name, 0, length - 5);
+      bool legacy_pending = StringFind(marker, pending_key) == 0;
+      string lease = LeaseKey(candidate);
+      bool has_lease = GlobalVariableCheck(lease);
+      bool released = has_lease && GlobalVariableGet(lease) == 1;
+      if(!legacy_pending && !(released && StringFind(marker, active_key) == 0)) continue;
+      if(legacy_pending && has_lease && !released) continue;
       string values[9]; color tints[9]; datetime updated[9];
-      bool valid = marker == pending_key + _Symbol;
+      bool valid = marker == (legacy_pending ? pending_key : active_key) + _Symbol;
       for(int i = 0; i < 9 && valid; i++)
       {
          if(!TimeframeEnabled[i]) continue;
@@ -212,10 +253,17 @@ bool RestoreTable()
          valid = ObjectFind(0, cache) >= 0 &&
                  DecodeRow(ObjectGetString(0, cache, OBJPROP_TEXT), values[i], tints[i], updated[i]);
       }
-      string claim = "active|" + TableKey + _Symbol;
-      if(valid && ObjectSetString(0, name, OBJPROP_TEXT, claim) &&
-         ObjectGetString(0, name, OBJPROP_TEXT) == claim)
+      // Claim one released instance. Live same-settings instances keep lease=0.
+      if(valid && legacy_pending && !has_lease && !SetLease(candidate, 1))
+      { RestoreRetry = true; return false; }
+      if(valid)
       {
+         if(!GlobalVariableSetOnCondition(lease, 0, 1))
+         {
+            if(GlobalVariableCheck(lease) && GlobalVariableGet(lease) == 1)
+            { RestoreRetry = true; return false; }
+            continue; // another instance claimed it; never delete its table
+         }
          Prefix = candidate;
          for(int i = 0; i < 9; i++)
          {
@@ -225,7 +273,7 @@ bool RestoreTable()
          }
          return true;
       }
-      ObjectsDeleteAll(0, candidate);
+      DeleteTable(candidate);
       // Continue searching: another matching pending instance may be valid.
       int remaining = ObjectsTotal(0, 0, OBJ_LABEL);
       if(n > remaining) n = remaining;
@@ -254,7 +302,6 @@ bool CreateTable()
    int row_height = InpFontSize * 2 + 4;
    string background = Prefix + "Background";
    if(!EnsureObject(background, OBJ_RECTANGLE_LABEL)) return false;
-   QueueLayout = true;
    bool ok = SetNumber(background, OBJPROP_CORNER, CORNER_LEFT_UPPER);
    ok = SetNumber(background, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS) && ok;
    ok = SetNumber(background, OBJPROP_XDISTANCE, InpTableX) && ok;
@@ -284,7 +331,6 @@ bool CreateTable()
       row++;
    }
    ok = CreateHiddenLabel("State", "active|" + TableKey + _Symbol) && ok;
-   QueueLayout = false;
    LayoutCheckPending = true;
    TableNeedsRepair = !ok;
    return ok;
@@ -413,7 +459,22 @@ bool ReadTableRow(const int row, string &text, color &tint)
 
 void RefreshTable()
 {
-   if(SelectedCount == 0 || Prefix == "") return;
+   if(SelectedCount == 0) return;
+   if(RestorePending)
+   {
+      // Restore only after init has finished; a timeframe switch never waits on UI.
+      RestorePending = false;
+      if(!RestoreTable())
+      {
+         if(RestoreRetry) { RestorePending = true; return; }
+         Prefix = "BBT_" + IntegerToString(ChartID()) + "_" + IntegerToString((long)GetMicrosecondCount()) + "_";
+         SetLease(Prefix, 0);
+         TableNeedsRepair = true;
+      }
+      ForgetQueuedDisplay();
+      NextAuditTime = 0;
+   }
+   if(Prefix == "") return;
    for(int i = 0; i < 9; i++)
    {
       if(!TimeframeEnabled[i]) continue;
@@ -424,7 +485,9 @@ void RefreshTable()
          LastValidText[i] = text; LastValidColor[i] = tint; LastValidTime[i] = TimeLocal();
       }
    }
-   bool ready = TableObjectsReady();
+   datetime now = TimeLocal();
+   bool audit = LayoutCheckPending || TableNeedsRepair || now >= NextAuditTime || now < NextAuditTime - 5;
+   bool ready = !audit || TableObjectsReady();
    bool deferred_failure = false;
    if(LayoutCheckPending)
    {
@@ -432,11 +495,31 @@ void RefreshTable()
       deferred_failure = !ready;
       LayoutCheckPending = false;
    }
+   if(audit)
+   {
+      // Reconcile dropped commands/external edits in a bounded five-second audit.
+      // Ordinary one-second refreshes need no ObjectFind/Get/ObjectsTotal calls.
+      if(ready)
+      {
+         for(int i = 0; i < 9; i++)
+         {
+            if(!TimeframeEnabled[i]) continue;
+            string name = Prefix + "Value" + IntegerToString(i);
+            QueuedText[i] = ObjectGetString(0, name, OBJPROP_TEXT);
+            QueuedColor[i] = (color)ObjectGetInteger(0, name, OBJPROP_COLOR);
+            QueuedColorKnown[i] = true;
+            QueuedTooltip[i] = ObjectGetString(0, name, OBJPROP_TOOLTIP);
+            QueuedCache[i] = ObjectGetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT);
+         }
+      }
+      NextAuditTime = now + 5;
+   }
    bool changed = TableNeedsRepair || !ready;
    if(changed)
    {
       // GUI failures are retried here; they must never disable BB plot buffers.
       bool queued = CreateTable();
+      ForgetQueuedDisplay();
       if((!queued || deferred_failure) && (LastRepairLog == 0 || TimeLocal() - LastRepairLog >= 30))
       {
          PrintFormat("BollingerTable: table repair incomplete; retrying (error=%d)", GetLastError());
@@ -450,12 +533,15 @@ void RefreshTable()
       if(!TimeframeEnabled[i]) continue;
       string name = Prefix + "Value" + IntegerToString(i), text = RowText(i);
       color tint = LastValidText[i] == "" ? clrSilver : LastValidColor[i];
-      bool text_changed = ObjectGetString(0, name, OBJPROP_TEXT) != text;
-      bool color_changed = ObjectGetInteger(0, name, OBJPROP_COLOR) != tint;
-      if(text_changed && ObjectSetString(0, name, OBJPROP_TEXT, text)) changed = true;
-      if(color_changed && ObjectSetInteger(0, name, OBJPROP_COLOR, tint)) changed = true;
-      SetText(name, OBJPROP_TOOLTIP, RowTooltip(i));
-      SetText(Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, EncodeRow(i));
+      if(QueuedText[i] != text && ObjectSetString(0, name, OBJPROP_TEXT, text))
+      { QueuedText[i] = text; changed = true; }
+      if((!QueuedColorKnown[i] || QueuedColor[i] != tint) && ObjectSetInteger(0, name, OBJPROP_COLOR, tint))
+      { QueuedColor[i] = tint; QueuedColorKnown[i] = true; changed = true; }
+      string tooltip = RowTooltip(i), checkpoint = EncodeRow(i);
+      if(QueuedTooltip[i] != tooltip && ObjectSetString(0, name, OBJPROP_TOOLTIP, tooltip))
+         QueuedTooltip[i] = tooltip;
+      if(QueuedCache[i] != checkpoint && ObjectSetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, checkpoint))
+         QueuedCache[i] = checkpoint;
    }
    if(changed) ChartRedraw(0);
 }
@@ -471,15 +557,16 @@ int OnInit()
    ChartHandle = INVALID_HANDLE;
    Prefix = "";
    TableNeedsRepair = false;
-   QueueLayout = false; LayoutCheckPending = false; LastRepairLog = 0;
+   LayoutCheckPending = false; LastRepairLog = 0;
+   RestorePending = false; RestoreRetry = false; NextAuditTime = 0; ForgetQueuedDisplay();
    ArrayInitialize(LastValidTime, 0);
    for(int i = 0; i < 9; i++) { LastValidText[i] = ""; RowFresh[i] = false; }
    ConfigureTimeframes();
    TableKey = TableSettingsKey();
+   RestorePending = SelectedCount > 0;
    if(InpPeriod < 2 || InpPeriod >= 2147483647 || !MathIsValidNumber(InpDeviation) || InpDeviation <= 0 ||
       InpTableX < 0 || InpTableY < 0 || InpFontSize < 8 || InpFontSize > 16)
       return InitFailure("inputs", INIT_PARAMETERS_INCORRECT);
-   bool restored = SelectedCount > 0 && RestoreTable();
    if(!SetIndexBuffer(0, MiddleBuffer, INDICATOR_DATA) ||
       !SetIndexBuffer(1, UpperBuffer, INDICATOR_DATA) ||
       !SetIndexBuffer(2, LowerBuffer, INDICATOR_DATA)) return InitFailure("plot buffers");
@@ -497,15 +584,10 @@ int OnInit()
    if(ChartHandle == INVALID_HANDLE) return InitFailure("iBands handle");
    if(SelectedCount > 0)
    {
-      if(!restored)
-      {
-         Prefix = "BBT_" + IntegerToString(ChartID()) + "_" + IntegerToString((long)GetMicrosecondCount()) + "_";
-         TableNeedsRepair = true;
-      }
-      // No table construction, history read or per-property verification in init.
+      // No graphical API, history read or restoration in init.
       if(!EventSetTimer(1)) return InitFailure("timer");
    }
-   PrintFormat("BollingerTable 1.07: initialized (%s, %s, %d table rows)",
+   PrintFormat("BollingerTable 1.08: initialized (%s, %s, %d table rows)",
                _Symbol, EnumToString(_Period), SelectedCount);
    return INIT_SUCCEEDED;
 }
@@ -546,26 +628,18 @@ void OnTimer() { RefreshTable(); }
 void OnDeinit(const int reason)
 {
    EventKillTimer();
-   bool retained = false;
-   if(Prefix != "")
+   if(reason == REASON_CHARTCHANGE)
    {
-      // Persist numerical cache independently of visible labels, including after
-      // a failed display command. Verify all writes before retaining ownership.
-      if(reason == REASON_CHARTCHANGE)
-      {
-         bool saved = true;
-         for(int i = 0; i < 9; i++)
-            if(TimeframeEnabled[i])
-               saved = ObjectSetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT, EncodeRow(i)) && saved;
-         string marker = "pending|" + TableKey + _Symbol;
-         saved = ObjectSetString(0, Prefix + "State", OBJPROP_TEXT, marker) && saved;
-         // One batch barrier followed by cache reads, only for ownership handoff.
-         retained = ObjectGetString(0, Prefix + "State", OBJPROP_TEXT) == marker && saved;
-         for(int i = 0; i < 9 && retained; i++)
-            if(TimeframeEnabled[i])
-               retained = ObjectGetString(0, Prefix + "Cache" + IntegerToString(i), OBJPROP_TEXT) == EncodeRow(i);
-      }
-      if(!retained && ObjectsDeleteAll(0, Prefix) > 0) ChartRedraw(0);
+      // No graphical calls, reads, deletion or redraw during a timeframe change.
+      // The last periodic checkpoint is validated by the next instance's timer.
+      if(Prefix != "" && !SetLease(Prefix, 1))
+         PrintFormat("BollingerTable: could not release table checkpoint (error=%d)", GetLastError());
+   }
+   else
+   {
+      // Removal/init failure before the first timer still owns one released table.
+      if(Prefix == "" && RestorePending) RestoreTable();
+      if(Prefix != "") DeleteTable(Prefix);
    }
    if(ChartHandle != INVALID_HANDLE) { IndicatorRelease(ChartHandle); ChartHandle = INVALID_HANDLE; }
 }

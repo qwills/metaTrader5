@@ -36,6 +36,13 @@ buffers through GUI failures, verify queued layout changes on a later timer,
 and bound synchronous object calls in init/handoff/steady refresh. A fixture with
 1,000 unrelated drawing objects checks that restore enumerates labels only.
 These call-count assertions are not native MT5 latency or rendering benchmarks.
+Version 1.08 adds temporary terminal-global ownership claims, deferred restore,
+asynchronous scoped deletion and display-command caching with five-second audits.
+Tests assert zero graphical reads in init/ordinary refresh, zero graphical calls
+in timeframe-change deinit, and zero ObjectsDeleteAll calls. Regressions cover rapid
+changes before the timer, rejected claims, pending legacy markers and delayed
+recovery from accepted-but-dropped writes. The fake UI executes queued commands
+between event handlers; terminal globals do not flush that queue.
 The adapter does not validate native iBands calculations, history downloads,
 scheduler behavior, latency or GUI rendering. Windows F7 and visual checks remain
 required; see Indicators/BollingerTable/README.md.

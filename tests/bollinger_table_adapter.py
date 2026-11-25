@@ -91,10 +91,28 @@ long ChartID() { return 123; }
 long sequence=0;
 long GetMicrosecondCount() { return ++sequence; }
 
+std::map<string,double> temporary_globals;
+bool reject_claims=false;
+bool GlobalVariableCheck(const string &key) { return temporary_globals.count(key)>0; }
+bool GlobalVariableTemp(const string &key) { temporary_globals.emplace(key,0); return true; }
+datetime GlobalVariableSet(const string &key,double value) {
+ if(!temporary_globals.count(key)) return 0;
+ temporary_globals[key]=value; return wall_time;
+}
+double GlobalVariableGet(const string &key) { return temporary_globals.at(key); }
+bool GlobalVariableDel(const string &key) { return temporary_globals.erase(key)>0; }
+bool GlobalVariableSetOnCondition(const string &key,double next,double expected) {
+ if(reject_claims) return false;
+ auto it=temporary_globals.find(key);
+ if(it==temporary_globals.end() || it->second!=expected) return false;
+ it->second=next; return true;
+}
+
 struct FakeObject { std::map<int,string> text; std::map<int,long> number; };
 std::map<string,FakeObject> objects;
 std::vector<std::function<void()>> commands;
 int redraws=0, object_writes=0, dropped_writes=0, object_reads=0, log_messages=0;
+int delete_all_calls=0, delete_calls=0;
 int GetLastError() { return 0; }
 template<class... Args> void PrintFormat(const string &,Args...) { ++log_messages; }
 bool reject_commands=false, drop_next_write=false, drop_all_writes=false, fail_create=false;
@@ -136,6 +154,7 @@ bool ObjectSetInteger(int,const string &name,int property,long value) {
  }); return true;
 }
 bool ObjectDelete(int,const string &name) {
+ ++delete_calls;
  commands.push_back([name] { objects.erase(name); }); return true;
 }
 int ObjectsTotal(int,int,int type) {
@@ -152,6 +171,7 @@ string ObjectName(int,int index,int,int type) {
  } return "";
 }
 int ObjectsDeleteAll(int,const string &prefix) {
+ ++delete_all_calls;
  Flush(); int count=0;
  for(auto it=objects.begin();it!=objects.end();)
   if(it->first.find(prefix)==0) { it=objects.erase(it); ++count; } else ++it;
